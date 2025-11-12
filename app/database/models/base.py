@@ -139,9 +139,7 @@ class Fighter(BaseModel):
         if born.tzinfo is None:
             born = born.replace(tzinfo=timezone.utc)
         return (
-            today.year
-            - born.year
-            - ((today.month, today.day) < (born.month, born.day))
+            today.year - born.year - ((today.month, today.day) < (born.month, born.day))
         )
 
     @property
@@ -205,7 +203,7 @@ class Fight(BaseModel):
     fight_type = Column(
         String(50), nullable=False, default="standard"
     )  # main, co-main, prelim, standard
-    weight_class = Column(String(50), nullable=True)  # Categoria da luta
+    weight_class = Column(String(100), nullable=True)  # Categoria da luta
     rounds = Column(Integer, nullable=False, default=3)  # 3 ou 5 rounds
     is_title_fight = Column(Boolean, default=False, nullable=False)
 
