@@ -159,12 +159,10 @@ async function loadRecentSimulations() {
 async function loadRankings() {
     try {
         const organization = document.getElementById("rankingOrg").value;
-        const gender = document.getElementById("rankingGender").value;
         const weight_class = document.getElementById("rankingWeight").value;
 
-        const params = { limit: 10 };
+        const params = { limit: 15 };
         if (organization) params.last_organization_fight = organization;
-        if (gender) params.gender = gender;
         if (weight_class) params.actual_weight_class = weight_class;
 
         const fighters = await api.getTopFighters(params);

@@ -15,51 +15,20 @@
                     <p class="tagline">MMA Fighter Database & Simulator</p>
                 </div>
                 <div class="nav-menu" id="navMenu">
-                    <a
-                        href="#"
-                        onclick="showSection('home')"
-                        class="nav-link active"
-                        >Home</a
-                    >
-                    <a
-                        href="#"
-                        onclick="showSection('fighters')"
-                        class="nav-link"
-                        >Lutadores</a
-                    >
-                    <a
-                        href="#"
-                        onclick="showSection('simulate')"
-                        class="nav-link"
-                        >Simulador</a
-                    >
-                    <a
-                        href="#"
-                        onclick="showSection('rankings')"
-                        class="nav-link"
-                        >Rankings</a
-                    >
+                    <a href="#home" class="nav-link active">Home</a>
+                    <a href="#fighters" class="nav-link">Lutadores</a>
+                    <a href="#simulate" class="nav-link">Simulador</a>
+                    <a href="#events" class="nav-link">Eventos</a>
+                    <a href="#rankings" class="nav-link">Rankings</a>
                 </div>
                 <div class="nav-auth" id="navAuth">
-                    <button
-                        onclick="showSection('login')"
-                        class="btn btn-outline"
-                        id="loginBtn"
-                    >
-                        Login
-                    </button>
-                    <button
-                        onclick="showSection('register')"
-                        class="btn btn-primary"
-                        id="registerBtn"
-                    >
+                    <button class="btn btn-outline" id="loginBtn">Login</button>
+                    <button class="btn btn-primary" id="registerBtn">
                         Cadastrar
                     </button>
                     <div class="user-menu" id="userMenu" style="display: none">
                         <span id="userName">Usuário</span>
-                        <button onclick="logout()" class="btn btn-outline">
-                            Sair
-                        </button>
+                        <button class="btn btn-outline">Sair</button>
                     </div>
                 </div>
             </div>
@@ -91,16 +60,10 @@
                             </div>
                         </div>
                         <div class="hero-actions">
-                            <button
-                                onclick="showSection('fighters')"
-                                class="btn btn-primary btn-lg"
-                            >
+                            <button class="btn btn-primary btn-lg">
                                 Ver Lutadores
                             </button>
-                            <button
-                                onclick="showSection('simulate')"
-                                class="btn btn-secondary btn-lg"
-                            >
+                            <button class="btn btn-secondary btn-lg">
                                 Simular Luta
                             </button>
                         </div>
@@ -113,7 +76,7 @@
                 <div class="container-small">
                     <div class="card">
                         <h2>Login</h2>
-                        <form id="loginForm" onsubmit="handleLogin(event)">
+                        <form id="loginForm">
                             <div class="form-group">
                                 <label for="loginEmail">Email</label>
                                 <input type="email" id="loginEmail" required />
@@ -129,7 +92,6 @@
                                     <button
                                         type="button"
                                         class="password-toggle"
-                                        onclick="togglePasswordVisibility('loginPassword')"
                                         aria-label="Mostrar/Ocultar senha"
                                     >
                                         👁️
@@ -146,11 +108,7 @@
 
                         <div class="divider">ou</div>
 
-                        <button
-                            type="button"
-                            onclick="handleGoogleLogin()"
-                            class="btn btn-google btn-block"
-                        >
+                        <button type="button" class="btn btn-google btn-block">
                             <svg
                                 width="20"
                                 height="20"
@@ -179,9 +137,7 @@
 
                         <p class="text-center">
                             Não tem conta?
-                            <a href="#" onclick="showSection('register')"
-                                >Cadastre-se</a
-                            >
+                            <a href="#register">Cadastre-se</a>
                         </p>
                     </div>
                 </div>
@@ -192,10 +148,7 @@
                 <div class="container-small">
                     <div class="card">
                         <h2>Cadastro</h2>
-                        <form
-                            id="registerForm"
-                            onsubmit="handleRegister(event)"
-                        >
+                        <form id="registerForm">
                             <div class="form-group">
                                 <label for="registerName">Nome Completo</label>
                                 <input type="text" id="registerName" required />
@@ -210,20 +163,18 @@
                             </div>
                             <div class="form-group">
                                 <label for="registerPassword"
-                                    >Senha (6-72 caracteres)</label
+                                    >Senha (mínimo 6 caracteres)</label
                                 >
                                 <div class="password-input-wrapper">
                                     <input
                                         type="password"
                                         id="registerPassword"
                                         minlength="6"
-                                        maxlength="72"
                                         required
                                     />
                                     <button
                                         type="button"
                                         class="password-toggle"
-                                        onclick="togglePasswordVisibility('registerPassword')"
                                         aria-label="Mostrar/Ocultar senha"
                                     >
                                         👁️
@@ -246,9 +197,7 @@
                         </form>
                         <p class="text-center">
                             Já tem conta?
-                            <a href="#" onclick="showSection('login')"
-                                >Faça login</a
-                            >
+                            <a href="#login">Faça login</a>
                         </p>
                     </div>
                 </div>
@@ -259,11 +208,7 @@
                 <div class="container">
                     <div class="section-header">
                         <h2>Lutadores</h2>
-                        <button
-                            onclick="showCreateFighter()"
-                            class="btn btn-primary"
-                            id="createFighterBtn"
-                        >
+                        <button class="btn btn-primary" id="createFighterBtn">
                             + Criar Lutador
                         </button>
                     </div>
@@ -274,9 +219,8 @@
                             type="text"
                             id="searchName"
                             placeholder="Buscar por nome..."
-                            onkeyup="searchFighters()"
                         />
-                        <select id="filterOrg" onchange="searchFighters()">
+                        <select id="filterOrg">
                             <option value="">Todas Organizações</option>
                             <option value="UFC">UFC</option>
                             <option value="Bellator">Bellator</option>
@@ -286,12 +230,12 @@
                             <option value="PFL">PFL</option>
                             <option value="Rizin">Rizin</option>
                         </select>
-                        <select id="filterGender" onchange="searchFighters()">
+                        <select id="filterGender">
                             <option value="">Masculino e Feminino</option>
                             <option value="male">Masculino</option>
                             <option value="female">Feminino</option>
                         </select>
-                        <select id="filterWeight" onchange="searchFighters()">
+                        <select id="filterWeight">
                             <option value="">Todas Categorias</option>
                             <optgroup label="Masculino">
                                 <option value="Flyweight">Peso-Mosca</option>
@@ -368,7 +312,6 @@
                                 </select>
                             </div>
                             <button
-                                onclick="runSimulation()"
                                 class="btn btn-primary btn-lg"
                                 id="simulateBtn"
                             >
@@ -413,12 +356,148 @@
                 </div>
             </section>
 
+            <!-- Events Section -->
+            <section id="eventsSection" class="section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2>📅 Eventos de MMA</h2>
+                        <button
+                            class="btn btn-primary btn-lg"
+                            id="createNewEventBtn"
+                        >
+                            ➕ Criar Novo Evento
+                        </button>
+                    </div>
+
+                    <div class="events-filters">
+                        <select id="eventStatus">
+                            <option value="">Todos os Status</option>
+                            <option value="scheduled">Agendados</option>
+                            <option value="completed">Concluídos</option>
+                        </select>
+                        <select id="eventOrg">
+                            <option value="">Todas Organizações</option>
+                            <option value="UFC">UFC</option>
+                            <option value="Bellator">Bellator</option>
+                            <option value="ONE Championship">
+                                ONE Championship
+                            </option>
+                            <option value="PFL">PFL</option>
+                        </select>
+                    </div>
+
+                    <div id="eventsList" class="events-list"></div>
+                </div>
+            </section>
+
+            <!-- Create Event Section -->
+            <section id="createEventSection" class="section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2>Criar Evento</h2>
+                        <button class="btn btn-outline" id="backToEventsBtn">
+                            ← Voltar
+                        </button>
+                    </div>
+
+                    <form id="createEventForm" class="event-form">
+                        <div class="form-group">
+                            <label for="eventName">Nome do Evento *</label>
+                            <input
+                                type="text"
+                                id="eventName"
+                                required
+                                placeholder="Ex: UFC 300"
+                            />
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventDate">Data *</label>
+                                <input type="date" id="eventDate" required />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="eventOrganization"
+                                    >Organização *</label
+                                >
+                                <select id="eventOrganization" required>
+                                    <option value="UFC">UFC</option>
+                                    <option value="Bellator">Bellator</option>
+                                    <option value="ONE Championship">
+                                        ONE Championship
+                                    </option>
+                                    <option value="PFL">PFL</option>
+                                    <option value="Rizin">Rizin</option>
+                                    <option value="Outras">Outras</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="eventLocation">Local</label>
+                            <input
+                                type="text"
+                                id="eventLocation"
+                                placeholder="Ex: Las Vegas, Nevada"
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="eventDescription">Descrição</label>
+                            <textarea
+                                id="eventDescription"
+                                rows="3"
+                                placeholder="Informações adicionais sobre o evento"
+                            ></textarea>
+                        </div>
+
+                        <hr />
+
+                        <div class="fights-section">
+                            <div class="section-header">
+                                <h3>Lutas do Evento</h3>
+                                <button
+                                    type="button"
+                                    class="btn btn-warning btn-lg"
+                                    id="addFightBtn"
+                                >
+                                    🥊 Adicionar Luta ao Evento
+                                </button>
+                            </div>
+
+                            <div id="eventFightsContainer"></div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button
+                                type="button"
+                                class="btn btn-outline btn-lg"
+                                id="cancelEventBtn"
+                            >
+                                ❌ Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                class="btn btn-success btn-lg"
+                            >
+                                ✅ Criar Evento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
             <!-- Rankings Section -->
             <section id="rankingsSection" class="section">
                 <div class="container">
-                    <h2>Rankings</h2>
+                    <h2>🏆 Top 15 Lutadores Overall</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 2rem">
+                        Ranking unificado dos melhores lutadores (masculino +
+                        feminino) por overall rating
+                    </p>
                     <div class="rankings-filters">
-                        <select id="rankingOrg" onchange="loadRankings()">
+                        <select id="rankingOrg">
                             <option value="">Todas Organizações</option>
                             <option value="UFC">UFC</option>
                             <option value="Bellator">Bellator</option>
@@ -426,12 +505,7 @@
                                 ONE Championship
                             </option>
                         </select>
-                        <select id="rankingGender" onchange="loadRankings()">
-                            <option value="">Masculino e Feminino</option>
-                            <option value="male">Masculino</option>
-                            <option value="female">Feminino</option>
-                        </select>
-                        <select id="rankingWeight" onchange="loadRankings()">
+                        <select id="rankingWeight">
                             <option value="">Todas Categorias</option>
                             <option value="lightweight">Peso-Leve</option>
                             <option value="welterweight">
@@ -449,10 +523,28 @@
         <!-- Fighter Details Modal -->
         <div id="fighterDetailsModal" class="modal">
             <div class="modal-content modal-large">
-                <span class="close" onclick="closeFighterDetails()"
-                    >&times;</span
-                >
+                <span class="close">&times;</span>
                 <div id="fighterDetailsContent">
+                    <div class="loading">Carregando...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Details Modal -->
+        <div id="eventDetailsModal" class="modal">
+            <div class="modal-content modal-large">
+                <span class="close">&times;</span>
+                <div id="eventDetailsContent">
+                    <div class="loading">Carregando...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simulation Results Modal -->
+        <div id="simulationResultsModal" class="modal">
+            <div class="modal-content modal-large">
+                <span class="close">&times;</span>
+                <div id="simulationResultsContent">
                     <div class="loading">Carregando...</div>
                 </div>
             </div>
@@ -461,14 +553,9 @@
         <!-- Create Fighter Modal -->
         <div id="createFighterModal" class="modal">
             <div class="modal-content">
-                <span class="close" onclick="closeCreateFighter()"
-                    >&times;</span
-                >
+                <span class="close">&times;</span>
                 <h2>Criar Novo Lutador</h2>
-                <form
-                    id="createFighterForm"
-                    onsubmit="handleCreateFighter(event)"
-                >
+                <form id="createFighterForm">
                     <div class="form-row">
                         <div class="form-group">
                             <label for="fighterName">Nome *</label>
@@ -544,7 +631,6 @@
                                 min="0"
                                 max="100"
                                 value="75"
-                                oninput="updateValue('striking')"
                             />
                         </div>
                         <div class="form-group">
@@ -558,7 +644,6 @@
                                 min="0"
                                 max="100"
                                 value="75"
-                                oninput="updateValue('grappling')"
                             />
                         </div>
                         <div class="form-group">
@@ -572,7 +657,6 @@
                                 min="0"
                                 max="100"
                                 value="75"
-                                oninput="updateValue('defense')"
                             />
                         </div>
                         <div class="form-group">
@@ -586,7 +670,6 @@
                                 min="0"
                                 max="100"
                                 value="75"
-                                oninput="updateValue('stamina')"
                             />
                         </div>
                         <div class="form-group">
@@ -599,7 +682,6 @@
                                 min="0"
                                 max="100"
                                 value="75"
-                                oninput="updateValue('speed')"
                             />
                         </div>
                         <div class="form-group">
@@ -613,7 +695,6 @@
                                 min="0"
                                 max="100"
                                 value="75"
-                                oninput="updateValue('strategy')"
                             />
                         </div>
                     </div>
@@ -634,6 +715,7 @@
         <script src="js/auth.js"></script>
         <script src="js/fighters.js"></script>
         <script src="js/simulation.js"></script>
+        <script src="js/events.js"></script>
         <script src="js/app.js"></script>
     </body>
 </html>

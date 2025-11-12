@@ -1,8 +1,5 @@
 // Fighters Module
 
-let allFighters = [];
-let currentFilters = {};
-
 // Helper function to get overall rating
 function getOverall(fighter) {
     return fighter.overall_rating || fighter.overall || 75;
@@ -18,9 +15,9 @@ async function loadFighters(filters = {}) {
         };
 
         const response = await api.getFighters(params);
-        allFighters = response.fighters || [];
+        AppState.allFighters = response.fighters || [];
 
-        displayFighters(allFighters);
+        displayFighters(AppState.allFighters);
     } catch (error) {
         console.error("Error loading fighters:", error);
         showToast("Erro ao carregar lutadores", "error");
@@ -134,7 +131,7 @@ function searchFighters() {
     if (gender) filters.gender = gender;
     if (weight_class) filters.actual_weight_class = weight_class;
 
-    currentFilters = filters;
+    AppState.currentFilters = filters;
     loadFighters(filters);
 }
 
@@ -187,7 +184,7 @@ async function handleCreateFighter(event) {
 
         showToast("Lutador criado com sucesso!", "success");
         closeCreateFighter();
-        loadFighters(currentFilters);
+        loadFighters(AppState.currentFilters);
     } catch (error) {
         showToast(error.message || "Erro ao criar lutador", "error");
     } finally {
@@ -518,10 +515,6 @@ function closeFighterDetails() {
 }
 
 // Fighter Search for Simulation
-let searchTimeout;
-let selectedFighter1 = null;
-let selectedFighter2 = null;
-
 function setupFighterSearch() {
     const input1 = document.getElementById("fighter1Search");
     const input2 = document.getElementById("fighter2Search");
@@ -551,7 +544,7 @@ function setupFighterSearch() {
 }
 
 function debounceSearch(query, resultsId, fighterNum) {
-    clearTimeout(searchTimeout);
+    clearTimeout(AppState.searchTimeout);
 
     const resultsContainer = document.getElementById(resultsId);
 
@@ -565,7 +558,7 @@ function debounceSearch(query, resultsId, fighterNum) {
         '<div class="search-loading">Buscando...</div>';
     resultsContainer.classList.add("show");
 
-    searchTimeout = setTimeout(() => {
+    AppState.searchTimeout = setTimeout(() => {
         searchFightersForSimulation(query, resultsId, fighterNum);
     }, 300);
 }
@@ -642,11 +635,7 @@ function selectFighter(fighterId, fighterNum) {
             : document.getElementById("fighter2Results");
 
     // Store selected fighter
-    if (fighterNum === 1) {
-        selectedFighter1 = fighterId;
-    } else {
-        selectedFighter2 = fighterId;
-    }
+    AppState.setSelectedFighter(fighterNum, fighterId);
 
     // Load fighter details and update input
     loadFighterForSelection(fighterId, fighterNum);
@@ -755,4 +744,67 @@ function formatWeightClass(weightClass) {
         heavyweight: "Peso-Pesado",
     };
     return map[weightClass] || weightClass;
+}
+
+// Setup event listeners para fighters
+function setupFightersListeners() {
+    // Create fighter button
+    const createFighterBtn = document.getElementById("createFighterBtn");
+    if (createFighterBtn) {
+        createFighterBtn.addEventListener("click", showCreateFighter);
+    }
+
+    // Create fighter form
+    const createFighterForm = document.getElementById("createFighterForm");
+    if (createFighterForm) {
+        createFighterForm.addEventListener("submit", handleCreateFighter);
+    }
+
+    // Close modal button
+    const closeModalBtns = document.querySelectorAll(
+        "#createFighterModal .close, #fighterDetailsModal .close"
+    );
+    closeModalBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            closeCreateFighter();
+            closeFighterDetails();
+        });
+    });
+
+    // Search filters
+    const searchName = document.getElementById("searchName");
+    if (searchName) {
+        searchName.addEventListener("keyup", searchFighters);
+    }
+
+    const filterOrg = document.getElementById("filterOrg");
+    if (filterOrg) {
+        filterOrg.addEventListener("change", searchFighters);
+    }
+
+    const filterGender = document.getElementById("filterGender");
+    if (filterGender) {
+        filterGender.addEventListener("change", searchFighters);
+    }
+
+    const filterWeight = document.getElementById("filterWeight");
+    if (filterWeight) {
+        filterWeight.addEventListener("change", searchFighters);
+    }
+
+    // Attribute sliders
+    const attributeSliders = [
+        "striking",
+        "grappling",
+        "defense",
+        "stamina",
+        "speed",
+        "strategy",
+    ];
+    attributeSliders.forEach((attr) => {
+        const slider = document.getElementById(attr);
+        if (slider) {
+            slider.addEventListener("input", () => updateValue(attr));
+        }
+    });
 }
