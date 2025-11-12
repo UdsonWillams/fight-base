@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>🥊 FightBase - MMA Fighter Database</title>
+        <link rel="stylesheet" href="css/styles.css" />
+    </head>
+    <body>
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <h1>🥊 FightBase</h1>
+                    <p class="tagline">MMA Fighter Database & Simulator</p>
+                </div>
+                <div class="nav-menu" id="navMenu">
+                    <a
+                        href="#"
+                        onclick="showSection('home')"
+                        class="nav-link active"
+                        >Home</a
+                    >
+                    <a
+                        href="#"
+                        onclick="showSection('fighters')"
+                        class="nav-link"
+                        >Lutadores</a
+                    >
+                    <a
+                        href="#"
+                        onclick="showSection('simulate')"
+                        class="nav-link"
+                        >Simulador</a
+                    >
+                    <a
+                        href="#"
+                        onclick="showSection('rankings')"
+                        class="nav-link"
+                        >Rankings</a
+                    >
+                </div>
+                <div class="nav-auth" id="navAuth">
+                    <button
+                        onclick="showSection('login')"
+                        class="btn btn-outline"
+                        id="loginBtn"
+                    >
+                        Login
+                    </button>
+                    <button
+                        onclick="showSection('register')"
+                        class="btn btn-primary"
+                        id="registerBtn"
+                    >
+                        Cadastrar
+                    </button>
+                    <div class="user-menu" id="userMenu" style="display: none">
+                        <span id="userName">Usuário</span>
+                        <button onclick="logout()" class="btn btn-outline">
+                            Sair
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Home Section -->
+            <section id="homeSection" class="section active">
+                <div class="hero">
+                    <div class="container">
+                        <h1 class="hero-title">Bem-vindo ao FightBase</h1>
+                        <p class="hero-subtitle">
+                            Crie lutadores, simule combates épicos e descubra
+                            quem venceria!
+                        </p>
+                        <div class="hero-stats">
+                            <div class="stat-card">
+                                <h3 id="totalFighters">0</h3>
+                                <p>Lutadores</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="totalSimulations">0</h3>
+                                <p>Simulações</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>5+</h3>
+                                <p>Organizações</p>
+                            </div>
+                        </div>
+                        <div class="hero-actions">
+                            <button
+                                onclick="showSection('fighters')"
+                                class="btn btn-primary btn-lg"
+                            >
+                                Ver Lutadores
+                            </button>
+                            <button
+                                onclick="showSection('simulate')"
+                                class="btn btn-secondary btn-lg"
+                            >
+                                Simular Luta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Login Section -->
+            <section id="loginSection" class="section">
+                <div class="container-small">
+                    <div class="card">
+                        <h2>Login</h2>
+                        <form id="loginForm" onsubmit="handleLogin(event)">
+                            <div class="form-group">
+                                <label for="loginEmail">Email</label>
+                                <input type="email" id="loginEmail" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="loginPassword">Senha</label>
+                                <div class="password-input-wrapper">
+                                    <input
+                                        type="password"
+                                        id="loginPassword"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        class="password-toggle"
+                                        onclick="togglePasswordVisibility('loginPassword')"
+                                        aria-label="Mostrar/Ocultar senha"
+                                    >
+                                        👁️
+                                    </button>
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                class="btn btn-primary btn-block"
+                            >
+                                Entrar
+                            </button>
+                        </form>
+
+                        <div class="divider">ou</div>
+
+                        <button
+                            type="button"
+                            onclick="handleGoogleLogin()"
+                            class="btn btn-google btn-block"
+                        >
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path
+                                    fill="#4285F4"
+                                    d="M19.6 10.23c0-.82-.1-1.42-.25-2.05H10v3.72h5.5c-.15.96-.74 2.31-2.04 3.22v2.45h3.16c1.89-1.73 2.98-4.3 2.98-7.34z"
+                                />
+                                <path
+                                    fill="#34A853"
+                                    d="M13.46 15.13c-.83.59-1.96 1-3.46 1-2.64 0-4.88-1.74-5.68-4.15H1.07v2.52C2.72 17.75 6.09 20 10 20c2.7 0 4.96-.89 6.62-2.42l-3.16-2.45z"
+                                />
+                                <path
+                                    fill="#FBBC05"
+                                    d="M3.99 10c0-.69.12-1.35.32-1.97V5.51H1.07A9.973 9.973 0 000 10c0 1.61.39 3.14 1.07 4.49l3.24-2.52c-.2-.62-.32-1.28-.32-1.97z"
+                                />
+                                <path
+                                    fill="#EA4335"
+                                    d="M10 3.88c1.88 0 3.13.81 3.85 1.48l2.84-2.76C14.96.99 12.7 0 10 0 6.09 0 2.72 2.25 1.07 5.51l3.24 2.52C5.12 5.62 7.36 3.88 10 3.88z"
+                                />
+                            </svg>
+                            Entrar com Google
+                        </button>
+
+                        <p class="text-center">
+                            Não tem conta?
+                            <a href="#" onclick="showSection('register')"
+                                >Cadastre-se</a
+                            >
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Register Section -->
+            <section id="registerSection" class="section">
+                <div class="container-small">
+                    <div class="card">
+                        <h2>Cadastro</h2>
+                        <form
+                            id="registerForm"
+                            onsubmit="handleRegister(event)"
+                        >
+                            <div class="form-group">
+                                <label for="registerName">Nome Completo</label>
+                                <input type="text" id="registerName" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="registerEmail">Email</label>
+                                <input
+                                    type="email"
+                                    id="registerEmail"
+                                    required
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label for="registerPassword"
+                                    >Senha (6-72 caracteres)</label
+                                >
+                                <div class="password-input-wrapper">
+                                    <input
+                                        type="password"
+                                        id="registerPassword"
+                                        minlength="6"
+                                        maxlength="72"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        class="password-toggle"
+                                        onclick="togglePasswordVisibility('registerPassword')"
+                                        aria-label="Mostrar/Ocultar senha"
+                                    >
+                                        👁️
+                                    </button>
+                                </div>
+                                <small
+                                    style="
+                                        color: var(--text-light);
+                                        font-size: 0.85rem;
+                                    "
+                                >
+                                </small>
+                            </div>
+                            <button
+                                type="submit"
+                                class="btn btn-primary btn-block"
+                            >
+                                Criar Conta
+                            </button>
+                        </form>
+                        <p class="text-center">
+                            Já tem conta?
+                            <a href="#" onclick="showSection('login')"
+                                >Faça login</a
+                            >
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Fighters Section -->
+            <section id="fightersSection" class="section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2>Lutadores</h2>
+                        <button
+                            onclick="showCreateFighter()"
+                            class="btn btn-primary"
+                            id="createFighterBtn"
+                        >
+                            + Criar Lutador
+                        </button>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="filters">
+                        <input
+                            type="text"
+                            id="searchName"
+                            placeholder="Buscar por nome..."
+                            onkeyup="searchFighters()"
+                        />
+                        <select id="filterOrg" onchange="searchFighters()">
+                            <option value="">Todas Organizações</option>
+                            <option value="UFC">UFC</option>
+                            <option value="Bellator">Bellator</option>
+                            <option value="ONE Championship">
+                                ONE Championship
+                            </option>
+                            <option value="PFL">PFL</option>
+                            <option value="Rizin">Rizin</option>
+                        </select>
+                        <select id="filterGender" onchange="searchFighters()">
+                            <option value="">Masculino e Feminino</option>
+                            <option value="male">Masculino</option>
+                            <option value="female">Feminino</option>
+                        </select>
+                        <select id="filterWeight" onchange="searchFighters()">
+                            <option value="">Todas Categorias</option>
+                            <optgroup label="Masculino">
+                                <option value="Flyweight">Peso-Mosca</option>
+                                <option value="Bantamweight">Peso-Galo</option>
+                                <option value="Featherweight">Peso-Pena</option>
+                                <option value="Lightweight">Peso-Leve</option>
+                                <option value="Welterweight">
+                                    Peso-Meio-Médio
+                                </option>
+                                <option value="Middleweight">Peso-Médio</option>
+                                <option value="Light Heavyweight">
+                                    Peso-Meio-Pesado
+                                </option>
+                                <option value="Heavyweight">Peso-Pesado</option>
+                            </optgroup>
+                            <optgroup label="Feminino">
+                                <option value="Women's Strawweight">
+                                    Peso-Palha Feminino
+                                </option>
+                                <option value="Women's Flyweight">
+                                    Peso-Mosca Feminino
+                                </option>
+                                <option value="Women's Bantamweight">
+                                    Peso-Galo Feminino
+                                </option>
+                                <option value="Women's Featherweight">
+                                    Peso-Pena Feminino
+                                </option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <!-- Fighters List -->
+                    <div id="fightersList" class="fighters-grid">
+                        <div class="loading">Carregando lutadores...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Simulate Section -->
+            <section id="simulateSection" class="section">
+                <div class="container">
+                    <h2>Simulador de Lutas</h2>
+
+                    <div class="simulate-container">
+                        <div class="fighter-select">
+                            <h3>Lutador 1</h3>
+                            <div class="fighter-search-container">
+                                <input
+                                    type="text"
+                                    id="fighter1Search"
+                                    class="fighter-search-input"
+                                    placeholder="Digite o nome do lutador..."
+                                    autocomplete="off"
+                                />
+                                <div
+                                    id="fighter1Results"
+                                    class="search-results"
+                                ></div>
+                            </div>
+                            <div
+                                id="fighter1Preview"
+                                class="fighter-preview"
+                            ></div>
+                        </div>
+
+                        <div class="vs-badge">
+                            <h2>VS</h2>
+                            <div class="form-group">
+                                <label for="roundsSelect">Rounds</label>
+                                <select id="roundsSelect">
+                                    <option value="3">3 Rounds</option>
+                                    <option value="5">5 Rounds</option>
+                                </select>
+                            </div>
+                            <button
+                                onclick="runSimulation()"
+                                class="btn btn-primary btn-lg"
+                                id="simulateBtn"
+                            >
+                                🥊 Simular Luta
+                            </button>
+                        </div>
+
+                        <div class="fighter-select">
+                            <h3>Lutador 2</h3>
+                            <div class="fighter-search-container">
+                                <input
+                                    type="text"
+                                    id="fighter2Search"
+                                    class="fighter-search-input"
+                                    placeholder="Digite o nome do lutador..."
+                                    autocomplete="off"
+                                />
+                                <div
+                                    id="fighter2Results"
+                                    class="search-results"
+                                ></div>
+                            </div>
+                            <div
+                                id="fighter2Preview"
+                                class="fighter-preview"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <!-- Simulation Result -->
+                    <div
+                        id="simulationResult"
+                        class="simulation-result"
+                        style="display: none"
+                    ></div>
+
+                    <!-- Recent Simulations -->
+                    <div class="recent-simulations">
+                        <h3>Simulações Recentes</h3>
+                        <div id="recentSimsList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rankings Section -->
+            <section id="rankingsSection" class="section">
+                <div class="container">
+                    <h2>Rankings</h2>
+                    <div class="rankings-filters">
+                        <select id="rankingOrg" onchange="loadRankings()">
+                            <option value="">Todas Organizações</option>
+                            <option value="UFC">UFC</option>
+                            <option value="Bellator">Bellator</option>
+                            <option value="ONE Championship">
+                                ONE Championship
+                            </option>
+                        </select>
+                        <select id="rankingGender" onchange="loadRankings()">
+                            <option value="">Masculino e Feminino</option>
+                            <option value="male">Masculino</option>
+                            <option value="female">Feminino</option>
+                        </select>
+                        <select id="rankingWeight" onchange="loadRankings()">
+                            <option value="">Todas Categorias</option>
+                            <option value="lightweight">Peso-Leve</option>
+                            <option value="welterweight">
+                                Peso-Meio-Médio
+                            </option>
+                            <option value="middleweight">Peso-Médio</option>
+                            <option value="heavyweight">Peso-Pesado</option>
+                        </select>
+                    </div>
+                    <div id="rankingsList" class="rankings-list"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Fighter Details Modal -->
+        <div id="fighterDetailsModal" class="modal">
+            <div class="modal-content modal-large">
+                <span class="close" onclick="closeFighterDetails()"
+                    >&times;</span
+                >
+                <div id="fighterDetailsContent">
+                    <div class="loading">Carregando...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Fighter Modal -->
+        <div id="createFighterModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeCreateFighter()"
+                    >&times;</span
+                >
+                <h2>Criar Novo Lutador</h2>
+                <form
+                    id="createFighterForm"
+                    onsubmit="handleCreateFighter(event)"
+                >
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fighterName">Nome *</label>
+                            <input type="text" id="fighterName" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="fighterNickname">Apelido</label>
+                            <input type="text" id="fighterNickname" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fighterOrg">Organização *</label>
+                            <select id="fighterOrg" required>
+                                <option value="UFC">UFC</option>
+                                <option value="Bellator">Bellator</option>
+                                <option value="ONE Championship">
+                                    ONE Championship
+                                </option>
+                                <option value="PFL">PFL</option>
+                                <option value="Rizin">Rizin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="fighterGender">Gênero *</label>
+                            <select id="fighterGender" required>
+                                <option value="male">Masculino</option>
+                                <option value="female">Feminino</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fighterWeight">Categoria *</label>
+                            <select id="fighterWeight" required>
+                                <option value="flyweight">Peso-Mosca</option>
+                                <option value="bantamweight">Peso-Galo</option>
+                                <option value="featherweight">Peso-Pena</option>
+                                <option value="lightweight">Peso-Leve</option>
+                                <option value="welterweight">
+                                    Peso-Meio-Médio
+                                </option>
+                                <option value="middleweight">Peso-Médio</option>
+                                <option value="light_heavyweight">
+                                    Peso-Meio-Pesado
+                                </option>
+                                <option value="heavyweight">Peso-Pesado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="fighterStyle">Estilo *</label>
+                            <input
+                                type="text"
+                                id="fighterStyle"
+                                placeholder="Ex: Striker, Wrestler, BJJ"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <h3>Atributos (0-100)</h3>
+                    <div class="attributes-grid">
+                        <div class="form-group">
+                            <label for="striking"
+                                >Striking
+                                <span id="strikingValue">75</span></label
+                            >
+                            <input
+                                type="range"
+                                id="striking"
+                                min="0"
+                                max="100"
+                                value="75"
+                                oninput="updateValue('striking')"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="grappling"
+                                >Grappling
+                                <span id="grapplingValue">75</span></label
+                            >
+                            <input
+                                type="range"
+                                id="grappling"
+                                min="0"
+                                max="100"
+                                value="75"
+                                oninput="updateValue('grappling')"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="defense"
+                                >Defense
+                                <span id="defenseValue">75</span></label
+                            >
+                            <input
+                                type="range"
+                                id="defense"
+                                min="0"
+                                max="100"
+                                value="75"
+                                oninput="updateValue('defense')"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="stamina"
+                                >Stamina
+                                <span id="staminaValue">75</span></label
+                            >
+                            <input
+                                type="range"
+                                id="stamina"
+                                min="0"
+                                max="100"
+                                value="75"
+                                oninput="updateValue('stamina')"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="speed"
+                                >Speed <span id="speedValue">75</span></label
+                            >
+                            <input
+                                type="range"
+                                id="speed"
+                                min="0"
+                                max="100"
+                                value="75"
+                                oninput="updateValue('speed')"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="strategy"
+                                >Strategy
+                                <span id="strategyValue">75</span></label
+                            >
+                            <input
+                                type="range"
+                                id="strategy"
+                                min="0"
+                                max="100"
+                                value="75"
+                                oninput="updateValue('strategy')"
+                            />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block">
+                        Criar Lutador
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast" class="toast"></div>
+
+        <!-- Scripts -->
+        <script src="js/utils.js"></script>
+        <script src="js/api.js"></script>
+        <script src="js/auth.js"></script>
+        <script src="js/fighters.js"></script>
+        <script src="js/simulation.js"></script>
+        <script src="js/app.js"></script>
+    </body>
+</html>
