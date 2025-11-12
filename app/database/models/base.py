@@ -53,6 +53,9 @@ class Fighter(BaseModel):
 
     __tablename__ = "fighters"
 
+    # ID do ufcstats.com para lutadores reais
+    ufcstats_id = Column(String(50), nullable=True, unique=True, index=True)
+
     # Informações básicas
     name = Column(String(350), nullable=False, index=True)
     nickname = Column(String(100), nullable=True)
@@ -66,6 +69,15 @@ class Fighter(BaseModel):
         String(100), nullable=True
     )  # Striker, Grappler, All-around, etc
 
+    # Dados biográficos do UFC Stats
+    date_of_birth = Column(TIMESTAMP(timezone=False), nullable=True)
+    stance = Column(String(50), nullable=True)  # Orthodox, Southpaw, Switch
+    weight_lbs = Column(Float, nullable=True)
+    height_cm = Column(Float, nullable=True)
+    height_inches = Column(Float, nullable=True)
+    reach_cm = Column(Float, nullable=True)
+    reach_inches = Column(Float, nullable=True)
+
     # Atributos de luta (0-100)
     striking = Column(Integer, nullable=False)  # Habilidade de striking/trocação
     grappling = Column(Integer, nullable=False)  # Habilidade de grappling/luta agarrada
@@ -73,6 +85,16 @@ class Fighter(BaseModel):
     stamina = Column(Integer, nullable=False)  # Resistência/Cardio
     speed = Column(Integer, nullable=False)  # Velocidade
     strategy = Column(Integer, nullable=False)  # QI de luta/estratégia
+    
+    # Estatísticas avançadas do UFC Stats
+    slpm = Column(Float, nullable=True)  # Significant Strikes Landed per Minute
+    str_acc = Column(Float, nullable=True)  # Striking Accuracy %
+    sapm = Column(Float, nullable=True)  # Significant Strikes Absorbed per Minute
+    str_def = Column(Float, nullable=True)  # Striking Defense %
+    td_avg = Column(Float, nullable=True)  # Average Takedowns per 15 min
+    td_acc = Column(Float, nullable=True)  # Takedown Accuracy %
+    td_def = Column(Float, nullable=True)  # Takedown Defense %
+    sub_avg = Column(Float, nullable=True)  # Average Submissions per 15 min
 
     # Estatísticas reais (deprecated - usar cartel)
     wins = Column(Integer, nullable=True, default=0)
@@ -117,6 +139,9 @@ class Event(BaseModel):
 
     __tablename__ = "events"
 
+    # ID do ufcstats.com para eventos reais
+    ufcstats_id = Column(String(50), nullable=True, unique=True, index=True)
+
     # Informações do evento
     name = Column(String(255), nullable=False)  # Ex: "UFC 233"
     date = Column(TIMESTAMP(timezone=True), nullable=False)  # Data do evento
@@ -138,6 +163,9 @@ class Fight(BaseModel):
     """Lutas individuais dentro de um evento"""
 
     __tablename__ = "fights"
+
+    # ID do ufcstats.com para lutas reais
+    ufcstats_id = Column(String(50), nullable=True, unique=True, index=True)
 
     # Relacionamento com evento
     event_id = Column(UUID(as_uuid=True), ForeignKey("events.id"), nullable=False)
@@ -168,6 +196,8 @@ class Fight(BaseModel):
     method_details = Column(
         Text, nullable=True
     )  # Detalhes do método (ex: "Rear Naked Choke")
+    match_time_seconds = Column(Integer, nullable=True)  # Tempo total da luta em segundos
+    referee = Column(String(150), nullable=True)  # Nome do árbitro
 
     # Estatísticas da simulação
     fighter1_probability = Column(Float, nullable=True)
@@ -176,10 +206,32 @@ class Fight(BaseModel):
         MutableDict.as_mutable(JSONB), nullable=True, default=dict
     )
 
+    # Estatísticas detalhadas da luta real (Red Corner - fighter1)
+    r_kd = Column(Integer, nullable=True)  # Knockdowns
+    r_sig_str_landed = Column(Integer, nullable=True)  # Significant strikes landed
+    r_sig_str_attempted = Column(Integer, nullable=True)  # Significant strikes attempted
+    r_total_str_landed = Column(Integer, nullable=True)  # Total strikes landed
+    r_total_str_attempted = Column(Integer, nullable=True)  # Total strikes attempted
+    r_td_landed = Column(Integer, nullable=True)  # Takedowns landed
+    r_td_attempted = Column(Integer, nullable=True)  # Takedowns attempted
+    r_sub_att = Column(Integer, nullable=True)  # Submission attempts
+    r_ctrl_seconds = Column(Integer, nullable=True)  # Control time in seconds
+
+    # Estatísticas detalhadas da luta real (Blue Corner - fighter2)
+    b_kd = Column(Integer, nullable=True)
+    b_sig_str_landed = Column(Integer, nullable=True)
+    b_sig_str_attempted = Column(Integer, nullable=True)
+    b_total_str_landed = Column(Integer, nullable=True)
+    b_total_str_attempted = Column(Integer, nullable=True)
+    b_td_landed = Column(Integer, nullable=True)
+    b_td_attempted = Column(Integer, nullable=True)
+    b_sub_att = Column(Integer, nullable=True)
+    b_ctrl_seconds = Column(Integer, nullable=True)
+
     # Status da luta
     status = Column(
         String(50), nullable=False, default="scheduled"
-    )  # scheduled, simulated, cancelled
+    )  # scheduled, simulated, completed, cancelled
 
     # Relacionamentos com lutadores
     fighter1 = relationship("Fighter", foreign_keys=[fighter1_id])
