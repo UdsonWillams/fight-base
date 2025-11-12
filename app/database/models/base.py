@@ -73,10 +73,8 @@ class Fighter(BaseModel):
     date_of_birth = Column(TIMESTAMP(timezone=False), nullable=True)
     stance = Column(String(50), nullable=True)  # Orthodox, Southpaw, Switch
     weight_lbs = Column(Float, nullable=True)
-    height_cm = Column(Float, nullable=True)
-    height_inches = Column(Float, nullable=True)
-    reach_cm = Column(Float, nullable=True)
-    reach_inches = Column(Float, nullable=True)
+    height_cm = Column(Float, nullable=True)  # Altura em centímetros
+    reach_cm = Column(Float, nullable=True)  # Alcance em centímetros
 
     # Atributos de luta (0-100)
     striking = Column(Integer, nullable=False)  # Habilidade de striking/trocação
@@ -85,7 +83,7 @@ class Fighter(BaseModel):
     stamina = Column(Integer, nullable=False)  # Resistência/Cardio
     speed = Column(Integer, nullable=False)  # Velocidade
     strategy = Column(Integer, nullable=False)  # QI de luta/estratégia
-    
+
     # Estatísticas avançadas do UFC Stats
     slpm = Column(Float, nullable=True)  # Significant Strikes Landed per Minute
     str_acc = Column(Float, nullable=True)  # Striking Accuracy %
@@ -110,9 +108,6 @@ class Fighter(BaseModel):
     # Formato: [{"opponent": "Name", "result": "W/L/D", "method": "KO/Sub/Dec", "round": 1, "date": "2024-01-01", "organization": "UFC"}]
 
     # Informações adicionais
-    age = Column(Integer, nullable=True)
-    height_cm = Column(Float, nullable=True)
-    reach_cm = Column(Float, nullable=True)
     bio = Column(Text, nullable=True)
     image_url = Column(String(500), nullable=True)
     is_real = Column(Boolean, default=True, nullable=False)  # Real ou fictício
@@ -132,6 +127,36 @@ class Fighter(BaseModel):
         foreign_keys="FightSimulation.fighter2_id",
         back_populates="fighter2",
     )
+
+    @property
+    def age(self) -> int | None:
+        """Calcula idade atual do lutador baseado na data de nascimento"""
+        if not self.date_of_birth:
+            return None
+        today = datetime.now(timezone.utc)
+        born = self.date_of_birth
+        # Se date_of_birth não tem timezone, assume UTC
+        if born.tzinfo is None:
+            born = born.replace(tzinfo=timezone.utc)
+        return (
+            today.year
+            - born.year
+            - ((today.month, today.day) < (born.month, born.day))
+        )
+
+    @property
+    def height_inches(self) -> float | None:
+        """Converte altura de cm para polegadas"""
+        if not self.height_cm:
+            return None
+        return round(self.height_cm / 2.54, 2)
+
+    @property
+    def reach_inches(self) -> float | None:
+        """Converte alcance de cm para polegadas"""
+        if not self.reach_cm:
+            return None
+        return round(self.reach_cm / 2.54, 2)
 
 
 class Event(BaseModel):
@@ -196,7 +221,9 @@ class Fight(BaseModel):
     method_details = Column(
         Text, nullable=True
     )  # Detalhes do método (ex: "Rear Naked Choke")
-    match_time_seconds = Column(Integer, nullable=True)  # Tempo total da luta em segundos
+    match_time_seconds = Column(
+        Integer, nullable=True
+    )  # Tempo total da luta em segundos
     referee = Column(String(150), nullable=True)  # Nome do árbitro
 
     # Estatísticas da simulação
@@ -209,7 +236,9 @@ class Fight(BaseModel):
     # Estatísticas detalhadas da luta real (Red Corner - fighter1)
     r_kd = Column(Integer, nullable=True)  # Knockdowns
     r_sig_str_landed = Column(Integer, nullable=True)  # Significant strikes landed
-    r_sig_str_attempted = Column(Integer, nullable=True)  # Significant strikes attempted
+    r_sig_str_attempted = Column(
+        Integer, nullable=True
+    )  # Significant strikes attempted
     r_total_str_landed = Column(Integer, nullable=True)  # Total strikes landed
     r_total_str_attempted = Column(Integer, nullable=True)  # Total strikes attempted
     r_td_landed = Column(Integer, nullable=True)  # Takedowns landed
