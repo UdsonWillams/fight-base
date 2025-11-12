@@ -73,6 +73,7 @@ class Fighter(BaseModel):
     image_url: Optional[str] = None
     is_real: bool
     creator_id: UUID
+    cartel: list[dict] = []  # Histórico de lutas reais
 
 
 class FightSimulation(BaseModel):

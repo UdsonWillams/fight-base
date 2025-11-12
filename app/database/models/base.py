@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Column, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import TIMESTAMP
 
@@ -53,12 +54,16 @@ class Fighter(BaseModel):
     __tablename__ = "fighters"
 
     # Informações básicas
-    name = Column(String(150), nullable=False, index=True)
+    name = Column(String(350), nullable=False, index=True)
     nickname = Column(String(100), nullable=True)
-    organization = Column(String(50), nullable=False)  # UFC, Bellator, ONE, etc
-    weight_class = Column(String(50), nullable=False)  # Peso-pena, Peso-médio, etc
+    last_organization_fight = Column(
+        String(50), nullable=True
+    )  # UFC, Bellator, ONE, etc
+    actual_weight_class = Column(
+        String(50), nullable=True
+    )  # Peso-pena, Peso-médio, etc
     fighting_style = Column(
-        String(100), nullable=False
+        String(100), nullable=True
     )  # Striker, Grappler, All-around, etc
 
     # Atributos de luta (0-100)
@@ -69,12 +74,18 @@ class Fighter(BaseModel):
     speed = Column(Integer, nullable=False)  # Velocidade
     strategy = Column(Integer, nullable=False)  # QI de luta/estratégia
 
-    # Estatísticas reais (opcional)
+    # Estatísticas reais (deprecated - usar cartel)
     wins = Column(Integer, nullable=True, default=0)
     losses = Column(Integer, nullable=True, default=0)
     draws = Column(Integer, nullable=True, default=0)
     ko_wins = Column(Integer, nullable=True, default=0)
     submission_wins = Column(Integer, nullable=True, default=0)
+
+    # Cartel completo do lutador (lista de lutas)
+    cartel = Column(
+        MutableList.as_mutable(JSONB), nullable=False, default=list
+    )  # Lista com histórico de lutas reais
+    # Formato: [{"opponent": "Name", "result": "W/L/D", "method": "KO/Sub/Dec", "round": 1, "date": "2024-01-01", "organization": "UFC"}]
 
     # Informações adicionais
     age = Column(Integer, nullable=True)
@@ -127,7 +138,9 @@ class FightSimulation(BaseModel):
     )  # Probabilidade de vitória do fighter2
 
     # Detalhes da simulação
-    simulation_details = Column(JSON, nullable=True)  # JSON com detalhes round a round
+    simulation_details = Column(
+        MutableDict.as_mutable(JSONB), nullable=False, default=dict
+    )  # JSON com detalhes round a round
     notes = Column(Text, nullable=True)  # Observações sobre a simulação
 
     # Relacionamentos
@@ -137,16 +150,3 @@ class FightSimulation(BaseModel):
     fighter2 = relationship(
         "Fighter", foreign_keys=[fighter2_id], back_populates="fights_as_fighter2"
     )
-
-
-# Modelo legado Product (pode ser removido se não for usado)
-class Product(BaseModel):
-    __tablename__ = "products"
-
-    external_id = Column(String(50), nullable=False, index=True)
-    title = Column(String(255), nullable=False)
-    price = Column(Float, nullable=False)
-    description = Column(String(1000), nullable=True)
-    category = Column(String(100), nullable=True)
-    image = Column(String(500), nullable=True)
-    review = Column(Float, nullable=True)

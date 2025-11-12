@@ -10,7 +10,7 @@ services:
     depends_on:
       - database
     networks:
-      - challenger_network
+      - fight_base_network
     env_file: ".env"
     restart: on-failure
     volumes:
@@ -18,17 +18,17 @@ services:
 
   database:
     image: postgres:latest
-    container_name: challenge_db
+    container_name: fight_base_db
     environment:
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: challenger_db
+      POSTGRES_DB: fight_base
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgressql/database
     networks:
-      - challenger_network
+      - fight_base_network
 
   redis:
     image: redis:latest
@@ -61,6 +61,6 @@ volumes:
   postgres_data:
 
 networks:
-  challenger_network:
+  fight_base_network:
   redis-network:
     driver: bridge

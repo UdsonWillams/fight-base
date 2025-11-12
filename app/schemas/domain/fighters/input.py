@@ -13,8 +13,10 @@ class FighterCreateInput(BaseModel):
     nickname: Optional[str] = Field(
         None, max_length=100, description="Apelido do lutador"
     )
-    organization: str = Field(..., description="Organização (UFC, Bellator, ONE, etc)")
-    weight_class: str = Field(..., description="Categoria de peso")
+    last_organization_fight: str = Field(
+        ..., description="Última organização (UFC, Bellator, ONE, etc)"
+    )
+    actual_weight_class: str = Field(..., description="Categoria de peso atual")
     fighting_style: str = Field(..., description="Estilo de luta")
 
     # Atributos de luta (0-100)
@@ -44,7 +46,7 @@ class FighterCreateInput(BaseModel):
     image_url: Optional[str] = Field(None, max_length=500, description="URL da imagem")
     is_real: bool = Field(True, description="Lutador real ou fictício")
 
-    @field_validator("organization")
+    @field_validator("last_organization_fight")
     @classmethod
     def validate_organization(cls, v: str) -> str:
         valid_orgs = [
@@ -68,8 +70,8 @@ class FighterUpdateInput(BaseModel):
 
     name: Optional[str] = Field(None, min_length=2, max_length=150)
     nickname: Optional[str] = Field(None, max_length=100)
-    organization: Optional[str] = None
-    weight_class: Optional[str] = None
+    last_organization_fight: Optional[str] = None
+    actual_weight_class: Optional[str] = None
     fighting_style: Optional[str] = None
 
     striking: Optional[int] = Field(None, ge=0, le=100)
@@ -97,8 +99,12 @@ class FighterSearchInput(BaseModel):
     """Schema para busca de lutadores"""
 
     name: Optional[str] = Field(None, description="Buscar por nome")
-    organization: Optional[str] = Field(None, description="Filtrar por organização")
-    weight_class: Optional[str] = Field(None, description="Filtrar por categoria")
+    last_organization_fight: Optional[str] = Field(
+        None, description="Filtrar por última organização"
+    )
+    actual_weight_class: Optional[str] = Field(
+        None, description="Filtrar por categoria atual"
+    )
     fighting_style: Optional[str] = Field(None, description="Filtrar por estilo")
     is_real: Optional[bool] = Field(None, description="Filtrar por real/fictício")
     min_overall: Optional[int] = Field(

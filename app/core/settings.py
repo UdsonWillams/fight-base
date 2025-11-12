@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # Database
     POSTGRES_USER: str = "myuser"
     POSTGRES_PASSWORD: str = "mypassword"
-    POSTGRES_DB: str = "challenger_db"
+    POSTGRES_DB: str = "fight_base"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
 

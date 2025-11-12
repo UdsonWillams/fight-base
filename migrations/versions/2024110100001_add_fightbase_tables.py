@@ -114,7 +114,12 @@ def upgrade() -> None:
         sa.Column("fighter1_probability", sa.Float(), nullable=False),
         sa.Column("fighter2_probability", sa.Float(), nullable=False),
         # Detalhes
-        sa.Column("simulation_details", postgresql.JSON()),
+        sa.Column(
+            "simulation_details",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
         sa.Column("notes", sa.Text()),
     )
 

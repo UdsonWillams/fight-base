@@ -19,7 +19,9 @@ class AuthService:
         self.settings = get_settings()
 
     async def get_password_hash(self, password: str) -> str:
-        return await asyncio.to_thread(pwd_context.hash, password)
+        # Bcrypt has a 72 byte limit, truncate if necessary
+        password_bytes = password.encode("utf-8")[:72]
+        return await asyncio.to_thread(pwd_context.hash, password_bytes.decode("utf-8"))
 
     async def verify_password(self, plain: str, hashed: str) -> bool:
         return await asyncio.to_thread(pwd_context.verify, plain, hashed)

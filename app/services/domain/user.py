@@ -36,27 +36,18 @@ class UserService:
         return {"items": data, "count": len(data) if data else 0}
 
     async def get_by_id(self, user_id: int):
-        """Busca usuário por ID com seus lutadores."""
+        """Busca usuário por ID."""
         user = await self.repository.get_by_id(user_id)
         if not user:
             raise NotFoundError
-        result = user.to_dict()
-        # Carregar lutadores do usuário se necessário
-        result["fighters"] = [
-            fighter.to_dict() for fighter in getattr(user, "fighters", [])
-        ]
-        return result
+        return user.to_dict()
 
     async def get_by_email(self, email: str):
         """Busca usuário por email."""
         user = await self.repository.get_user_by_email(email)
         if not user:
             raise NotFoundError
-        result = user.to_dict()
-        result["fighters"] = [
-            fighter.to_dict() for fighter in getattr(user, "fighters", [])
-        ]
-        return result
+        return user.to_dict()
 
     async def update(self, user_id: int, payload: dict):
         """Atualiza dados do usuário."""

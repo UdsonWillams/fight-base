@@ -5,7 +5,7 @@ from uuid import UUID
 
 from app.database.models.base import Fighter
 from app.database.repositories.fighter import FighterRepository
-from app.exceptions.exceptions import BusinessRuleViolation, NotFound
+from app.exceptions.exceptions import ForbiddenError, NotFoundError
 from app.schemas.domain.fighters.input import (
     FighterCreateInput,
     FighterSearchInput,
@@ -27,9 +27,7 @@ class FighterService:
         # Valida se já existe lutador com o mesmo nome
         existing = await self.fighter_repo.get_by_name(data.name)
         if existing:
-            raise BusinessRuleViolation(
-                f"Fighter with name '{data.name}' already exists"
-            )
+            raise ForbiddenError(f"Fighter with name '{data.name}' already exists")
 
         # Valida atributos (devem estar entre 0-100)
         attributes = [
@@ -42,14 +40,14 @@ class FighterService:
         ]
 
         if any(attr < 0 or attr > 100 for attr in attributes):
-            raise BusinessRuleViolation("All attributes must be between 0 and 100")
+            raise ForbiddenError("All attributes must be between 0 and 100")
 
         # Cria o lutador
         fighter = Fighter(
             name=data.name,
             nickname=data.nickname,
-            organization=data.organization,
-            weight_class=data.weight_class,
+            last_organization_fight=data.last_organization_fight,
+            actual_weight_class=data.actual_weight_class,
             fighting_style=data.fighting_style,
             striking=data.striking,
             grappling=data.grappling,
@@ -78,7 +76,7 @@ class FighterService:
         """Busca um lutador por ID"""
         fighter = await self.fighter_repo.get_by_id(fighter_id)
         if not fighter:
-            raise NotFound("Fighter not found")
+            raise NotFoundError("Fighter not found")
         return fighter
 
     async def update_fighter(
@@ -89,7 +87,7 @@ class FighterService:
         # Verifica se lutador existe
         existing = await self.fighter_repo.get_by_id(fighter_id)
         if not existing:
-            raise NotFound("Fighter not found")
+            raise NotFoundError("Fighter not found")
 
         # Prepara dados para atualização (apenas campos não-None)
         update_data = data.model_dump(exclude_unset=True, exclude_none=True)
@@ -108,13 +106,13 @@ class FighterService:
             if attr in update_data:
                 value = update_data[attr]
                 if value < 0 or value > 100:
-                    raise BusinessRuleViolation(f"{attr} must be between 0 and 100")
+                    raise ForbiddenError(f"{attr} must be between 0 and 100")
 
         # Atualiza
         updated = await self.fighter_repo.update(fighter_id, update_data, updated_by)
 
         if not updated:
-            raise NotFound("Fighter not found")
+            raise NotFoundError("Fighter not found")
 
         return updated
 
@@ -124,15 +122,15 @@ class FighterService:
         """Remove um lutador (soft delete)"""
         success = await self.fighter_repo.delete(fighter_id, deleted_by)
         if not success:
-            raise NotFound("Fighter not found")
+            raise NotFoundError("Fighter not found")
         return success
 
     async def search_fighters(self, search_params: FighterSearchInput) -> list[Fighter]:
         """Busca lutadores com filtros"""
         return await self.fighter_repo.search_fighters(
             name=search_params.name,
-            organization=search_params.organization,
-            weight_class=search_params.weight_class,
+            last_organization_fight=search_params.last_organization_fight,
+            actual_weight_class=search_params.actual_weight_class,
             fighting_style=search_params.fighting_style,
             is_real=search_params.is_real,
             min_overall=search_params.min_overall,
@@ -140,15 +138,28 @@ class FighterService:
             offset=search_params.offset,
         )
 
+    async def get_total_fighters(self, search_params: FighterSearchInput) -> int:
+        """Retorna o total de lutadores que correspondem aos filtros"""
+        return await self.fighter_repo.count_fighters(
+            name=search_params.name,
+            last_organization_fight=search_params.last_organization_fight,
+            actual_weight_class=search_params.actual_weight_class,
+            fighting_style=search_params.fighting_style,
+            is_real=search_params.is_real,
+            min_overall=search_params.min_overall,
+        )
+
     async def get_top_fighters(
         self,
-        organization: Optional[str] = None,
-        weight_class: Optional[str] = None,
+        last_organization_fight: Optional[str] = None,
+        actual_weight_class: Optional[str] = None,
         limit: int = 10,
     ) -> list[Fighter]:
         """Retorna os melhores lutadores"""
         return await self.fighter_repo.get_top_fighters(
-            organization=organization, weight_class=weight_class, limit=limit
+            last_organization_fight=last_organization_fight,
+            actual_weight_class=actual_weight_class,
+            limit=limit,
         )
 
     async def get_fighter_stats(self) -> dict:

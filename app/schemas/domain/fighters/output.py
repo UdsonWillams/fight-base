@@ -21,9 +21,9 @@ class FighterOutput(BaseModel):
     # Informações básicas
     name: str
     nickname: Optional[str] = None
-    organization: str
-    weight_class: str
-    fighting_style: str
+    last_organization_fight: Optional[str] = None
+    actual_weight_class: Optional[str] = None
+    fighting_style: Optional[str] = None
 
     # Atributos de luta
     striking: int
@@ -123,6 +123,6 @@ class FighterStatsOutput(BaseModel):
     total_fighters: int
     total_real: int
     total_fictional: int
-    organizations: dict[str, int]
-    weight_classes: dict[str, int]
+    last_organizations: dict[str, int]  # Mudou de organizations para last_organizations
+    weight_classes: dict[str, int]  # Mantém o nome, mas vem de actual_weight_class
     avg_overall_rating: float

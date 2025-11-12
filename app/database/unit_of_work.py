@@ -1,5 +1,5 @@
 import json
-from typing import AsyncGenerator, Optional
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -113,7 +113,7 @@ class UnitOfWorkConnection:
             await self._session.refresh(obj)
 
 
-async def get_uow() -> AsyncGenerator[UnitOfWorkConnection, None]:
+async def get_uow():
     """FastAPI dependency to get Unit of Work instance.
 
     Yields:

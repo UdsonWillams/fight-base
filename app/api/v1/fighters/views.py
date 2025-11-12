@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.auth.dependencies import get_current_user
 from app.database.models.schemas import User
 from app.database.repositories.fighter import FighterRepository
-from app.database.unit_of_work import UnitOfWorkConnection
+from app.database.unit_of_work import UnitOfWorkConnection, get_uow
 from app.schemas.domain.fighters.input import (
     FighterCreateInput,
     FighterSearchInput,
@@ -24,7 +24,7 @@ from app.services.domain.fighter import FighterService
 router = APIRouter(prefix="/fighters", tags=["Fighters"])
 
 
-def get_fighter_service(uow: UnitOfWorkConnection = Depends()) -> FighterService:
+def get_fighter_service(uow: UnitOfWorkConnection = Depends(get_uow)) -> FighterService:
     """Dependency injection para FighterService"""
     fighter_repo = FighterRepository(uow)
     return FighterService(fighter_repo)
@@ -45,8 +45,8 @@ async def create_fighter(
     Cria um novo lutador no sistema.
 
     - **name**: Nome do lutador (obrigatório)
-    - **organization**: UFC, Bellator, ONE, etc
-    - **weight_class**: Categoria de peso
+    - **last_organization_fight**: Última organização (UFC, Bellator, ONE, etc)
+    - **actual_weight_class**: Categoria de peso atual
     - **fighting_style**: Estilo de luta
     - **striking, grappling, defense, stamina, speed, strategy**: Atributos 0-100
     """
@@ -100,8 +100,10 @@ async def delete_fighter(
 @router.get("/", response_model=FighterListOutput, summary="Buscar lutadores")
 async def search_fighters(
     name: str = Query(None, description="Buscar por nome"),
-    organization: str = Query(None, description="Filtrar por organização"),
-    weight_class: str = Query(None, description="Filtrar por categoria"),
+    last_organization_fight: str = Query(
+        None, description="Filtrar por última organização"
+    ),
+    actual_weight_class: str = Query(None, description="Filtrar por categoria atual"),
     fighting_style: str = Query(None, description="Filtrar por estilo"),
     is_real: bool = Query(None, description="Filtrar por real/fictício"),
     min_overall: int = Query(None, ge=0, le=100, description="Rating mínimo"),
@@ -116,8 +118,8 @@ async def search_fighters(
     """
     search_params = FighterSearchInput(
         name=name,
-        organization=organization,
-        weight_class=weight_class,
+        last_organization_fight=last_organization_fight,
+        actual_weight_class=actual_weight_class,
         fighting_style=fighting_style,
         is_real=is_real,
         min_overall=min_overall,
@@ -127,13 +129,12 @@ async def search_fighters(
 
     fighters = await service.search_fighters(search_params)
 
-    # Para simplificar, vamos contar apenas os resultados retornados
-    # Em produção, você faria uma query separada para o total
-    total = len(fighters)
+    # Buscar o total de lutadores (para paginação)
+    total_fighters = await service.get_total_fighters(search_params)
 
     return FighterListOutput(
         fighters=[FighterOutput.model_validate(f) for f in fighters],
-        total=total,
+        total=total_fighters,
         limit=limit,
         offset=offset,
     )
@@ -143,18 +144,22 @@ async def search_fighters(
     "/rankings/top", response_model=list[FighterOutput], summary="Top lutadores"
 )
 async def get_top_fighters(
-    organization: str = Query(None, description="Filtrar por organização"),
-    weight_class: str = Query(None, description="Filtrar por categoria"),
+    last_organization_fight: str = Query(
+        None, description="Filtrar por última organização"
+    ),
+    actual_weight_class: str = Query(None, description="Filtrar por categoria atual"),
     limit: int = Query(10, ge=1, le=50, description="Quantidade de lutadores"),
     service: FighterService = Depends(get_fighter_service),
 ):
     """
     Retorna os melhores lutadores ranqueados por overall rating.
 
-    Pode filtrar por organização e/ou categoria de peso.
+    Pode filtrar por última organização e/ou categoria de peso atual.
     """
     fighters = await service.get_top_fighters(
-        organization=organization, weight_class=weight_class, limit=limit
+        last_organization_fight=last_organization_fight,
+        actual_weight_class=actual_weight_class,
+        limit=limit,
     )
 
     return [FighterOutput.model_validate(f) for f in fighters]

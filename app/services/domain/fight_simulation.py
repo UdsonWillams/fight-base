@@ -7,7 +7,7 @@ from uuid import UUID
 from app.database.models.base import Fighter, FightSimulation
 from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
-from app.exceptions.exceptions import BusinessRuleViolation, NotFound
+from app.exceptions.exceptions import ForbiddenError, NotFoundError
 
 
 class FightSimulationService:
@@ -190,12 +190,12 @@ class FightSimulationService:
         fighter2 = await self.fighter_repo.get_by_id(fighter2_id)
 
         if not fighter1:
-            raise NotFound("Fighter 1 not found")
+            raise NotFoundError("Fighter 1 not found")
         if not fighter2:
-            raise NotFound("Fighter 2 not found")
+            raise NotFoundError("Fighter 2 not found")
 
         if fighter1_id == fighter2_id:
-            raise BusinessRuleViolation("Cannot simulate fight between same fighter")
+            raise ForbiddenError("Cannot simulate fight between same fighter")
 
         # Calcula probabilidades
         prob1, prob2 = self.calculate_win_probability(fighter1, fighter2)
@@ -269,9 +269,9 @@ class FightSimulationService:
         fighter2 = await self.fighter_repo.get_by_id(fighter2_id)
 
         if not fighter1:
-            raise NotFound("Fighter 1 not found")
+            raise NotFoundError("Fighter 1 not found")
         if not fighter2:
-            raise NotFound("Fighter 2 not found")
+            raise NotFoundError("Fighter 2 not found")
 
         # Calcula probabilidades
         prob1, prob2 = self.calculate_win_probability(fighter1, fighter2)
@@ -358,9 +358,9 @@ class FightSimulationService:
         fighter2 = await self.fighter_repo.get_by_id(fighter2_id)
 
         if not fighter1:
-            raise NotFound("Fighter 1 not found")
+            raise NotFoundError("Fighter 1 not found")
         if not fighter2:
-            raise NotFound("Fighter 2 not found")
+            raise NotFoundError("Fighter 2 not found")
 
         # Compara cada atributo
         comparisons = {
@@ -438,3 +438,157 @@ class FightSimulationService:
             },
             "comparisons": comparisons,
         }
+
+    async def get_simulation_with_details(self, simulation: FightSimulation) -> dict:
+        """
+        Retorna uma simulação com todos os detalhes formatados incluindo nomes dos lutadores.
+
+        Args:
+            simulation: Objeto FightSimulation
+
+        Returns:
+            Dict com simulação formatada
+        """
+        fighter1 = await self.fighter_repo.get_by_id(simulation.fighter1_id)
+        fighter2 = await self.fighter_repo.get_by_id(simulation.fighter2_id)
+        winner = fighter1 if simulation.winner_id == fighter1.id else fighter2
+
+        return {
+            "id": str(simulation.id),
+            "fighter1_id": str(simulation.fighter1_id),
+            "fighter2_id": str(simulation.fighter2_id),
+            "fighter1_name": fighter1.name,
+            "fighter2_name": fighter2.name,
+            "winner_id": str(simulation.winner_id),
+            "winner_name": winner.name,
+            "result_type": simulation.result_type,
+            "rounds": simulation.rounds,
+            "finish_round": simulation.finish_round,
+            "fighter1_probability": simulation.fighter1_probability,
+            "fighter2_probability": simulation.fighter2_probability,
+            "simulation_details": simulation.simulation_details,
+            "notes": simulation.notes,
+            "created_at": simulation.created_at.isoformat(),
+        }
+
+    async def get_fighter_history(
+        self, fighter_id: UUID, limit: int = 20, offset: int = 0
+    ) -> dict:
+        """
+        Retorna o histórico de simulações de um lutador com estatísticas.
+
+        Args:
+            fighter_id: ID do lutador
+            limit: Limite de resultados
+            offset: Offset para paginação
+
+        Returns:
+            Dict com histórico e estatísticas formatados
+        """
+        # Busca dados
+        history = await self.simulation_repo.get_fighter_history(
+            fighter_id=fighter_id, limit=limit, offset=offset
+        )
+        stats = await self.simulation_repo.get_fighter_stats(fighter_id)
+        fighter = await self.fighter_repo.get_by_id(fighter_id)
+
+        # Formata lutas
+        fights = []
+        for sim in history:
+            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
+            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
+            winner = f1 if sim.winner_id == f1.id else f2
+
+            fights.append(
+                {
+                    "id": str(sim.id),
+                    "fighter1_name": f1.name,
+                    "fighter2_name": f2.name,
+                    "winner_name": winner.name,
+                    "result_type": sim.result_type,
+                    "rounds": sim.rounds,
+                    "finish_round": sim.finish_round,
+                    "created_at": sim.created_at.isoformat(),
+                }
+            )
+
+        return {
+            "fighter_id": str(fighter_id),
+            "fighter_name": fighter.name,
+            "statistics": stats,
+            "recent_fights": fights,
+            "pagination": {"limit": limit, "offset": offset, "total": len(fights)},
+        }
+
+    async def get_matchup_history_formatted(
+        self, fighter1_id: UUID, fighter2_id: UUID
+    ) -> list[dict]:
+        """
+        Retorna o histórico de confrontos diretos entre dois lutadores formatado.
+
+        Args:
+            fighter1_id: ID do primeiro lutador
+            fighter2_id: ID do segundo lutador
+
+        Returns:
+            Lista de confrontos formatados
+        """
+        history = await self.simulation_repo.get_matchup_history(
+            fighter1_id, fighter2_id
+        )
+
+        results = []
+        for sim in history:
+            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
+            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
+            winner = f1 if sim.winner_id == f1.id else f2
+
+            results.append(
+                {
+                    "id": str(sim.id),
+                    "fighter1_name": f1.name,
+                    "fighter2_name": f2.name,
+                    "winner_name": winner.name,
+                    "result_type": sim.result_type,
+                    "rounds": sim.rounds,
+                    "finish_round": sim.finish_round,
+                    "fighter1_probability": sim.fighter1_probability,
+                    "fighter2_probability": sim.fighter2_probability,
+                    "created_at": sim.created_at.isoformat(),
+                }
+            )
+
+        return results
+
+    async def get_recent_simulations_formatted(self, limit: int = 50) -> list[dict]:
+        """
+        Retorna as simulações recentes formatadas com nomes dos lutadores.
+
+        Args:
+            limit: Número máximo de simulações
+
+        Returns:
+            Lista de simulações formatadas
+        """
+        simulations = await self.simulation_repo.get_recent_simulations(limit)
+
+        results = []
+        for sim in simulations:
+            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
+            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
+            winner = f1 if sim.winner_id == f1.id else f2
+
+            results.append(
+                {
+                    "id": str(sim.id),
+                    "fighter1_name": f1.name,
+                    "fighter2_name": f2.name,
+                    "winner_name": winner.name,
+                    "result_type": sim.result_type,
+                    "rounds": sim.rounds,
+                    "finish_round": sim.finish_round,
+                    "created_at": sim.created_at.isoformat(),
+                }
+            )
+
+        return results

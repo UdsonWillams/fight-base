@@ -39,8 +39,8 @@ class FighterRepository(BaseRepository[Fighter]):
     async def search_fighters(
         self,
         name: Optional[str] = None,
-        organization: Optional[str] = None,
-        weight_class: Optional[str] = None,
+        last_organization_fight: Optional[str] = None,
+        actual_weight_class: Optional[str] = None,
         fighting_style: Optional[str] = None,
         is_real: Optional[bool] = None,
         min_overall: Optional[int] = None,
@@ -59,11 +59,15 @@ class FighterRepository(BaseRepository[Fighter]):
             if name:
                 query = query.filter(self.model.name.ilike(f"%{name}%"))
 
-            if organization:
-                query = query.filter(self.model.organization == organization)
+            if last_organization_fight:
+                query = query.filter(
+                    self.model.last_organization_fight == last_organization_fight
+                )
 
-            if weight_class:
-                query = query.filter(self.model.weight_class == weight_class)
+            if actual_weight_class:
+                query = query.filter(
+                    self.model.actual_weight_class == actual_weight_class
+                )
 
             if fighting_style:
                 query = query.filter(self.model.fighting_style == fighting_style)
@@ -110,6 +114,63 @@ class FighterRepository(BaseRepository[Fighter]):
             logger.error(f"Error searching fighters: {e}")
             raise RepositoryError
 
+    async def count_fighters(
+        self,
+        name: Optional[str] = None,
+        last_organization_fight: Optional[str] = None,
+        actual_weight_class: Optional[str] = None,
+        fighting_style: Optional[str] = None,
+        is_real: Optional[bool] = None,
+        min_overall: Optional[int] = None,
+    ) -> int:
+        """Conta lutadores que correspondem aos filtros"""
+        try:
+            session = await self.uow.get_session()
+            query = select(func.count(self.model.id)).filter(
+                self.model.deleted_at.is_(None),
+                self.model.deleted_by.is_(None),
+            )
+
+            # Aplicar os mesmos filtros da busca
+            if name:
+                query = query.filter(self.model.name.ilike(f"%{name}%"))
+
+            if last_organization_fight:
+                query = query.filter(
+                    self.model.last_organization_fight == last_organization_fight
+                )
+
+            if actual_weight_class:
+                query = query.filter(
+                    self.model.actual_weight_class == actual_weight_class
+                )
+
+            if fighting_style:
+                query = query.filter(self.model.fighting_style == fighting_style)
+
+            if is_real is not None:
+                query = query.filter(self.model.is_real == is_real)
+
+            if min_overall:
+                query = query.filter(
+                    (
+                        self.model.striking
+                        + self.model.grappling
+                        + self.model.defense
+                        + self.model.stamina
+                        + self.model.speed
+                        + self.model.strategy
+                    )
+                    / 6
+                    >= min_overall
+                )
+
+            result = await session.execute(query)
+            return result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Error counting fighters: {e}")
+            raise RepositoryError
+
     async def get_fighters_by_creator(
         self, creator_id: UUID, limit: int = 50, offset: int = 0
     ) -> list[Fighter]:
@@ -136,8 +197,8 @@ class FighterRepository(BaseRepository[Fighter]):
 
     async def get_top_fighters(
         self,
-        organization: Optional[str] = None,
-        weight_class: Optional[str] = None,
+        last_organization_fight: Optional[str] = None,
+        actual_weight_class: Optional[str] = None,
         limit: int = 10,
     ) -> list[Fighter]:
         """Retorna os melhores lutadores (por overall rating)"""
@@ -148,11 +209,15 @@ class FighterRepository(BaseRepository[Fighter]):
                 self.model.deleted_by.is_(None),
             )
 
-            if organization:
-                query = query.filter(self.model.organization == organization)
+            if last_organization_fight:
+                query = query.filter(
+                    self.model.last_organization_fight == last_organization_fight
+                )
 
-            if weight_class:
-                query = query.filter(self.model.weight_class == weight_class)
+            if actual_weight_class:
+                query = query.filter(
+                    self.model.actual_weight_class == actual_weight_class
+                )
 
             # Ordenar por overall rating
             query = query.order_by(
@@ -198,20 +263,20 @@ class FighterRepository(BaseRepository[Fighter]):
             real_result = await session.execute(real_query)
             total_real = real_result.scalar()
 
-            # Lutadores por organização
+            # Lutadores por última organização
             org_query = (
-                select(self.model.organization, func.count(self.model.id))
+                select(self.model.last_organization_fight, func.count(self.model.id))
                 .filter(self.model.deleted_at.is_(None))
-                .group_by(self.model.organization)
+                .group_by(self.model.last_organization_fight)
             )
             org_result = await session.execute(org_query)
-            organizations = {org: count for org, count in org_result.all()}
+            last_organizations = {org: count for org, count in org_result.all()}
 
-            # Lutadores por categoria de peso
+            # Lutadores por categoria de peso atual
             weight_query = (
-                select(self.model.weight_class, func.count(self.model.id))
+                select(self.model.actual_weight_class, func.count(self.model.id))
                 .filter(self.model.deleted_at.is_(None))
-                .group_by(self.model.weight_class)
+                .group_by(self.model.actual_weight_class)
             )
             weight_result = await session.execute(weight_query)
             weight_classes = {wc: count for wc, count in weight_result.all()}
@@ -237,7 +302,7 @@ class FighterRepository(BaseRepository[Fighter]):
                 "total_fighters": total,
                 "total_real": total_real,
                 "total_fictional": total - total_real,
-                "organizations": organizations,
+                "last_organizations": last_organizations,
                 "weight_classes": weight_classes,
                 "avg_overall_rating": round(avg_overall, 2),
             }

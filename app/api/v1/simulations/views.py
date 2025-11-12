@@ -4,21 +4,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.v1.auth.dependencies import get_current_user
-from app.database.models.schemas import User
 from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
-from app.database.unit_of_work import UnitOfWorkConnection
-from app.schemas.domain.simulations import (
-    FightSimulationInput,
-)
+from app.database.unit_of_work import UnitOfWorkConnection, get_uow
+from app.schemas.domain.simulations import FightSimulationInput
 from app.services.domain.fight_simulation import FightSimulationService
 
 router = APIRouter(prefix="/simulations", tags=["Fight Simulations"])
 
 
 def get_simulation_service(
-    uow: UnitOfWorkConnection = Depends(),
+    uow: UnitOfWorkConnection = Depends(get_uow),
 ) -> FightSimulationService:
     """Dependency injection para FightSimulationService"""
     fighter_repo = FighterRepository(uow)
@@ -34,7 +30,7 @@ def get_simulation_service(
 )
 async def simulate_fight(
     data: FightSimulationInput,
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
     service: FightSimulationService = Depends(get_simulation_service),
 ):
     """
@@ -52,31 +48,10 @@ async def simulate_fight(
         fighter2_id=data.fighter2_id,
         rounds=data.rounds,
         notes=data.notes,
-        created_by=current_user.email,
+        created_by="testeer",  # current_user.email,
     )
 
-    # Busca os nomes dos lutadores para retorno
-    fighter1 = await service.fighter_repo.get_by_id(data.fighter1_id)
-    fighter2 = await service.fighter_repo.get_by_id(data.fighter2_id)
-    winner = fighter1 if simulation.winner_id == fighter1.id else fighter2
-
-    return {
-        "id": str(simulation.id),
-        "fighter1_id": str(simulation.fighter1_id),
-        "fighter2_id": str(simulation.fighter2_id),
-        "fighter1_name": fighter1.name,
-        "fighter2_name": fighter2.name,
-        "winner_id": str(simulation.winner_id),
-        "winner_name": winner.name,
-        "result_type": simulation.result_type,
-        "rounds": simulation.rounds,
-        "finish_round": simulation.finish_round,
-        "fighter1_probability": simulation.fighter1_probability,
-        "fighter2_probability": simulation.fighter2_probability,
-        "simulation_details": simulation.simulation_details,
-        "notes": simulation.notes,
-        "created_at": simulation.created_at.isoformat(),
-    }
+    return await service.get_simulation_with_details(simulation)
 
 
 @router.get("/predict", response_model=dict, summary="Prever resultado de luta")
@@ -127,44 +102,7 @@ async def get_fighter_simulation_history(
 
     Mostra todas as lutas simuladas, vitórias, derrotas e estatísticas.
     """
-    # Busca histórico
-    history = await service.simulation_repo.get_fighter_history(
-        fighter_id=fighter_id, limit=limit, offset=offset
-    )
-
-    # Busca estatísticas
-    stats = await service.simulation_repo.get_fighter_stats(fighter_id)
-
-    # Busca info do lutador
-    fighter = await service.fighter_repo.get_by_id(fighter_id)
-
-    # Formata resposta
-    fights = []
-    for sim in history:
-        f1 = await service.fighter_repo.get_by_id(sim.fighter1_id)
-        f2 = await service.fighter_repo.get_by_id(sim.fighter2_id)
-        winner = f1 if sim.winner_id == f1.id else f2
-
-        fights.append(
-            {
-                "id": str(sim.id),
-                "fighter1_name": f1.name,
-                "fighter2_name": f2.name,
-                "winner_name": winner.name,
-                "result_type": sim.result_type,
-                "rounds": sim.rounds,
-                "finish_round": sim.finish_round,
-                "created_at": sim.created_at.isoformat(),
-            }
-        )
-
-    return {
-        "fighter_id": str(fighter_id),
-        "fighter_name": fighter.name,
-        "statistics": stats,
-        "recent_fights": fights,
-        "pagination": {"limit": limit, "offset": offset, "total": len(fights)},
-    }
+    return await service.get_fighter_history(fighter_id, limit, offset)
 
 
 @router.get(
@@ -183,33 +121,7 @@ async def get_matchup_history(
     Útil para ver quantas vezes eles já se enfrentaram em simulações
     e qual lutador tem vantagem no head-to-head.
     """
-    history = await service.simulation_repo.get_matchup_history(
-        fighter1_id, fighter2_id
-    )
-
-    # Formata resposta
-    results = []
-    for sim in history:
-        f1 = await service.fighter_repo.get_by_id(sim.fighter1_id)
-        f2 = await service.fighter_repo.get_by_id(sim.fighter2_id)
-        winner = f1 if sim.winner_id == f1.id else f2
-
-        results.append(
-            {
-                "id": str(sim.id),
-                "fighter1_name": f1.name,
-                "fighter2_name": f2.name,
-                "winner_name": winner.name,
-                "result_type": sim.result_type,
-                "rounds": sim.rounds,
-                "finish_round": sim.finish_round,
-                "fighter1_probability": sim.fighter1_probability,
-                "fighter2_probability": sim.fighter2_probability,
-                "created_at": sim.created_at.isoformat(),
-            }
-        )
-
-    return results
+    return await service.get_matchup_history_formatted(fighter1_id, fighter2_id)
 
 
 @router.get("/recent", response_model=list[dict], summary="Simulações recentes")
@@ -222,25 +134,4 @@ async def get_recent_simulations(
 
     Útil para ver a atividade recente e descobrir lutas interessantes.
     """
-    simulations = await service.simulation_repo.get_recent_simulations(limit)
-
-    results = []
-    for sim in simulations:
-        f1 = await service.fighter_repo.get_by_id(sim.fighter1_id)
-        f2 = await service.fighter_repo.get_by_id(sim.fighter2_id)
-        winner = f1 if sim.winner_id == f1.id else f2
-
-        results.append(
-            {
-                "id": str(sim.id),
-                "fighter1_name": f1.name,
-                "fighter2_name": f2.name,
-                "winner_name": winner.name,
-                "result_type": sim.result_type,
-                "rounds": sim.rounds,
-                "finish_round": sim.finish_round,
-                "created_at": sim.created_at.isoformat(),
-            }
-        )
-
-    return results
+    return await service.get_recent_simulations_formatted(limit)

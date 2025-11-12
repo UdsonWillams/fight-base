@@ -23,7 +23,6 @@ from app.database.models.base import (  # noqa
     BaseModel,
     Fighter,
     FightSimulation,
-    Product,
     User,
 )
 

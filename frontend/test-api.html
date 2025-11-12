@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Test API</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+            }
+            button {
+                padding: 10px 20px;
+                margin: 5px;
+                cursor: pointer;
+            }
+            pre {
+                background: #f4f4f4;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+            }
+            .success {
+                color: green;
+            }
+            .error {
+                color: red;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🧪 Test API Endpoints</h1>
+
+        <div>
+            <h2>Available Tests:</h2>
+            <button onclick="testFighters()">Test Get Fighters</button>
+            <button onclick="testStats()">Test Fighter Stats</button>
+            <button onclick="testHealth()">Test Health Check</button>
+        </div>
+
+        <h3>Result:</h3>
+        <pre id="result">Click a button to test an endpoint...</pre>
+
+        <script src="js/api.js"></script>
+        <script>
+            const resultEl = document.getElementById("result");
+
+            async function testFighters() {
+                resultEl.textContent = "⏳ Loading fighters...";
+
+                try {
+                    const response = await api.getFighters({ limit: 5 });
+                    resultEl.className = "success";
+                    resultEl.textContent =
+                        "✓ SUCCESS:\n\n" + JSON.stringify(response, null, 2);
+                    console.log("✓ Fighters:", response);
+                } catch (error) {
+                    resultEl.className = "error";
+                    resultEl.textContent =
+                        "✗ ERROR:\n\n" + error.message + "\n\n" + error.stack;
+                    console.error("✗ Error:", error);
+                }
+            }
+
+            async function testStats() {
+                resultEl.textContent = "⏳ Loading stats...";
+
+                try {
+                    const response = await api.getFighterStats();
+                    resultEl.className = "success";
+                    resultEl.textContent =
+                        "✓ SUCCESS:\n\n" + JSON.stringify(response, null, 2);
+                    console.log("✓ Stats:", response);
+                } catch (error) {
+                    resultEl.className = "error";
+                    resultEl.textContent =
+                        "✗ ERROR:\n\n" + error.message + "\n\n" + error.stack;
+                    console.error("✗ Error:", error);
+                }
+            }
+
+            async function testHealth() {
+                resultEl.textContent = "⏳ Checking health...";
+
+                try {
+                    const response = await fetch(
+                        "http://localhost:8080/health"
+                    );
+                    const data = await response.json();
+                    resultEl.className = "success";
+                    resultEl.textContent =
+                        "✓ SUCCESS:\n\n" + JSON.stringify(data, null, 2);
+                    console.log("✓ Health:", data);
+                } catch (error) {
+                    resultEl.className = "error";
+                    resultEl.textContent =
+                        "✗ ERROR:\n\n" + error.message + "\n\n" + error.stack;
+                    console.error("✗ Error:", error);
+                }
+            }
+        </script>
+    </body>
+</html>
