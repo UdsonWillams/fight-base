@@ -14,6 +14,7 @@ from app.core.settings import get_settings
 from app.exceptions.exceptions import DefaultApiException
 from app.middlewares.response_time import ResponseTimeMiddleware
 from app.middlewares.trace_id import CreateTraceIdMiddleware
+from app.services.ml.model_loader import ml_model_loader
 
 config_file = alembic_config()
 settings = get_settings()
@@ -26,6 +27,11 @@ config_file.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 async def lifespan(app: Starlette) -> AsyncIterator:
     logger.info("Running database migrations...")
     upgrade(config_file, "head")
+
+    # Carregar modelo ML
+    logger.info("🤖 Inicializando modelo ML...")
+    ml_model_loader.load_model()
+
     yield
 
 

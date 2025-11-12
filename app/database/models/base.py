@@ -76,13 +76,13 @@ class Fighter(BaseModel):
     height_cm = Column(Float, nullable=True)  # Altura em centímetros
     reach_cm = Column(Float, nullable=True)  # Alcance em centímetros
 
-    # Atributos de luta (0-100)
-    striking = Column(Integer, nullable=False)  # Habilidade de striking/trocação
-    grappling = Column(Integer, nullable=False)  # Habilidade de grappling/luta agarrada
-    defense = Column(Integer, nullable=False)  # Capacidade defensiva
-    stamina = Column(Integer, nullable=False)  # Resistência/Cardio
-    speed = Column(Integer, nullable=False)  # Velocidade
-    strategy = Column(Integer, nullable=False)  # QI de luta/estratégia
+    # Atributos de luta (0-100) - DEPRECATED: Usar estatísticas ML (slpm, td_avg, etc)
+    striking = Column(Integer, nullable=True)  # DEPRECATED
+    grappling = Column(Integer, nullable=True)  # DEPRECATED
+    defense = Column(Integer, nullable=True)  # DEPRECATED
+    stamina = Column(Integer, nullable=True)  # DEPRECATED
+    speed = Column(Integer, nullable=True)  # DEPRECATED
+    strategy = Column(Integer, nullable=True)  # DEPRECATED
 
     # Estatísticas avançadas do UFC Stats
     slpm = Column(Float, nullable=True)  # Significant Strikes Landed per Minute

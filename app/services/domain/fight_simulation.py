@@ -4,10 +4,12 @@ import random
 from typing import Optional
 from uuid import UUID
 
+from app.core.logger import logger
 from app.database.models.base import Fighter, FightSimulation
 from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
 from app.exceptions.exceptions import ForbiddenError, NotFoundError
+from app.services.ml.prediction_service import ml_prediction_service
 
 
 class FightSimulationService:
@@ -52,11 +54,29 @@ class FightSimulationService:
         self, fighter1: Fighter, fighter2: Fighter
     ) -> tuple[float, float]:
         """
-        Calcula a probabilidade de vitória de cada lutador
+        Calcula a probabilidade de vitória de cada lutador usando modelo ML
+        Fallback para método legado se ML não disponível
 
         Returns:
             (probabilidade_fighter1, probabilidade_fighter2)
         """
+        # Tenta usar modelo ML
+        ml_prob = ml_prediction_service.predict_winner_from_model(fighter1, fighter2)
+
+        if ml_prob is not None:
+            # Converte para porcentagem
+            prob1 = ml_prob * 100
+            prob2 = (1 - ml_prob) * 100
+            logger.info(
+                f"🤖 Usando predição ML: {fighter1.name} {prob1:.2f}% vs {fighter2.name} {prob2:.2f}%"
+            )
+            return round(prob1, 2), round(prob2, 2)
+
+        # Fallback: método legado (DEPRECATED)
+        logger.warning(
+            "⚠️  ML não disponível, usando cálculo legado com atributos mágicos"
+        )
+
         # Calcula poder geral de cada lutador
         power1 = self._calculate_fighter_power(fighter1, "overall")
         power2 = self._calculate_fighter_power(fighter2, "overall")
