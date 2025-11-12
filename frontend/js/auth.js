@@ -176,7 +176,14 @@ function togglePasswordVisibility(inputId) {
 }
 
 // Setup event listeners para autenticação
+let authListenersInitialized = false;
+
 function setupAuthListeners() {
+    // Evita adicionar listeners múltiplas vezes
+    if (authListenersInitialized) {
+        return;
+    }
+
     // Login form
     const loginForm = document.getElementById("loginForm");
     if (loginForm) {
@@ -205,4 +212,6 @@ function setupAuthListeners() {
     if (googleLoginBtn) {
         googleLoginBtn.addEventListener("click", handleGoogleLogin);
     }
+
+    authListenersInitialized = true;
 }

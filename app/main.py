@@ -84,8 +84,6 @@ async def general_exception_handler(request, exc):
     )
 
 
-app.add_middleware(CreateTraceIdMiddleware)
-app.add_middleware(ResponseTimeMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.APP_CORS_LIST,
@@ -93,4 +91,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(CreateTraceIdMiddleware)
+app.add_middleware(ResponseTimeMiddleware)
 app.include_router(router=api_router)

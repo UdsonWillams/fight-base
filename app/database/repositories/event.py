@@ -42,8 +42,9 @@ class EventRepository(BaseRepository[Event]):
         limit: int = 100,
         status: Optional[str] = None,
         organization: Optional[str] = None,
+        order_by: Optional[str] = "created_at",
     ) -> List[Event]:
-        """Lista eventos com filtros opcionais"""
+        """Lista eventos com filtros e ordenação"""
         session = await self.uow.get_session()
         query = (
             select(self.model)
@@ -54,7 +55,6 @@ class EventRepository(BaseRepository[Event]):
                 self.model.deleted_at.is_(None),
                 self.model.deleted_by.is_(None),
             )
-            .order_by(desc(self.model.date))
         )
 
         if status:
@@ -62,6 +62,20 @@ class EventRepository(BaseRepository[Event]):
 
         if organization:
             query = query.filter(self.model.organization.ilike(f"%{organization}%"))
+
+        # Aplica ordenação
+        if order_by == "created_at":
+            query = query.order_by(desc(self.model.created_at))
+        elif order_by == "date_desc":
+            query = query.order_by(desc(self.model.date))
+        elif order_by == "date_asc":
+            query = query.order_by(self.model.date)
+        elif order_by == "name_asc":
+            query = query.order_by(self.model.name)
+        elif order_by == "name_desc":
+            query = query.order_by(desc(self.model.name))
+        else:
+            query = query.order_by(desc(self.model.created_at))  # Padrão
 
         query = query.offset(skip).limit(limit)
         result = await session.execute(query)

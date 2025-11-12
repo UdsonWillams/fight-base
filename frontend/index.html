@@ -370,19 +370,41 @@
                     </div>
 
                     <div class="events-filters">
-                        <select id="eventStatus">
-                            <option value="">Todos os Status</option>
-                            <option value="scheduled">Agendados</option>
-                            <option value="completed">Concluídos</option>
+                        <select id="eventStatus" class="filter-select">
+                            <option value="">📋 Todos os Status</option>
+                            <option value="scheduled">🗓️ Agendados</option>
+                            <option value="in_progress">▶️ Em Andamento</option>
+                            <option value="completed">✅ Concluídos</option>
+                            <option value="cancelled">❌ Cancelados</option>
                         </select>
-                        <select id="eventOrg">
-                            <option value="">Todas Organizações</option>
+                        <select id="eventOrg" class="filter-select">
+                            <option value="">🌍 Todas as Organizações</option>
                             <option value="UFC">UFC</option>
                             <option value="Bellator">Bellator</option>
                             <option value="ONE Championship">
                                 ONE Championship
                             </option>
                             <option value="PFL">PFL</option>
+                            <option value="Rizin">Rizin</option>
+                            <option value="KSW">KSW</option>
+                            <option value="LFA">LFA</option>
+                            <option value="Cage Warriors">Cage Warriors</option>
+                            <option value="Glory">Glory</option>
+                            <option value="K-1">K-1</option>
+                            <option value="Outras">Outras</option>
+                        </select>
+                        <select id="eventOrderBy" class="filter-select">
+                            <option value="created_at">
+                                🆕 Mais Recentes (Criação)
+                            </option>
+                            <option value="date_desc">
+                                📅 Data do Evento (Mais Próxima)
+                            </option>
+                            <option value="date_asc">
+                                📆 Data do Evento (Mais Antiga)
+                            </option>
+                            <option value="name_asc">🔤 Nome (A-Z)</option>
+                            <option value="name_desc">🔤 Nome (Z-A)</option>
                         </select>
                     </div>
 
@@ -422,6 +444,7 @@
                                     >Organização *</label
                                 >
                                 <select id="eventOrganization" required>
+                                    <option value="">Selecione...</option>
                                     <option value="UFC">UFC</option>
                                     <option value="Bellator">Bellator</option>
                                     <option value="ONE Championship">
@@ -429,6 +452,19 @@
                                     </option>
                                     <option value="PFL">PFL</option>
                                     <option value="Rizin">Rizin</option>
+                                    <option value="KSW">KSW</option>
+                                    <option value="LFA">LFA</option>
+                                    <option value="Cage Warriors">
+                                        Cage Warriors
+                                    </option>
+                                    <option value="Glory">Glory</option>
+                                    <option value="K-1">K-1</option>
+                                    <option value="Invicta FC">
+                                        Invicta FC
+                                    </option>
+                                    <option value="DWCS">
+                                        Dana White's Contender Series
+                                    </option>
                                     <option value="Outras">Outras</option>
                                 </select>
                             </div>

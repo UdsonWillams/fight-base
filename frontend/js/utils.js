@@ -14,6 +14,7 @@ const AppState = {
     // Events
     currentEvent: null,
     eventFights: [],
+    editingEventId: null,
 
     // Fighters
     allFighters: [],

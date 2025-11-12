@@ -10,9 +10,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Check authentication
     await checkAuth();
 
-    // Load home stats
-    loadHomeStats();
-
     // Initialize sections based on hash
     const hash = window.location.hash.slice(1) || "home";
     showSection(hash);
@@ -36,7 +33,7 @@ function showSection(sectionName) {
         link.classList.remove("active");
     });
     const activeLink = document.querySelector(
-        `[onclick="showSection('${sectionName}')"]`
+        `.nav-link[href="#${sectionName}"]`
     );
     if (activeLink) {
         activeLink.classList.add("active");
@@ -181,13 +178,19 @@ function setupEventListeners() {
 
     const backToEventsBtn = document.getElementById("backToEventsBtn");
     if (backToEventsBtn) {
-        backToEventsBtn.addEventListener("click", () => showSection("events"));
+        backToEventsBtn.addEventListener("click", () => {
+            if (typeof resetEventForm === "function") resetEventForm();
+            showSection("events");
+        });
     }
 
     // Cancel event button
     const cancelEventBtn = document.getElementById("cancelEventBtn");
     if (cancelEventBtn) {
-        cancelEventBtn.addEventListener("click", () => showSection("events"));
+        cancelEventBtn.addEventListener("click", () => {
+            if (typeof resetEventForm === "function") resetEventForm();
+            showSection("events");
+        });
     }
 
     // Rankings filters
@@ -211,7 +214,6 @@ function setupEventListeners() {
     // Close modal on outside click
     window.addEventListener("click", (event) => {
         if (event.target.classList.contains("modal")) {
-            event.target.style.display = "none";
             event.target.classList.remove("active");
         }
     });

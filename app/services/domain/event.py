@@ -84,10 +84,15 @@ class EventService:
         limit: int = 100,
         status: Optional[str] = None,
         organization: Optional[str] = None,
+        order_by: Optional[str] = "created_at",
     ) -> List[Event]:
-        """Lista eventos com filtros"""
+        """Lista eventos com filtros e ordenação"""
         return await self.event_repo.list_events(
-            skip=skip, limit=limit, status=status, organization=organization
+            skip=skip,
+            limit=limit,
+            status=status,
+            organization=organization,
+            order_by=order_by,
         )
 
     async def add_fight_to_event(

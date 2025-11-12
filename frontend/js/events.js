@@ -2,11 +2,28 @@
 
 // Inicializa a seção de eventos
 async function initEventsSection() {
+    // Verifica autenticação
+    if (!requireAuth()) {
+        return;
+    }
+
     try {
         await loadEvents();
         setupEventForm();
     } catch (error) {
         console.error("Erro ao inicializar seção de eventos:", error);
+
+        // Se erro for de autenticação, redireciona para login
+        if (
+            error.message &&
+            (error.message.includes("401") ||
+                error.message.includes("Unauthorized"))
+        ) {
+            showToast("Sessão expirada. Faça login novamente.", "error");
+            showSection("login");
+        } else {
+            showToast("Erro ao carregar eventos", "error");
+        }
         hideLoading();
     }
 }
@@ -31,7 +48,19 @@ async function loadEvents(filters = {}) {
         eventsList.innerHTML = events
             .map(
                 (event) => `
-            <div class="event-card" onclick="viewEvent('${event.id}')">
+            <div class="event-card" data-event-id="${event.id}">
+                <div class="event-card-actions">
+                    <button class="btn-icon btn-edit-event" data-event-id="${
+                        event.id
+                    }" title="Editar evento">
+                        ✏️
+                    </button>
+                    <button class="btn-icon btn-delete-event" data-event-id="${
+                        event.id
+                    }" title="Excluir evento">
+                        🗑️
+                    </button>
+                </div>
                 <div class="event-header">
                     <h3>${event.name}</h3>
                     <span class="badge badge-${getStatusColor(
@@ -48,7 +77,7 @@ async function loadEvents(filters = {}) {
                 </div>
                 ${
                     event.status === "scheduled"
-                        ? `<button class="btn btn-primary btn-lg" onclick="event.stopPropagation(); simulateEventClick('${event.id}')">
+                        ? `<button class="btn btn-primary btn-lg btn-simulate-event" data-event-id="${event.id}">
                         🎲 Simular Todas as Lutas
                     </button>`
                         : `<button class="btn btn-success btn-lg" disabled style="opacity: 0.6; cursor: not-allowed;">
@@ -121,21 +150,53 @@ function showEventDetailsModal(event) {
                 }
             </div>
 
-            ${
-                event.status === "scheduled"
-                    ? `
-                <div class="event-actions">
-                    <button class="btn btn-primary btn-lg" onclick="simulateCurrentEvent()">
+            <div class="event-actions" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2rem;">
+                ${
+                    event.status === "scheduled"
+                        ? `
+                    <button class="btn btn-primary btn-lg" id="simulateCurrentEventBtn">
                         🎲 Simular Todas as Lutas
                     </button>
-                </div>
-            `
-                    : ""
-            }
+                `
+                        : ""
+                }
+                <button class="btn btn-secondary" id="editEventBtn" data-event-id="${
+                    event.id
+                }">
+                    ✏️ Editar Evento
+                </button>
+                <button class="btn btn-danger" id="deleteEventBtn" data-event-id="${
+                    event.id
+                }">
+                    🗑️ Excluir Evento
+                </button>
+            </div></div>
         </div>
     `;
 
     modal.style.display = "flex";
+
+    // Setup listeners for modal buttons
+    setTimeout(() => {
+        const simulateBtn = document.getElementById("simulateCurrentEventBtn");
+        if (simulateBtn) {
+            simulateBtn.addEventListener("click", simulateCurrentEvent);
+        }
+
+        const editBtn = document.getElementById("editEventBtn");
+        if (editBtn) {
+            editBtn.addEventListener("click", () =>
+                editEvent(editBtn.dataset.eventId)
+            );
+        }
+
+        const deleteBtn = document.getElementById("deleteEventBtn");
+        if (deleteBtn) {
+            deleteBtn.addEventListener("click", () =>
+                deleteEvent(deleteBtn.dataset.eventId)
+            );
+        }
+    }, 0);
 }
 
 // Renderiza card de luta
@@ -262,6 +323,137 @@ async function simulateEventClick(eventId) {
     }
 }
 
+// Editar evento
+async function editEvent(eventId) {
+    try {
+        showLoading("Carregando evento...");
+        const event = await api.getEvent(eventId);
+
+        // Fecha o modal de detalhes
+        closeModal("eventDetailsModal");
+
+        // Vai para a seção de criar evento
+        showSection("createEvent");
+
+        // Preenche o formulário com os dados do evento
+        document.getElementById("eventName").value = event.name;
+        document.getElementById("eventDate").value = event.date;
+        document.getElementById("eventOrganization").value = event.organization;
+        document.getElementById("eventLocation").value = event.location || "";
+        document.getElementById("eventDescription").value =
+            event.description || "";
+
+        // Armazena o ID do evento sendo editado
+        AppState.editingEventId = eventId;
+
+        // Limpa e preenche as lutas
+        AppState.eventFights = [];
+        const fightsContainer = document.getElementById("eventFightsContainer");
+        fightsContainer.innerHTML = "";
+
+        if (event.fights && event.fights.length > 0) {
+            event.fights.forEach((fight, index) => {
+                // Adiciona a luta ao estado
+                AppState.eventFights.push({
+                    fighter1_id: fight.fighter1_id,
+                    fighter2_id: fight.fighter2_id,
+                    fighter1_name: fight.fighter1_name,
+                    fighter2_name: fight.fighter2_name,
+                    fight_type: fight.fight_type,
+                    rounds: fight.rounds,
+                    is_title_fight: fight.is_title_fight || false,
+                });
+
+                // Renderiza a luta no formulário
+                addFightToForm();
+
+                // Preenche os dados
+                setTimeout(() => {
+                    const fightIndex = index + 1;
+                    document.getElementById(`fightType_${fightIndex}`).value =
+                        fight.fight_type;
+                    document.getElementById(`rounds_${fightIndex}`).value =
+                        fight.rounds;
+                    document.getElementById(`isTitle_${fightIndex}`).checked =
+                        fight.is_title_fight || false;
+                    document.getElementById(`fighter1_${fightIndex}`).value =
+                        fight.fighter1_id;
+                    document.getElementById(`fighter2_${fightIndex}`).value =
+                        fight.fighter2_id;
+
+                    // Mostra os nomes dos lutadores
+                    const fighter1Input = document.querySelector(
+                        `[data-fight="${fightIndex}"][data-fighter="1"]`
+                    );
+                    const fighter2Input = document.querySelector(
+                        `[data-fight="${fightIndex}"][data-fighter="2"]`
+                    );
+                    if (fighter1Input)
+                        fighter1Input.value = fight.fighter1_name;
+                    if (fighter2Input)
+                        fighter2Input.value = fight.fighter2_name;
+                }, 100);
+            });
+        }
+
+        // Muda o texto do botão de submit
+        const submitBtn = document.querySelector(
+            "#createEventForm button[type='submit']"
+        );
+        if (submitBtn) {
+            submitBtn.innerHTML = "💾 Atualizar Evento";
+        }
+
+        hideLoading();
+    } catch (error) {
+        showToast("Erro ao carregar evento para edição", "error");
+        console.error(error);
+        hideLoading();
+    }
+}
+
+// Excluir evento
+async function deleteEvent(eventId) {
+    const confirmed = await showConfirm(
+        "Tem certeza que deseja excluir este evento?",
+        "Esta ação não pode ser desfeita."
+    );
+
+    if (!confirmed) return;
+
+    try {
+        showLoading("Excluindo evento...");
+        await api.deleteEvent(eventId);
+
+        showToast("Evento excluído com sucesso!", "success");
+
+        // Fecha o modal e recarrega a lista
+        closeModal("eventDetailsModal");
+        await loadEvents();
+    } catch (error) {
+        showToast("Erro ao excluir evento", "error");
+        console.error(error);
+    } finally {
+        hideLoading();
+    }
+}
+
+// Reseta o formulário de eventos
+function resetEventForm() {
+    document.getElementById("createEventForm").reset();
+    document.getElementById("eventFightsContainer").innerHTML = "";
+    AppState.eventFights = [];
+    AppState.editingEventId = null;
+
+    // Restaura o texto do botão
+    const submitBtn = document.querySelector(
+        "#createEventForm button[type='submit']"
+    );
+    if (submitBtn) {
+        submitBtn.innerHTML = "✅ Criar Evento";
+    }
+}
+
 // Simula evento atual (do modal)
 async function simulateCurrentEvent() {
     if (!AppState.currentEvent) return;
@@ -314,7 +506,14 @@ function showSimulationResults(result) {
 }
 
 // Setup do formulário de criar evento
+let eventFormInitialized = false;
+
 function setupEventForm() {
+    // Evita adicionar listeners múltiplas vezes
+    if (eventFormInitialized) {
+        return;
+    }
+
     const form = document.getElementById("createEventForm");
     if (!form) return;
 
@@ -328,6 +527,22 @@ function setupEventForm() {
     if (addFightBtn) {
         addFightBtn.addEventListener("click", addFightToForm);
     }
+
+    // Event delegation for remove fight buttons
+    const fightsContainer = document.getElementById("eventFightsContainer");
+    if (fightsContainer) {
+        fightsContainer.addEventListener("click", (e) => {
+            const removeBtn = e.target.closest(".btn-remove-fight");
+            if (removeBtn) {
+                const fightIndex = parseInt(removeBtn.dataset.fightIndex);
+                if (fightIndex) {
+                    removeFight(fightIndex);
+                }
+            }
+        });
+    }
+
+    eventFormInitialized = true;
 }
 
 // Adiciona luta ao formulário
@@ -382,7 +597,7 @@ function addFightToForm() {
                 </div>
             </div>
 
-            <button type="button" class="btn btn-danger btn-sm" onclick="removeFight(${fightIndex})">
+            <button type="button" class="btn btn-danger btn-sm btn-remove-fight" data-fight-index="${fightIndex}">
                 Remover Luta
             </button>
         </div>
@@ -400,6 +615,37 @@ function setupFighterSearchForFight(fightIndex) {
     const inputs = document.querySelectorAll(
         `input.fighter-search[data-fight="${fightIndex}"]`
     );
+
+    // Event delegation for search results
+    const resultsDiv1 = document.getElementById(
+        `searchResults_${fightIndex}_1`
+    );
+    const resultsDiv2 = document.getElementById(
+        `searchResults_${fightIndex}_2`
+    );
+
+    [resultsDiv1, resultsDiv2].forEach((resultsDiv) => {
+        if (resultsDiv) {
+            resultsDiv.addEventListener("click", (e) => {
+                const resultItem = e.target.closest(".search-result-item");
+                if (resultItem) {
+                    const fighterId = resultItem.dataset.fighterId;
+                    const fighterName = resultItem.dataset.fighterName;
+                    const fightIdx = parseInt(resultItem.dataset.fightIndex);
+                    const fighterNum = parseInt(resultItem.dataset.fighterNum);
+
+                    if (fighterId && fighterName && fightIdx && fighterNum) {
+                        selectFighterForEvent(
+                            fightIdx,
+                            fighterNum,
+                            fighterId,
+                            fighterName
+                        );
+                    }
+                }
+            });
+        }
+    });
 
     inputs.forEach((input) => {
         let searchTimeout;
@@ -473,9 +719,11 @@ function displayFighterSearchResults(fighters, fightIndex, fighterNum) {
     resultsDiv.innerHTML = fighters
         .map(
             (fighter) => `
-        <div class="search-result-item" onclick="selectFighterForEvent(${fightIndex}, ${fighterNum}, '${
-                fighter.id
-            }', '${fighter.name.replace(/'/g, "\\'")}')">
+        <div class="search-result-item"
+             data-fighter-id="${fighter.id}"
+             data-fighter-name="${fighter.name.replace(/"/g, "&quot;")}"
+             data-fight-index="${fightIndex}"
+             data-fighter-num="${fighterNum}">
             <strong>${fighter.name}</strong>
             ${
                 fighter.nickname
@@ -576,8 +824,6 @@ async function handleCreateEvent() {
             return;
         }
 
-        showLoading("Criando evento...");
-
         const eventData = {
             name,
             date,
@@ -587,14 +833,30 @@ async function handleCreateEvent() {
             fights,
         };
 
-        await api.createEvent(eventData);
-
-        showToast("Evento criado com sucesso!", "success");
+        // Verifica se está editando ou criando
+        if (AppState.editingEventId) {
+            showLoading("Atualizando evento...");
+            await api.updateEvent(AppState.editingEventId, eventData);
+            showToast("Evento atualizado com sucesso!", "success");
+            AppState.editingEventId = null;
+        } else {
+            showLoading("Criando evento...");
+            await api.createEvent(eventData);
+            showToast("Evento criado com sucesso!", "success");
+        }
 
         // Limpa formulário
         document.getElementById("createEventForm").reset();
         document.getElementById("eventFightsContainer").innerHTML = "";
         AppState.eventFights = [];
+
+        // Restaura o texto do botão
+        const submitBtn = document.querySelector(
+            "#createEventForm button[type='submit']"
+        );
+        if (submitBtn) {
+            submitBtn.innerHTML = "✅ Criar Evento";
+        }
 
         // Volta para lista de eventos
         showSection("events");
@@ -611,6 +873,7 @@ async function handleCreateEvent() {
 function getStatusColor(status) {
     const colors = {
         scheduled: "info",
+        in_progress: "warning",
         completed: "success",
         cancelled: "danger",
     };
@@ -619,9 +882,10 @@ function getStatusColor(status) {
 
 function translateStatus(status) {
     const translations = {
-        scheduled: "Agendado",
-        completed: "Concluído",
-        cancelled: "Cancelado",
+        scheduled: "🗓️ Agendado",
+        in_progress: "▶️ Em Andamento",
+        completed: "✅ Concluído",
+        cancelled: "❌ Cancelado",
     };
     return translations[status] || status;
 }
@@ -630,16 +894,73 @@ function translateStatus(status) {
 function filterEvents() {
     const status = document.getElementById("eventStatus").value;
     const organization = document.getElementById("eventOrg").value;
+    const orderBy = document.getElementById("eventOrderBy").value;
 
     const filters = {};
     if (status) filters.status = status;
     if (organization) filters.organization = organization;
+    if (orderBy) filters.order_by = orderBy;
 
     loadEvents(filters);
 }
 
 // Setup event listeners para events
+let eventsListenersInitialized = false;
+
 function setupEventsListeners() {
+    // Evita adicionar listeners múltiplas vezes
+    if (eventsListenersInitialized) {
+        return;
+    }
+
+    // Event delegation for event cards and action buttons
+    const eventsList = document.getElementById("eventsList");
+    if (eventsList) {
+        eventsList.addEventListener("click", (e) => {
+            // Check if clicked on edit button
+            const editBtn = e.target.closest(".btn-edit-event");
+            if (editBtn) {
+                e.stopPropagation();
+                const eventId = editBtn.dataset.eventId;
+                if (eventId) {
+                    editEvent(eventId);
+                }
+                return;
+            }
+
+            // Check if clicked on delete button
+            const deleteBtn = e.target.closest(".btn-delete-event");
+            if (deleteBtn) {
+                e.stopPropagation();
+                const eventId = deleteBtn.dataset.eventId;
+                if (eventId) {
+                    deleteEvent(eventId);
+                }
+                return;
+            }
+
+            // Check if clicked on simulate button
+            const simulateBtn = e.target.closest(".btn-simulate-event");
+            if (simulateBtn) {
+                e.stopPropagation();
+                const eventId = simulateBtn.dataset.eventId;
+                if (eventId) {
+                    simulateEventClick(eventId);
+                }
+                return;
+            }
+
+            // Otherwise check if clicked on event card
+            const eventCard = e.target.closest(".event-card");
+            if (eventCard) {
+                const eventId = eventCard.dataset.eventId;
+                if (eventId) {
+                    viewEvent(eventId);
+                }
+            }
+        });
+    }
+
     // Event filters
     const eventStatus = document.getElementById("eventStatus");
     if (eventStatus) {
@@ -649,6 +970,11 @@ function setupEventsListeners() {
     const eventOrg = document.getElementById("eventOrg");
     if (eventOrg) {
         eventOrg.addEventListener("change", filterEvents);
+    }
+
+    const eventOrderBy = document.getElementById("eventOrderBy");
+    if (eventOrderBy) {
+        eventOrderBy.addEventListener("change", filterEvents);
     }
 
     // Close modal buttons
@@ -663,4 +989,6 @@ function setupEventsListeners() {
             }
         });
     });
+
+    eventsListenersInitialized = true;
 }

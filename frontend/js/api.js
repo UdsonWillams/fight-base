@@ -199,6 +199,13 @@ class APIClient {
         return this.request(`/events/${eventId}`);
     }
 
+    async updateEvent(eventId, data) {
+        return this.request(`/events/${eventId}`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        });
+    }
+
     async addFightToEvent(eventId, fightData) {
         return this.request(`/events/${eventId}/fights`, {
             method: "POST",

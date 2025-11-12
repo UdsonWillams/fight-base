@@ -37,7 +37,7 @@ function displayFighters(fighters) {
     container.innerHTML = fighters
         .map(
             (fighter) => `
-        <div class="fighter-card" onclick="showFighterDetails('${fighter.id}')">
+        <div class="fighter-card" data-fighter-id="${fighter.id}">
             <div class="fighter-image">
                 ${
                     fighter.photo_url
@@ -515,7 +515,14 @@ function closeFighterDetails() {
 }
 
 // Fighter Search for Simulation
+let fighterSearchInitialized = false;
+
 function setupFighterSearch() {
+    // Evita adicionar listeners múltiplas vezes
+    if (fighterSearchInitialized) {
+        return;
+    }
+
     const input1 = document.getElementById("fighter1Search");
     const input2 = document.getElementById("fighter2Search");
 
@@ -534,6 +541,36 @@ function setupFighterSearch() {
         debounceSearch(e.target.value, "fighter2Results", 2);
     });
 
+    // Event delegation for search results (Fighter 1)
+    const fighter1Results = document.getElementById("fighter1Results");
+    if (fighter1Results) {
+        fighter1Results.addEventListener("click", (e) => {
+            const resultItem = e.target.closest(".search-result-item");
+            if (resultItem) {
+                const fighterId = resultItem.dataset.fighterId;
+                const fighterNum = parseInt(resultItem.dataset.fighterNum);
+                if (fighterId && fighterNum) {
+                    selectFighter(fighterId, fighterNum);
+                }
+            }
+        });
+    }
+
+    // Event delegation for search results (Fighter 2)
+    const fighter2Results = document.getElementById("fighter2Results");
+    if (fighter2Results) {
+        fighter2Results.addEventListener("click", (e) => {
+            const resultItem = e.target.closest(".search-result-item");
+            if (resultItem) {
+                const fighterId = resultItem.dataset.fighterId;
+                const fighterNum = parseInt(resultItem.dataset.fighterNum);
+                if (fighterId && fighterNum) {
+                    selectFighter(fighterId, fighterNum);
+                }
+            }
+        });
+    }
+
     // Close search results when clicking outside
     document.addEventListener("click", (e) => {
         if (!e.target.closest(".fighter-search-container")) {
@@ -541,6 +578,8 @@ function setupFighterSearch() {
             document.getElementById("fighter2Results").classList.remove("show");
         }
     });
+
+    fighterSearchInitialized = true;
 }
 
 function debounceSearch(query, resultsId, fighterNum) {
@@ -591,9 +630,9 @@ function displaySearchResults(fighters, resultsId, fighterNum) {
     resultsContainer.innerHTML = fighters
         .map(
             (fighter) => `
-        <div class="search-result-item" onclick="selectFighter('${
+        <div class="search-result-item" data-fighter-id="${
             fighter.id
-        }', ${fighterNum})">
+        }" data-fighter-num="${fighterNum}">
             <div class="search-result-name">${fighter.name}</div>
             <div class="search-result-info">
                 ${fighter.nickname ? `<span>"${fighter.nickname}"</span>` : ""}
@@ -747,7 +786,28 @@ function formatWeightClass(weightClass) {
 }
 
 // Setup event listeners para fighters
+let fightersListenersInitialized = false;
+
 function setupFightersListeners() {
+    // Evita adicionar listeners múltiplas vezes
+    if (fightersListenersInitialized) {
+        return;
+    }
+
+    // Event delegation for fighter cards
+    const fightersList = document.getElementById("fightersList");
+    if (fightersList) {
+        fightersList.addEventListener("click", (e) => {
+            const fighterCard = e.target.closest(".fighter-card");
+            if (fighterCard) {
+                const fighterId = fighterCard.dataset.fighterId;
+                if (fighterId) {
+                    showFighterDetails(fighterId);
+                }
+            }
+        });
+    }
+
     // Create fighter button
     const createFighterBtn = document.getElementById("createFighterBtn");
     if (createFighterBtn) {
@@ -807,4 +867,6 @@ function setupFightersListeners() {
             slider.addEventListener("input", () => updateValue(attr));
         }
     });
+
+    fightersListenersInitialized = true;
 }

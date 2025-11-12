@@ -67,6 +67,10 @@ async def list_events(
     limit: int = Query(100, ge=1, le=500),
     status: Optional[str] = Query(None, description="Filter by status"),
     organization: Optional[str] = Query(None, description="Filter by organization"),
+    order_by: Optional[str] = Query(
+        "created_at",
+        description="Order by: created_at, date_desc, date_asc, name_asc, name_desc",
+    ),
     service: EventService = Depends(get_event_service),
 ):
     """
@@ -76,9 +80,14 @@ async def list_events(
     - **limit**: Limite de registros retornados
     - **status**: Filtro por status (scheduled, completed, cancelled)
     - **organization**: Filtro por organização
+    - **order_by**: Ordenação (created_at, date_desc, date_asc, name_asc, name_desc)
     """
     events = await service.list_events(
-        skip=skip, limit=limit, status=status, organization=organization
+        skip=skip,
+        limit=limit,
+        status=status,
+        organization=organization,
+        order_by=order_by,
     )
 
     # Converte para EventListResponse

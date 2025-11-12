@@ -4,9 +4,9 @@
 async function runSimulation() {
     if (!requireAuth()) return;
 
-    // Use selected fighters from search
-    const fighter1Id = selectedFighter1;
-    const fighter2Id = selectedFighter2;
+    // Use selected fighters from AppState
+    const fighter1Id = AppState.getSelectedFighter(1);
+    const fighter2Id = AppState.getSelectedFighter(2);
     const rounds = parseInt(document.getElementById("roundsSelect").value);
 
     if (!fighter1Id || !fighter2Id) {
@@ -93,12 +93,20 @@ function displaySimulationResult(result) {
         }
 
         <div style="text-align: center; margin-top: 2rem;">
-            <button onclick="runSimulation()" class="btn btn-primary">Simular Novamente</button>
+            <button id="simulateAgainBtn" class="btn btn-primary">Simular Novamente</button>
         </div>
     `;
 
     container.style.display = "block";
     container.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    // Setup listener for "Simular Novamente" button
+    setTimeout(() => {
+        const simulateAgainBtn = document.getElementById("simulateAgainBtn");
+        if (simulateAgainBtn) {
+            simulateAgainBtn.addEventListener("click", runSimulation);
+        }
+    }, 0);
 }
 
 // Format result type

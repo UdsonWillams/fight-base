@@ -1142,6 +1142,46 @@ input[type="range"] {
     overflow: hidden;
 }
 
+.event-card-actions {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    z-index: 10;
+}
+
+.btn-icon {
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1.1rem;
+    padding: 0;
+}
+
+.btn-icon:hover {
+    transform: scale(1.1);
+    border-color: var(--primary);
+    background: var(--bg);
+}
+
+.btn-edit-event:hover {
+    background: rgba(52, 152, 219, 0.1);
+    border-color: #3498db;
+}
+
+.btn-delete-event:hover {
+    background: rgba(231, 76, 60, 0.1);
+    border-color: #e74c3c;
+}
+
 .event-card::before {
     content: '';
     position: absolute;
@@ -1170,6 +1210,7 @@ input[type="range"] {
     align-items: start;
     margin-bottom: 1rem;
     gap: 1rem;
+    padding-right: 5rem;
 }
 
 .event-header h3 {
@@ -1212,6 +1253,31 @@ input[type="range"] {
     border-radius: 12px;
     border: 1px solid var(--border);
     margin-bottom: 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.events-filters select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.events-filters select:hover {
+    border-color: var(--primary);
+}
+
+.events-filters select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.1);
 }
 
 .filter-row {
