@@ -5,6 +5,7 @@ Script para importar dados históricos do UFC (1994-2025) no banco de dados do F
 ## 📦 Dataset Fonte
 
 O dataset contém informações de **ufcstats.com**:
+
 - **fighter_details.csv**: Dados biográficos e estatísticas dos lutadores
 - **event_details.csv**: Informações sobre eventos UFC
 - **fight_details.csv**: Detalhes completos de cada luta
@@ -12,12 +13,14 @@ O dataset contém informações de **ufcstats.com**:
 ## 🎯 O que o Script Faz
 
 ### 1. **Importa Lutadores** (`fighter_details.csv`)
+
 - Cria/atualiza lutadores reais do UFC
 - Mapeia estatísticas avançadas (SLPM, Str Acc, TD Avg, etc)
 - Calcula atributos do sistema (0-100) baseados nas stats
 - Armazena dados biográficos (data de nascimento, stance, altura, alcance)
 
 **Campos importados:**
+
 ```python
 - ufcstats_id: ID único do ufcstats.com
 - name, nickname
@@ -30,10 +33,12 @@ O dataset contém informações de **ufcstats.com**:
 ```
 
 ### 2. **Importa Eventos** (`event_details.csv`)
+
 - Cria eventos UFC com data e localização
 - Mapeia IDs para relacionamentos
 
 **Campos importados:**
+
 ```python
 - ufcstats_id: ID único do evento
 - name: Nome do evento (atualizado depois via fight_details)
@@ -43,11 +48,13 @@ O dataset contém informações de **ufcstats.com**:
 ```
 
 ### 3. **Importa Lutas** (`fight_details.csv`)
+
 - Cria lutas vinculando fighters e events pelos IDs
 - Importa estatísticas completas round-a-round
 - Preserva red/blue corner
 
 **Campos importados:**
+
 ```python
 - ufcstats_id: ID único da luta
 - event_id, fighter1_id (red), fighter2_id (blue)
@@ -63,17 +70,21 @@ O dataset contém informações de **ufcstats.com**:
 ```
 
 ### 4. **Atualiza Cartéis**
+
 - Constrói o histórico de lutas (cartel) de cada lutador
 - Formato: Lista de dicionários com opponent, result, method, round, org
 
 ### 5. **Atualiza Nomes dos Eventos**
+
 - Extrai nomes reais dos eventos do fight_details.csv
 - Ex: "UFC Fight Night: Imavov vs. Borralho"
 
 ## 🚀 Como Usar
 
 ### Pré-requisitos
+
 1. Ter os arquivos CSV na raiz do projeto:
+
    ```
    fighter_details.csv
    event_details.csv
@@ -146,6 +157,7 @@ self.fight_id_map: Dict[str, UUID]    # ufcstats_id -> UUID
 ```
 
 Isso permite:
+
 - ✅ Relacionar lutas com lutadores e eventos corretos
 - ✅ Construir cartéis precisos
 - ✅ Verificar dados no ufcstats.com: `http://ufcstats.com/fighter-details/{ufcstats_id}`
@@ -173,18 +185,22 @@ strategy = min(100, 50 + total_fights // 2)
 ## 🔧 Troubleshooting
 
 ### Erro: "Arquivo não encontrado"
+
 - Verifique se os CSVs estão na raiz do projeto
 
 ### Erro: "Foreign key constraint"
+
 - Execute as migrations primeiro: `make migrate`
 
 ### Importação incompleta
+
 - Verifique erros no final da execução
 - Script continua mesmo com erros individuais
 
 ## 📈 Próximos Passos
 
 Após importação bem-sucedida:
+
 1. ✅ Validar dados importados via API
 2. ✅ Usar estatísticas reais no algoritmo de simulação
 3. ✅ Criar endpoints para estatísticas históricas

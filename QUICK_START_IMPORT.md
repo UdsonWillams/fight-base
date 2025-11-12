@@ -35,11 +35,11 @@ python scripts/example_ufc_queries.py
 
 ## 📊 O Que Será Importado
 
-| Entidade   | Quantidade Estimada | Descrição                          |
-|------------|--------------------:|-------------------------------------|
-| Lutadores  | ~2.600             | Dados biográficos e estatísticas    |
-| Eventos    | ~750               | Cards UFC de 1994 a 2025            |
-| Lutas      | ~8.300             | Estatísticas detalhadas de combates |
+| Entidade  | Quantidade Estimada | Descrição                           |
+| --------- | ------------------: | ----------------------------------- |
+| Lutadores |              ~2.600 | Dados biográficos e estatísticas    |
+| Eventos   |                ~750 | Cards UFC de 1994 a 2025            |
+| Lutas     |              ~8.300 | Estatísticas detalhadas de combates |
 
 ## ✅ Validação
 
@@ -57,6 +57,7 @@ Após importação, o script mostra:
 ```
 
 Execute a validação:
+
 ```bash
 python scripts/validate_import.py
 ```
@@ -89,14 +90,17 @@ python scripts/example_ufc_queries.py
 ## 🎯 Novos Campos Disponíveis
 
 ### Fighters
+
 - **Biográficos**: `date_of_birth`, `stance`, `height_cm`, `reach_cm`, `weight_lbs`
 - **Stats UFC**: `slpm`, `str_acc`, `sapm`, `str_def`, `td_avg`, `td_acc`, `td_def`, `sub_avg`
 - **Cartel**: Lista de lutas em `cartel` field (JSONB)
 
 ### Events
+
 - **ID UFC Stats**: `ufcstats_id` para validação
 
 ### Fights
+
 - **Detalhes**: `referee`, `match_time_seconds`
 - **Red Corner**: `r_kd`, `r_sig_str_landed`, `r_td_landed`, etc
 - **Blue Corner**: `b_kd`, `b_sig_str_landed`, `b_td_landed`, etc
@@ -120,6 +124,7 @@ Todos os registros podem ser verificados no site oficial:
 ## 🛠️ Troubleshooting
 
 ### Erro: "CSV não encontrado"
+
 ```bash
 # Verifique se está na raiz do projeto
 ls -la *.csv
@@ -129,6 +134,7 @@ mv ~/Downloads/*.csv .
 ```
 
 ### Erro: "Database connection"
+
 ```bash
 # Verifique .env
 cat .env | grep DATABASE
@@ -138,6 +144,7 @@ python -c "from app.core.settings import Settings; print(Settings().SQLALCHEMY_D
 ```
 
 ### Erro: "Migration failed"
+
 ```bash
 # Limpar e refazer migrations
 alembic downgrade base
@@ -145,6 +152,7 @@ alembic upgrade head
 ```
 
 ### Re-importar dados
+
 ```bash
 # Deletar dados UFC existentes e reimportar
 python -c "
@@ -171,6 +179,7 @@ python scripts/import_ufc_dataset.py
 ## 📖 Documentação Completa
 
 Para mais detalhes, consulte:
+
 - `docs/importacao-ufc-dataset.md` - Guia completo
 - `DATASET_INTEGRATION_SUMMARY.md` - Resumo técnico
 

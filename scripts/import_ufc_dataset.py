@@ -548,7 +548,7 @@ def main():
     print("=" * 60)
 
     # Conectar ao banco
-    engine = create_engine(settings.SQLALCHEMY_DATABASE_URI)
+    engine = create_engine(settings.DATABASE_URL_SYNC)
     Session = sessionmaker(bind=engine)
     session = Session()
 
