@@ -67,6 +67,7 @@ async def list_events(
     limit: int = Query(100, ge=1, le=500),
     status: Optional[str] = Query(None, description="Filter by status"),
     organization: Optional[str] = Query(None, description="Filter by organization"),
+    search: Optional[str] = Query(None, description="Search by event name"),
     order_by: Optional[str] = Query(
         "created_at",
         description="Order by: created_at, date_desc, date_asc, name_asc, name_desc",
@@ -80,6 +81,7 @@ async def list_events(
     - **limit**: Limite de registros retornados
     - **status**: Filtro por status (scheduled, completed, cancelled)
     - **organization**: Filtro por organização
+    - **search**: Busca por nome do evento (case-insensitive, parcial)
     - **order_by**: Ordenação (created_at, date_desc, date_asc, name_asc, name_desc)
     """
     events = await service.list_events(
@@ -87,6 +89,7 @@ async def list_events(
         limit=limit,
         status=status,
         organization=organization,
+        search=search,
         order_by=order_by,
     )
 

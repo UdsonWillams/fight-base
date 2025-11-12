@@ -42,6 +42,7 @@ class EventRepository(BaseRepository[Event]):
         limit: int = 100,
         status: Optional[str] = None,
         organization: Optional[str] = None,
+        search: Optional[str] = None,
         order_by: Optional[str] = "created_at",
     ) -> List[Event]:
         """Lista eventos com filtros e ordenação"""
@@ -56,6 +57,9 @@ class EventRepository(BaseRepository[Event]):
                 self.model.deleted_by.is_(None),
             )
         )
+
+        if search:
+            query = query.filter(self.model.name.ilike(f"%{search}%"))
 
         if status:
             query = query.filter(self.model.status == status)

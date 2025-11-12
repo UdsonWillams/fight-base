@@ -118,7 +118,20 @@ function showToast(message, type = "success") {
     const toast = document.getElementById("toast");
     if (!toast) return;
 
-    toast.textContent = message;
+    // Ícones para cada tipo de toast
+    const icons = {
+        success: "✅",
+        error: "❌",
+        warning: "⚠️",
+        info: "ℹ️",
+    };
+
+    const icon = icons[type] || icons.info;
+
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+    `;
     toast.className = `toast ${type} show`;
 
     setTimeout(() => {
@@ -166,6 +179,45 @@ function hideLoading() {
     if (AppState.loadingOverlay) {
         AppState.loadingOverlay.style.display = "none";
     }
+}
+
+/**
+ * Cria skeleton cards para loading
+ * @param {number} count - Número de cards skeleton
+ * @param {string} type - Tipo de skeleton (event, fighter, etc)
+ */
+function createSkeletonCards(count = 3, type = "event") {
+    const skeletons = [];
+
+    for (let i = 0; i < count; i++) {
+        if (type === "event") {
+            skeletons.push(`
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-text title"></div>
+                    <div class="skeleton skeleton-text medium"></div>
+                    <div class="skeleton skeleton-text short"></div>
+                    <div class="skeleton skeleton-text long"></div>
+                    <div class="skeleton skeleton-button"></div>
+                </div>
+            `);
+        } else if (type === "fighter") {
+            skeletons.push(`
+                <div class="skeleton-card">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="skeleton" style="width: 80px; height: 80px; border-radius: 50%;"></div>
+                        <div style="flex: 1;">
+                            <div class="skeleton skeleton-text title"></div>
+                            <div class="skeleton skeleton-text medium"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton skeleton-text long"></div>
+                    <div class="skeleton skeleton-text medium"></div>
+                </div>
+            `);
+        }
+    }
+
+    return skeletons.join("");
 }
 
 // ============================================

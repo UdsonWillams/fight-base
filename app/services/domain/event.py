@@ -84,6 +84,7 @@ class EventService:
         limit: int = 100,
         status: Optional[str] = None,
         organization: Optional[str] = None,
+        search: Optional[str] = None,
         order_by: Optional[str] = "created_at",
     ) -> List[Event]:
         """Lista eventos com filtros e ordenação"""
@@ -92,6 +93,7 @@ class EventService:
             limit=limit,
             status=status,
             organization=organization,
+            search=search,
             order_by=order_by,
         )
 

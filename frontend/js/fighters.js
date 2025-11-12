@@ -7,7 +7,12 @@ function getOverall(fighter) {
 
 // Load fighters list
 async function loadFighters(filters = {}) {
+    const container = document.getElementById("fightersList");
+
     try {
+        // Mostra skeleton loading
+        container.innerHTML = createSkeletonCards(6, "fighter");
+
         const params = {
             limit: 50,
             offset: 0,
@@ -19,6 +24,12 @@ async function loadFighters(filters = {}) {
 
         displayFighters(AppState.allFighters);
     } catch (error) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>❌ Erro ao carregar lutadores</p>
+                <p class="text-muted">Tente novamente mais tarde</p>
+            </div>
+        `;
         console.error("Error loading fighters:", error);
         showToast("Erro ao carregar lutadores", "error");
     }
@@ -29,8 +40,12 @@ function displayFighters(fighters) {
     const container = document.getElementById("fightersList");
 
     if (!fighters || fighters.length === 0) {
-        container.innerHTML =
-            '<div class="loading">Nenhum lutador encontrado</div>';
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>🥊 Nenhum lutador encontrado</p>
+                <p class="text-muted">Tente ajustar os filtros</p>
+            </div>
+        `;
         return;
     }
 

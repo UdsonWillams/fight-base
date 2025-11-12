@@ -30,11 +30,13 @@ async function initEventsSection() {
 
 // Carrega lista de eventos
 async function loadEvents(filters = {}) {
-    try {
-        showLoading("Carregando eventos...");
-        const events = await api.getEvents(filters);
+    const eventsList = document.getElementById("eventsList");
 
-        const eventsList = document.getElementById("eventsList");
+    try {
+        // Mostra skeleton loading
+        eventsList.innerHTML = createSkeletonCards(3, "event");
+
+        const events = await api.getEvents(filters);
         if (!events || events.length === 0) {
             eventsList.innerHTML = `
                 <div class="empty-state">
@@ -89,10 +91,14 @@ async function loadEvents(filters = {}) {
             )
             .join("");
     } catch (error) {
+        eventsList.innerHTML = `
+            <div class="empty-state">
+                <p>❌ Erro ao carregar eventos</p>
+                <p class="text-muted">Tente novamente mais tarde</p>
+            </div>
+        `;
         showToast("Erro ao carregar eventos", "error");
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
@@ -522,6 +528,25 @@ function setupEventForm() {
         await handleCreateEvent();
     });
 
+    // Auto-save functionality
+    let autoSaveTimeout;
+    const autoSaveDelay = 2000; // 2 segundos após parar de digitar
+
+    const formInputs = form.querySelectorAll(
+        'input[type="text"], input[type="date"], select, textarea'
+    );
+    formInputs.forEach((input) => {
+        input.addEventListener("input", () => {
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(() => {
+                saveFormDraft();
+            }, autoSaveDelay);
+        });
+    });
+
+    // Carrega rascunho salvo ao iniciar
+    loadFormDraft();
+
     // Botão para adicionar luta
     const addFightBtn = document.getElementById("addFightBtn");
     if (addFightBtn) {
@@ -543,6 +568,83 @@ function setupEventForm() {
     }
 
     eventFormInitialized = true;
+}
+
+// Salva rascunho do formulário no localStorage
+function saveFormDraft() {
+    try {
+        const form = document.getElementById("createEventForm");
+        if (!form) return;
+
+        // Se estiver editando um evento, não salva rascunho
+        if (AppState.editingEventId) return;
+
+        const draft = {
+            name: document.getElementById("eventName")?.value || "",
+            date: document.getElementById("eventDate")?.value || "",
+            location: document.getElementById("eventLocation")?.value || "",
+            organization:
+                document.getElementById("eventOrganization")?.value || "",
+            status:
+                document.getElementById("eventStatus")?.value || "scheduled",
+            savedAt: new Date().toISOString(),
+        };
+
+        localStorage.setItem("eventFormDraft", JSON.stringify(draft));
+
+        // Mostra indicador visual de salvamento
+        const saveIndicator = document.getElementById("autoSaveIndicator");
+        if (saveIndicator) {
+            saveIndicator.textContent = "💾 Salvo automaticamente";
+            saveIndicator.style.display = "block";
+            setTimeout(() => {
+                saveIndicator.style.display = "none";
+            }, 2000);
+        }
+    } catch (error) {
+        console.error("Erro ao salvar rascunho:", error);
+    }
+}
+
+// Carrega rascunho do formulário do localStorage
+function loadFormDraft() {
+    try {
+        const draftJson = localStorage.getItem("eventFormDraft");
+        if (!draftJson) return;
+
+        const draft = JSON.parse(draftJson);
+
+        // Verifica se o rascunho não é muito antigo (mais de 7 dias)
+        const savedDate = new Date(draft.savedAt);
+        const daysDiff =
+            (Date.now() - savedDate.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (daysDiff > 7) {
+            localStorage.removeItem("eventFormDraft");
+            return;
+        }
+
+        // Preenche o formulário
+        if (draft.name) document.getElementById("eventName").value = draft.name;
+        if (draft.date) document.getElementById("eventDate").value = draft.date;
+        if (draft.location)
+            document.getElementById("eventLocation").value = draft.location;
+        if (draft.organization)
+            document.getElementById("eventOrganization").value =
+                draft.organization;
+        if (draft.status)
+            document.getElementById("eventStatus").value = draft.status;
+
+        showToast("Rascunho restaurado automaticamente", "info");
+    } catch (error) {
+        console.error("Erro ao carregar rascunho:", error);
+        localStorage.removeItem("eventFormDraft");
+    }
+}
+
+// Limpa rascunho do localStorage
+function clearFormDraft() {
+    localStorage.removeItem("eventFormDraft");
 }
 
 // Adiciona luta ao formulário
@@ -843,6 +945,7 @@ async function handleCreateEvent() {
             showLoading("Criando evento...");
             await api.createEvent(eventData);
             showToast("Evento criado com sucesso!", "success");
+            clearFormDraft(); // Limpa o rascunho após criar com sucesso
         }
 
         // Limpa formulário
@@ -892,11 +995,13 @@ function translateStatus(status) {
 
 // Filtra eventos
 function filterEvents() {
+    const search = document.getElementById("eventSearch").value;
     const status = document.getElementById("eventStatus").value;
     const organization = document.getElementById("eventOrg").value;
     const orderBy = document.getElementById("eventOrderBy").value;
 
     const filters = {};
+    if (search) filters.search = search;
     if (status) filters.status = status;
     if (organization) filters.organization = organization;
     if (orderBy) filters.order_by = orderBy;
@@ -962,6 +1067,15 @@ function setupEventsListeners() {
     }
 
     // Event filters
+    const eventSearch = document.getElementById("eventSearch");
+    if (eventSearch) {
+        let searchTimeout;
+        eventSearch.addEventListener("input", () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(filterEvents, 300);
+        });
+    }
+
     const eventStatus = document.getElementById("eventStatus");
     if (eventStatus) {
         eventStatus.addEventListener("change", filterEvents);

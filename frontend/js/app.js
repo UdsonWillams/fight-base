@@ -4,6 +4,9 @@
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("🥊 FightBase App initialized");
 
+    // Initialize theme
+    initTheme();
+
     // Setup all event listeners
     setupEventListeners();
 
@@ -14,6 +17,43 @@ document.addEventListener("DOMContentLoaded", async () => {
     const hash = window.location.hash.slice(1) || "home";
     showSection(hash);
 });
+
+// Theme Management
+function initTheme() {
+    // Check localStorage for saved theme
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setTheme(savedTheme);
+
+    // Setup theme toggle button
+    const themeToggle = document.getElementById("themeToggle");
+    if (themeToggle) {
+        themeToggle.addEventListener("click", toggleTheme);
+    }
+}
+
+function setTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+
+    // Update icon
+    const themeIcon = document.querySelector(".theme-icon");
+    if (themeIcon) {
+        themeIcon.textContent = theme === "dark" ? "☀️" : "🌙";
+    }
+}
+
+function toggleTheme() {
+    const currentTheme =
+        document.documentElement.getAttribute("data-theme") || "light";
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+
+    // Toast notification
+    showToast(
+        `Tema ${newTheme === "dark" ? "escuro" : "claro"} ativado`,
+        "success"
+    );
+}
 
 // Show section
 function showSection(sectionName) {
