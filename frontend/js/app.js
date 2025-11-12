@@ -87,6 +87,9 @@ function showSection(sectionName) {
         case "fighters":
             loadFighters();
             break;
+        case "ufc-stats":
+            loadUFCStats();
+            break;
         case "simulate":
             setupFighterSearch();
             loadRecentSimulations();
