@@ -1,7 +1,5 @@
 // Authentication Module
 
-let currentUser = null;
-
 // Check if user is logged in on page load
 async function checkAuth() {
     const token = localStorage.getItem("idToken");
@@ -19,9 +17,10 @@ async function checkAuth() {
             }
 
             api.setToken(token);
-            currentUser = await api.getCurrentUser();
+            const user = await api.getCurrentUser();
 
-            if (currentUser) {
+            if (user) {
+                AppState.setCurrentUser(user);
                 updateAuthUI(true);
                 return true;
             } else {
@@ -45,15 +44,7 @@ async function handleRegister(event) {
 
     const name = document.getElementById("registerName").value;
     const email = document.getElementById("registerEmail").value;
-    let password = document.getElementById("registerPassword").value;
-
-    // Bcrypt has a 72 byte limit, truncate if necessary
-    const passwordBytes = new TextEncoder().encode(password);
-    if (passwordBytes.length > 72) {
-        showToast("Senha muito longa. Será truncada para 72 bytes.", "warning");
-        // Decode back to string, truncating at 72 bytes
-        password = new TextDecoder().decode(passwordBytes.slice(0, 72));
-    }
+    const password = document.getElementById("registerPassword").value;
 
     try {
         showLoading("Criando conta...");
@@ -84,14 +75,7 @@ async function handleLogin(event) {
     event.preventDefault();
 
     const email = document.getElementById("loginEmail").value;
-    let password = document.getElementById("loginPassword").value;
-
-    // Bcrypt has a 72 byte limit, truncate if necessary
-    const passwordBytes = new TextEncoder().encode(password);
-    if (passwordBytes.length > 72) {
-        // Decode back to string, truncating at 72 bytes
-        password = new TextDecoder().decode(passwordBytes.slice(0, 72));
-    }
+    const password = document.getElementById("loginPassword").value;
 
     try {
         showLoading("Fazendo login...");
@@ -102,7 +86,8 @@ async function handleLogin(event) {
         api.setToken(response.access_token);
 
         // Get current user info
-        currentUser = await api.getCurrentUser();
+        const user = await api.getCurrentUser();
+        AppState.setCurrentUser(user);
 
         showToast("Login realizado com sucesso!", "success");
         updateAuthUI(true);
@@ -120,7 +105,7 @@ async function handleLogin(event) {
 // Logout
 function logout() {
     api.setToken(null);
-    currentUser = null;
+    AppState.clearUser();
     updateAuthUI(false);
     showSection("home");
     showToast("Você saiu da sua conta", "success");
@@ -133,6 +118,8 @@ function updateAuthUI(isLoggedIn) {
     const userMenu = document.getElementById("userMenu");
     const userName = document.getElementById("userName");
     const createFighterBtn = document.getElementById("createFighterBtn");
+
+    const currentUser = AppState.getCurrentUser();
 
     if (isLoggedIn && currentUser) {
         loginBtn.style.display = "none";
@@ -165,6 +152,7 @@ async function handleGoogleLogin() {
 
 // Check if user is authenticated
 function requireAuth() {
+    const currentUser = AppState.getCurrentUser();
     if (!currentUser) {
         showToast("Você precisa estar logado", "error");
         showSection("login");
@@ -185,4 +173,45 @@ function togglePasswordVisibility(inputId) {
         input.type = "password";
         button.textContent = "👁️"; // Olho aberto
     }
+}
+
+// Setup event listeners para autenticação
+let authListenersInitialized = false;
+
+function setupAuthListeners() {
+    // Evita adicionar listeners múltiplas vezes
+    if (authListenersInitialized) {
+        return;
+    }
+
+    // Login form
+    const loginForm = document.getElementById("loginForm");
+    if (loginForm) {
+        loginForm.addEventListener("submit", handleLogin);
+    }
+
+    // Register form
+    const registerForm = document.getElementById("registerForm");
+    if (registerForm) {
+        registerForm.addEventListener("submit", handleRegister);
+    }
+
+    // Password toggles
+    const passwordToggles = document.querySelectorAll(".password-toggle");
+    passwordToggles.forEach((toggle) => {
+        toggle.addEventListener("click", (e) => {
+            const input = e.target
+                .closest(".password-input-wrapper")
+                .querySelector("input");
+            togglePasswordVisibility(input.id);
+        });
+    });
+
+    // Google login button
+    const googleLoginBtn = document.querySelector(".btn-google");
+    if (googleLoginBtn) {
+        googleLoginBtn.addEventListener("click", handleGoogleLogin);
+    }
+
+    authListenersInitialized = true;
 }

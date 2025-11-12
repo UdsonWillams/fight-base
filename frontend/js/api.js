@@ -182,6 +182,49 @@ class APIClient {
         return this.request(`/simulations/recent?${query}`);
     }
 
+    // Events
+    async createEvent(data) {
+        return this.request("/events/", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getEvents(params = {}) {
+        const query = new URLSearchParams(params).toString();
+        return this.request(`/events/${query ? "?" + query : ""}`);
+    }
+
+    async getEvent(eventId) {
+        return this.request(`/events/${eventId}`);
+    }
+
+    async updateEvent(eventId, data) {
+        return this.request(`/events/${eventId}`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async addFightToEvent(eventId, fightData) {
+        return this.request(`/events/${eventId}/fights`, {
+            method: "POST",
+            body: JSON.stringify(fightData),
+        });
+    }
+
+    async simulateEvent(eventId) {
+        return this.request(`/events/${eventId}/simulate`, {
+            method: "POST",
+        });
+    }
+
+    async deleteEvent(eventId) {
+        return this.request(`/events/${eventId}`, {
+            method: "DELETE",
+        });
+    }
+
     // Photos
     async uploadFighterPhoto(fighterId, file) {
         const formData = new FormData();

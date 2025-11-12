@@ -16,6 +16,10 @@ class ResponseTimeMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        # Pula o processamento para requisições OPTIONS (CORS preflight)
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         initial_time = time()
         response = await call_next(request)
         final_time = time() - initial_time

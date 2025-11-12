@@ -112,8 +112,83 @@ class Fighter(BaseModel):
     )
 
 
+class Event(BaseModel):
+    """Eventos de MMA com múltiplas lutas"""
+
+    __tablename__ = "events"
+
+    # Informações do evento
+    name = Column(String(255), nullable=False)  # Ex: "UFC 233"
+    date = Column(TIMESTAMP(timezone=True), nullable=False)  # Data do evento
+    location = Column(String(255), nullable=True)  # Local do evento
+    organization = Column(String(100), nullable=False)  # UFC, Bellator, ONE, etc
+    description = Column(Text, nullable=True)  # Descrição do evento
+    status = Column(
+        String(50), nullable=False, default="scheduled"
+    )  # scheduled, completed, cancelled
+    poster_url = Column(String(500), nullable=True)  # URL do poster do evento
+
+    # Relacionamentos
+    fights = relationship("Fight", back_populates="event", cascade="all, delete-orphan")
+    creator_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    creator = relationship("User")
+
+
+class Fight(BaseModel):
+    """Lutas individuais dentro de um evento"""
+
+    __tablename__ = "fights"
+
+    # Relacionamento com evento
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id"), nullable=False)
+    event = relationship("Event", back_populates="fights")
+
+    # Lutadores
+    fighter1_id = Column(UUID(as_uuid=True), ForeignKey("fighters.id"), nullable=False)
+    fighter2_id = Column(UUID(as_uuid=True), ForeignKey("fighters.id"), nullable=False)
+
+    # Ordem da luta no card
+    fight_order = Column(Integer, nullable=False)  # 1 = main event, 2 = co-main, etc
+    fight_type = Column(
+        String(50), nullable=False, default="standard"
+    )  # main, co-main, prelim, standard
+    weight_class = Column(String(50), nullable=True)  # Categoria da luta
+    rounds = Column(Integer, nullable=False, default=3)  # 3 ou 5 rounds
+    is_title_fight = Column(Boolean, default=False, nullable=False)
+
+    # Resultado da luta (preenchido após simulação)
+    winner_id = Column(
+        UUID(as_uuid=True), ForeignKey("fighters.id"), nullable=True
+    )  # Null se não simulado ainda
+    result_type = Column(
+        String(50), nullable=True
+    )  # KO, TKO, Submission, Decision, Draw
+    finish_round = Column(Integer, nullable=True)  # Round que terminou
+    finish_time = Column(String(10), nullable=True)  # Tempo no round (ex: "2:34")
+    method_details = Column(
+        Text, nullable=True
+    )  # Detalhes do método (ex: "Rear Naked Choke")
+
+    # Estatísticas da simulação
+    fighter1_probability = Column(Float, nullable=True)
+    fighter2_probability = Column(Float, nullable=True)
+    simulation_details = Column(
+        MutableDict.as_mutable(JSONB), nullable=True, default=dict
+    )
+
+    # Status da luta
+    status = Column(
+        String(50), nullable=False, default="scheduled"
+    )  # scheduled, simulated, cancelled
+
+    # Relacionamentos com lutadores
+    fighter1 = relationship("Fighter", foreign_keys=[fighter1_id])
+    fighter2 = relationship("Fighter", foreign_keys=[fighter2_id])
+    winner = relationship("Fighter", foreign_keys=[winner_id])
+
+
 class FightSimulation(BaseModel):
-    """Simulações de lutas entre lutadores"""
+    """Simulações de lutas entre lutadores (simulações avulsas, não vinculadas a eventos)"""
 
     __tablename__ = "fight_simulations"
 

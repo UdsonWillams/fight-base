@@ -1,5 +1,229 @@
 // Utility Functions
 
+// ============================================
+// GERENCIADOR DE ESTADO CENTRALIZADO
+// ============================================
+const AppState = {
+    // Authentication
+    currentUser: null,
+
+    // Fighter Selection for Simulation
+    selectedFighter1: null,
+    selectedFighter2: null,
+
+    // Events
+    currentEvent: null,
+    eventFights: [],
+    editingEventId: null,
+
+    // Fighters
+    allFighters: [],
+    currentFilters: {},
+
+    // UI State
+    loadingOverlay: null,
+    searchTimeout: null,
+
+    // Métodos para manipular o estado
+    setCurrentUser(user) {
+        this.currentUser = user;
+    },
+
+    getCurrentUser() {
+        return this.currentUser;
+    },
+
+    clearUser() {
+        this.currentUser = null;
+    },
+
+    setSelectedFighter(fighterNum, fighterId) {
+        if (fighterNum === 1) {
+            this.selectedFighter1 = fighterId;
+        } else if (fighterNum === 2) {
+            this.selectedFighter2 = fighterId;
+        }
+    },
+
+    getSelectedFighter(fighterNum) {
+        return fighterNum === 1 ? this.selectedFighter1 : this.selectedFighter2;
+    },
+
+    clearSelectedFighters() {
+        this.selectedFighter1 = null;
+        this.selectedFighter2 = null;
+    },
+};
+
+// ============================================
+// FUNÇÕES UTILITÁRIAS GLOBAIS
+// ============================================
+
+/**
+ * Formata data para exibição
+ * @param {string} dateString - Data em formato ISO
+ * @returns {string} Data formatada em PT-BR
+ */
+function formatDate(dateString) {
+    if (!dateString) return "";
+
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
+/**
+ * Capitaliza primeira letra de uma string
+ * @param {string} str - String para capitalizar
+ * @returns {string} String capitalizada
+ */
+function capitalize(str) {
+    if (!str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Fecha um modal pelo ID
+ * @param {string} modalId - ID do modal a ser fechado
+ */
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = "none";
+        modal.classList.remove("active");
+    }
+}
+
+/**
+ * Mostra um diálogo de confirmação
+ * @param {string} title - Título da confirmação
+ * @param {string} message - Mensagem da confirmação
+ * @returns {Promise<boolean>} Promise que resolve com true/false
+ */
+async function showConfirm(title, message) {
+    return confirm(`${title}\n\n${message}`);
+}
+
+/**
+ * Mostra notificação toast
+ * @param {string} message - Mensagem a exibir
+ * @param {string} type - Tipo: 'success', 'error', 'warning', 'info'
+ */
+function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+
+    // Ícones para cada tipo de toast
+    const icons = {
+        success: "✅",
+        error: "❌",
+        warning: "⚠️",
+        info: "ℹ️",
+    };
+
+    const icon = icons[type] || icons.info;
+
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+    `;
+    toast.className = `toast ${type} show`;
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+    }, 3000);
+}
+
+/**
+ * Mostra overlay de loading
+ * @param {string} message - Mensagem de loading
+ */
+function showLoading(message = "Carregando...") {
+    if (!AppState.loadingOverlay) {
+        AppState.loadingOverlay = document.createElement("div");
+        AppState.loadingOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+            font-size: 1.5rem;
+        `;
+        document.body.appendChild(AppState.loadingOverlay);
+    }
+
+    AppState.loadingOverlay.innerHTML = `
+        <div style="text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+            <div>${message}</div>
+        </div>
+    `;
+    AppState.loadingOverlay.style.display = "flex";
+}
+
+/**
+ * Esconde overlay de loading
+ */
+function hideLoading() {
+    if (AppState.loadingOverlay) {
+        AppState.loadingOverlay.style.display = "none";
+    }
+}
+
+/**
+ * Cria skeleton cards para loading
+ * @param {number} count - Número de cards skeleton
+ * @param {string} type - Tipo de skeleton (event, fighter, etc)
+ */
+function createSkeletonCards(count = 3, type = "event") {
+    const skeletons = [];
+
+    for (let i = 0; i < count; i++) {
+        if (type === "event") {
+            skeletons.push(`
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-text title"></div>
+                    <div class="skeleton skeleton-text medium"></div>
+                    <div class="skeleton skeleton-text short"></div>
+                    <div class="skeleton skeleton-text long"></div>
+                    <div class="skeleton skeleton-button"></div>
+                </div>
+            `);
+        } else if (type === "fighter") {
+            skeletons.push(`
+                <div class="skeleton-card">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <div class="skeleton" style="width: 80px; height: 80px; border-radius: 50%;"></div>
+                        <div style="flex: 1;">
+                            <div class="skeleton skeleton-text title"></div>
+                            <div class="skeleton skeleton-text medium"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton skeleton-text long"></div>
+                    <div class="skeleton skeleton-text medium"></div>
+                </div>
+            `);
+        }
+    }
+
+    return skeletons.join("");
+}
+
+// ============================================
+// TRADUÇÕES E FORMATAÇÕES
+// ============================================
+
 // Weight Class Mapping (PT-BR <-> EN)
 const WEIGHT_CLASSES = {
     // Men's Divisions

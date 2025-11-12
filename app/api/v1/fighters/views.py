@@ -141,19 +141,22 @@ async def search_fighters(
 
 
 @router.get(
-    "/rankings/top", response_model=list[FighterOutput], summary="Top lutadores"
+    "/rankings/top",
+    response_model=list[FighterOutput],
+    summary="Top 15 lutadores overall",
 )
 async def get_top_fighters(
     last_organization_fight: str = Query(
         None, description="Filtrar por última organização"
     ),
     actual_weight_class: str = Query(None, description="Filtrar por categoria atual"),
-    limit: int = Query(10, ge=1, le=50, description="Quantidade de lutadores"),
+    limit: int = Query(15, ge=1, le=50, description="Quantidade de lutadores"),
     service: FighterService = Depends(get_fighter_service),
 ):
     """
-    Retorna os melhores lutadores ranqueados por overall rating.
+    Retorna os top 15 melhores lutadores ranqueados por overall rating.
 
+    Lista unificada masculino + feminino, ordenados por overall rating.
     Pode filtrar por última organização e/ou categoria de peso atual.
     """
     fighters = await service.get_top_fighters(

@@ -1,12 +1,7 @@
 from contextvars import ContextVar
 from uuid import uuid4
 
-from starlette.types import (
-    ASGIApp,
-    Receive,
-    Scope,
-    Send,
-)
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 TRACE_ID_CTX_KEY = "trace_id"
 
@@ -22,6 +17,11 @@ class CreateTraceIdMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] not in ["http", "websocket"]:
+            await self.app(scope, receive, send)
+            return
+
+        # Pula o processamento para requisições OPTIONS (CORS preflight)
+        if scope.get("method") == "OPTIONS":
             await self.app(scope, receive, send)
             return
 

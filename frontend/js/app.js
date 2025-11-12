@@ -1,21 +1,59 @@
 // Main App Module
 
-let loadingOverlay = null;
-
 // Initialize app
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("🥊 FightBase App initialized");
 
+    // Initialize theme
+    initTheme();
+
+    // Setup all event listeners
+    setupEventListeners();
+
     // Check authentication
     await checkAuth();
-
-    // Load home stats
-    loadHomeStats();
 
     // Initialize sections based on hash
     const hash = window.location.hash.slice(1) || "home";
     showSection(hash);
 });
+
+// Theme Management
+function initTheme() {
+    // Check localStorage for saved theme
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setTheme(savedTheme);
+
+    // Setup theme toggle button
+    const themeToggle = document.getElementById("themeToggle");
+    if (themeToggle) {
+        themeToggle.addEventListener("click", toggleTheme);
+    }
+}
+
+function setTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+
+    // Update icon
+    const themeIcon = document.querySelector(".theme-icon");
+    if (themeIcon) {
+        themeIcon.textContent = theme === "dark" ? "☀️" : "🌙";
+    }
+}
+
+function toggleTheme() {
+    const currentTheme =
+        document.documentElement.getAttribute("data-theme") || "light";
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+
+    // Toast notification
+    showToast(
+        `Tema ${newTheme === "dark" ? "escuro" : "claro"} ativado`,
+        "success"
+    );
+}
 
 // Show section
 function showSection(sectionName) {
@@ -35,7 +73,7 @@ function showSection(sectionName) {
         link.classList.remove("active");
     });
     const activeLink = document.querySelector(
-        `[onclick="showSection('${sectionName}')"]`
+        `.nav-link[href="#${sectionName}"]`
     );
     if (activeLink) {
         activeLink.classList.add("active");
@@ -52,6 +90,12 @@ function showSection(sectionName) {
         case "simulate":
             setupFighterSearch();
             loadRecentSimulations();
+            break;
+        case "events":
+            initEventsSection();
+            break;
+        case "createEvent":
+            // Apenas mostra o formulário
             break;
         case "rankings":
             loadRankings();
@@ -91,87 +135,148 @@ async function loadHomeStats() {
     }
 }
 
-// Show toast notification
-function showToast(message, type = "success") {
-    const toast = document.getElementById("toast");
-    toast.textContent = message;
-    toast.className = `toast ${type} show`;
+// Setup all event listeners
+function setupEventListeners() {
+    // Navigation links
+    const navLinks = document.querySelectorAll(".nav-link");
+    navLinks.forEach((link) => {
+        link.addEventListener("click", (e) => {
+            e.preventDefault();
+            const href = link.getAttribute("href");
+            if (href && href.startsWith("#")) {
+                showSection(href.substring(1));
+            }
+        });
+    });
 
-    setTimeout(() => {
-        toast.classList.remove("show");
-    }, 3000);
-}
-
-// Show loading overlay
-function showLoading(message = "Carregando...") {
-    if (!loadingOverlay) {
-        loadingOverlay = document.createElement("div");
-        loadingOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            color: white;
-            font-size: 1.5rem;
-        `;
-        document.body.appendChild(loadingOverlay);
+    // Hero action buttons
+    const heroFightersBtn = document.querySelector(
+        ".hero-actions .btn-primary"
+    );
+    if (heroFightersBtn) {
+        heroFightersBtn.addEventListener("click", () =>
+            showSection("fighters")
+        );
     }
 
-    loadingOverlay.innerHTML = `
-        <div style="text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
-            <div>${message}</div>
-        </div>
-    `;
-    loadingOverlay.style.display = "flex";
-}
+    const heroSimulateBtn = document.querySelector(
+        ".hero-actions .btn-secondary"
+    );
+    if (heroSimulateBtn) {
+        heroSimulateBtn.addEventListener("click", () =>
+            showSection("simulate")
+        );
+    }
 
-// Hide loading overlay
-function hideLoading() {
-    if (loadingOverlay) {
-        loadingOverlay.style.display = "none";
+    // Auth buttons in nav
+    const loginNavBtn = document.getElementById("loginBtn");
+    if (loginNavBtn) {
+        loginNavBtn.addEventListener("click", () => showSection("login"));
+    }
+
+    const registerNavBtn = document.getElementById("registerBtn");
+    if (registerNavBtn) {
+        registerNavBtn.addEventListener("click", () => showSection("register"));
+    }
+
+    const logoutBtn = document.querySelector("#userMenu button");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", logout);
+    }
+
+    // Register page link
+    const registerLinks = document.querySelectorAll(
+        'a[href="#"][onclick*="register"]'
+    );
+    registerLinks.forEach((link) => {
+        link.removeAttribute("onclick");
+        link.addEventListener("click", (e) => {
+            e.preventDefault();
+            showSection("register");
+        });
+    });
+
+    // Login page link
+    const loginLinks = document.querySelectorAll(
+        'a[href="#"][onclick*="login"]'
+    );
+    loginLinks.forEach((link) => {
+        link.removeAttribute("onclick");
+        link.addEventListener("click", (e) => {
+            e.preventDefault();
+            showSection("login");
+        });
+    });
+
+    // Events section buttons
+    const createNewEventBtn = document.getElementById("createNewEventBtn");
+    if (createNewEventBtn) {
+        createNewEventBtn.addEventListener("click", () =>
+            showSection("createEvent")
+        );
+    }
+
+    const backToEventsBtn = document.getElementById("backToEventsBtn");
+    if (backToEventsBtn) {
+        backToEventsBtn.addEventListener("click", () => {
+            if (typeof resetEventForm === "function") resetEventForm();
+            showSection("events");
+        });
+    }
+
+    // Cancel event button
+    const cancelEventBtn = document.getElementById("cancelEventBtn");
+    if (cancelEventBtn) {
+        cancelEventBtn.addEventListener("click", () => {
+            if (typeof resetEventForm === "function") resetEventForm();
+            showSection("events");
+        });
+    }
+
+    // Rankings filters
+    const rankingOrg = document.getElementById("rankingOrg");
+    if (rankingOrg) {
+        rankingOrg.addEventListener("change", loadRankings);
+    }
+
+    const rankingWeight = document.getElementById("rankingWeight");
+    if (rankingWeight) {
+        rankingWeight.addEventListener("change", loadRankings);
+    }
+
+    // Simulate button
+    const simulateBtn = document.getElementById("simulateBtn");
+    if (simulateBtn) {
+        simulateBtn.removeAttribute("onclick");
+        simulateBtn.addEventListener("click", runSimulation);
+    }
+
+    // Close modal on outside click
+    window.addEventListener("click", (event) => {
+        if (event.target.classList.contains("modal")) {
+            event.target.classList.remove("active");
+        }
+    });
+
+    // Setup module-specific listeners
+    if (typeof setupAuthListeners === "function") {
+        setupAuthListeners();
+    }
+
+    if (typeof setupFightersListeners === "function") {
+        setupFightersListeners();
+    }
+
+    if (typeof setupEventsListeners === "function") {
+        setupEventsListeners();
     }
 }
-
-// Close modal on outside click
-window.onclick = function (event) {
-    const modal = document.getElementById("createFighterModal");
-    if (event.target === modal) {
-        closeCreateFighter();
-    }
-};
 
 // Handle browser back/forward
 window.addEventListener("hashchange", () => {
     const hash = window.location.hash.slice(1) || "home";
     showSection(hash);
 });
-
-// Utility: Format date
-function formatDate(dateString) {
-    if (!dateString) return "";
-
-    const date = new Date(dateString);
-    return date.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-}
-
-// Utility: Capitalize
-function capitalize(str) {
-    if (!str) return "";
-    return str.charAt(0).toUpperCase() + str.slice(1);
-}
 
 // Error handling
 window.addEventListener("error", (event) => {

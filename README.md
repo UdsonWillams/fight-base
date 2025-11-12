@@ -486,13 +486,49 @@ O algoritmo de simulação considera múltiplos fatores:
 - **ipdb** - Debugging
 - **pytest-cov** - Cobertura de testes
 
+## 📚 Documentação Completa
+
+Toda a documentação do projeto está organizada na pasta `docs/`:
+
+### 🚀 Guias de Início
+
+- **[docs/quickstart.md](docs/quickstart.md)** - Comece em 5 minutos
+- **[docs/exemplos-api.md](docs/exemplos-api.md)** - Exemplos práticos de uso da API
+
+### 🔧 Documentação Técnica
+
+- **[docs/algoritmo-simulacao.md](docs/algoritmo-simulacao.md)** - Como funciona a simulação
+- **[docs/casos-de-uso.md](docs/casos-de-uso.md)** - Casos de uso e ideias
+- **[docs/frontend-guide.md](docs/frontend-guide.md)** - Guia do frontend
+
+### 🛠️ Guias de Desenvolvimento
+
+- **[docs/migracao-banco.md](docs/migracao-banco.md)** - Guia do Alembic
+- **[docs/importacao-csv.md](docs/importacao-csv.md)** - Importar lutadores via CSV
+- **[docs/git-commit-guide.md](docs/git-commit-guide.md)** - Padrão de commits
+
+### 📋 Planejamento
+
+- **[docs/roadmap.md](docs/roadmap.md)** - Próximos passos
+- **[docs/melhorias-recomendadas.md](docs/melhorias-recomendadas.md)** - Análise e melhorias
+- **[docs/refactoring-history.md](docs/refactoring-history.md)** - Histórico de refatoração
+
+**📖 Índice completo:** [docs/README.md](docs/README.md)
+
 ## Contribuição
 
 1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
+2. Leia o [guia de commits](docs/git-commit-guide.md)
+3. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
+4. Commit suas mudanças seguindo o padrão Conventional Commits
+5. Push para a branch (`git push origin feature/nova-feature`)
+6. Abra um Pull Request
+
+Veja também:
+
+- [Roadmap de features](docs/roadmap.md)
+- [Melhorias recomendadas](docs/melhorias-recomendadas.md)
+- [Casos de uso](docs/casos-de-uso.md)
 
 ## Licença
 

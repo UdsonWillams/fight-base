@@ -1,8 +1,5 @@
 // Fighters Module
 
-let allFighters = [];
-let currentFilters = {};
-
 // Helper function to get overall rating
 function getOverall(fighter) {
     return fighter.overall_rating || fighter.overall || 75;
@@ -10,7 +7,12 @@ function getOverall(fighter) {
 
 // Load fighters list
 async function loadFighters(filters = {}) {
+    const container = document.getElementById("fightersList");
+
     try {
+        // Mostra skeleton loading
+        container.innerHTML = createSkeletonCards(6, "fighter");
+
         const params = {
             limit: 50,
             offset: 0,
@@ -18,10 +20,16 @@ async function loadFighters(filters = {}) {
         };
 
         const response = await api.getFighters(params);
-        allFighters = response.fighters || [];
+        AppState.allFighters = response.fighters || [];
 
-        displayFighters(allFighters);
+        displayFighters(AppState.allFighters);
     } catch (error) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>❌ Erro ao carregar lutadores</p>
+                <p class="text-muted">Tente novamente mais tarde</p>
+            </div>
+        `;
         console.error("Error loading fighters:", error);
         showToast("Erro ao carregar lutadores", "error");
     }
@@ -32,15 +40,19 @@ function displayFighters(fighters) {
     const container = document.getElementById("fightersList");
 
     if (!fighters || fighters.length === 0) {
-        container.innerHTML =
-            '<div class="loading">Nenhum lutador encontrado</div>';
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>🥊 Nenhum lutador encontrado</p>
+                <p class="text-muted">Tente ajustar os filtros</p>
+            </div>
+        `;
         return;
     }
 
     container.innerHTML = fighters
         .map(
             (fighter) => `
-        <div class="fighter-card" onclick="showFighterDetails('${fighter.id}')">
+        <div class="fighter-card" data-fighter-id="${fighter.id}">
             <div class="fighter-image">
                 ${
                     fighter.photo_url
@@ -134,7 +146,7 @@ function searchFighters() {
     if (gender) filters.gender = gender;
     if (weight_class) filters.actual_weight_class = weight_class;
 
-    currentFilters = filters;
+    AppState.currentFilters = filters;
     loadFighters(filters);
 }
 
@@ -187,7 +199,7 @@ async function handleCreateFighter(event) {
 
         showToast("Lutador criado com sucesso!", "success");
         closeCreateFighter();
-        loadFighters(currentFilters);
+        loadFighters(AppState.currentFilters);
     } catch (error) {
         showToast(error.message || "Erro ao criar lutador", "error");
     } finally {
@@ -518,11 +530,14 @@ function closeFighterDetails() {
 }
 
 // Fighter Search for Simulation
-let searchTimeout;
-let selectedFighter1 = null;
-let selectedFighter2 = null;
+let fighterSearchInitialized = false;
 
 function setupFighterSearch() {
+    // Evita adicionar listeners múltiplas vezes
+    if (fighterSearchInitialized) {
+        return;
+    }
+
     const input1 = document.getElementById("fighter1Search");
     const input2 = document.getElementById("fighter2Search");
 
@@ -541,6 +556,36 @@ function setupFighterSearch() {
         debounceSearch(e.target.value, "fighter2Results", 2);
     });
 
+    // Event delegation for search results (Fighter 1)
+    const fighter1Results = document.getElementById("fighter1Results");
+    if (fighter1Results) {
+        fighter1Results.addEventListener("click", (e) => {
+            const resultItem = e.target.closest(".search-result-item");
+            if (resultItem) {
+                const fighterId = resultItem.dataset.fighterId;
+                const fighterNum = parseInt(resultItem.dataset.fighterNum);
+                if (fighterId && fighterNum) {
+                    selectFighter(fighterId, fighterNum);
+                }
+            }
+        });
+    }
+
+    // Event delegation for search results (Fighter 2)
+    const fighter2Results = document.getElementById("fighter2Results");
+    if (fighter2Results) {
+        fighter2Results.addEventListener("click", (e) => {
+            const resultItem = e.target.closest(".search-result-item");
+            if (resultItem) {
+                const fighterId = resultItem.dataset.fighterId;
+                const fighterNum = parseInt(resultItem.dataset.fighterNum);
+                if (fighterId && fighterNum) {
+                    selectFighter(fighterId, fighterNum);
+                }
+            }
+        });
+    }
+
     // Close search results when clicking outside
     document.addEventListener("click", (e) => {
         if (!e.target.closest(".fighter-search-container")) {
@@ -548,10 +593,12 @@ function setupFighterSearch() {
             document.getElementById("fighter2Results").classList.remove("show");
         }
     });
+
+    fighterSearchInitialized = true;
 }
 
 function debounceSearch(query, resultsId, fighterNum) {
-    clearTimeout(searchTimeout);
+    clearTimeout(AppState.searchTimeout);
 
     const resultsContainer = document.getElementById(resultsId);
 
@@ -565,7 +612,7 @@ function debounceSearch(query, resultsId, fighterNum) {
         '<div class="search-loading">Buscando...</div>';
     resultsContainer.classList.add("show");
 
-    searchTimeout = setTimeout(() => {
+    AppState.searchTimeout = setTimeout(() => {
         searchFightersForSimulation(query, resultsId, fighterNum);
     }, 300);
 }
@@ -598,9 +645,9 @@ function displaySearchResults(fighters, resultsId, fighterNum) {
     resultsContainer.innerHTML = fighters
         .map(
             (fighter) => `
-        <div class="search-result-item" onclick="selectFighter('${
+        <div class="search-result-item" data-fighter-id="${
             fighter.id
-        }', ${fighterNum})">
+        }" data-fighter-num="${fighterNum}">
             <div class="search-result-name">${fighter.name}</div>
             <div class="search-result-info">
                 ${fighter.nickname ? `<span>"${fighter.nickname}"</span>` : ""}
@@ -642,11 +689,7 @@ function selectFighter(fighterId, fighterNum) {
             : document.getElementById("fighter2Results");
 
     // Store selected fighter
-    if (fighterNum === 1) {
-        selectedFighter1 = fighterId;
-    } else {
-        selectedFighter2 = fighterId;
-    }
+    AppState.setSelectedFighter(fighterNum, fighterId);
 
     // Load fighter details and update input
     loadFighterForSelection(fighterId, fighterNum);
@@ -755,4 +798,90 @@ function formatWeightClass(weightClass) {
         heavyweight: "Peso-Pesado",
     };
     return map[weightClass] || weightClass;
+}
+
+// Setup event listeners para fighters
+let fightersListenersInitialized = false;
+
+function setupFightersListeners() {
+    // Evita adicionar listeners múltiplas vezes
+    if (fightersListenersInitialized) {
+        return;
+    }
+
+    // Event delegation for fighter cards
+    const fightersList = document.getElementById("fightersList");
+    if (fightersList) {
+        fightersList.addEventListener("click", (e) => {
+            const fighterCard = e.target.closest(".fighter-card");
+            if (fighterCard) {
+                const fighterId = fighterCard.dataset.fighterId;
+                if (fighterId) {
+                    showFighterDetails(fighterId);
+                }
+            }
+        });
+    }
+
+    // Create fighter button
+    const createFighterBtn = document.getElementById("createFighterBtn");
+    if (createFighterBtn) {
+        createFighterBtn.addEventListener("click", showCreateFighter);
+    }
+
+    // Create fighter form
+    const createFighterForm = document.getElementById("createFighterForm");
+    if (createFighterForm) {
+        createFighterForm.addEventListener("submit", handleCreateFighter);
+    }
+
+    // Close modal button
+    const closeModalBtns = document.querySelectorAll(
+        "#createFighterModal .close, #fighterDetailsModal .close"
+    );
+    closeModalBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            closeCreateFighter();
+            closeFighterDetails();
+        });
+    });
+
+    // Search filters
+    const searchName = document.getElementById("searchName");
+    if (searchName) {
+        searchName.addEventListener("keyup", searchFighters);
+    }
+
+    const filterOrg = document.getElementById("filterOrg");
+    if (filterOrg) {
+        filterOrg.addEventListener("change", searchFighters);
+    }
+
+    const filterGender = document.getElementById("filterGender");
+    if (filterGender) {
+        filterGender.addEventListener("change", searchFighters);
+    }
+
+    const filterWeight = document.getElementById("filterWeight");
+    if (filterWeight) {
+        filterWeight.addEventListener("change", searchFighters);
+    }
+
+    // Attribute sliders
+    const attributeSliders = [
+        "striking",
+        "grappling",
+        "defense",
+        "stamina",
+        "speed",
+        "strategy",
+    ];
+    attributeSliders.forEach((attr) => {
+        const slider = document.getElementById(attr);
+        if (slider) {
+            slider.addEventListener("input", () => updateValue(attr));
+        }
+    });
+
+    fightersListenersInitialized = true;
 }

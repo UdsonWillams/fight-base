@@ -2,16 +2,14 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.settings import get_settings
 from app.database.models.base import User
 from app.database.repositories.user import UserRepository
 from app.database.unit_of_work import UnitOfWorkConnection
 from app.schemas.auth import RoleEnum, Token
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class AuthService:
@@ -21,10 +19,16 @@ class AuthService:
     async def get_password_hash(self, password: str) -> str:
         # Bcrypt has a 72 byte limit, truncate if necessary
         password_bytes = password.encode("utf-8")[:72]
-        return await asyncio.to_thread(pwd_context.hash, password_bytes.decode("utf-8"))
+        salt = await asyncio.to_thread(bcrypt.gensalt)
+        hashed = await asyncio.to_thread(bcrypt.hashpw, password_bytes, salt)
+        return hashed.decode("utf-8")
 
     async def verify_password(self, plain: str, hashed: str) -> bool:
-        return await asyncio.to_thread(pwd_context.verify, plain, hashed)
+        # Bcrypt has a 72 byte limit, truncate if necessary
+        plain_bytes = plain.encode("utf-8")[:72]
+        hashed_bytes = hashed.encode("utf-8")
+        result = await asyncio.to_thread(bcrypt.checkpw, plain_bytes, hashed_bytes)
+        return result
 
     async def create_access_token(
         self, subject: str, extra: Optional[Dict[str, Any]] = None
