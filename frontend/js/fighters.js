@@ -1,8 +1,42 @@
-// Fighters Module
+// Fighters Module - v1.1
 
 // Helper function to get overall rating
 function getOverall(fighter) {
-    return fighter.overall_rating || fighter.overall || 75;
+    // Se tiver overall rating, usa
+    if (fighter.overall_rating || fighter.overall) {
+        return fighter.overall_rating || fighter.overall;
+    }
+
+    // Calcula baseado nos atributos (deprecated mas ainda presentes)
+    if (fighter.striking || fighter.grappling || fighter.defense) {
+        const attrs = [
+            fighter.striking || 0,
+            fighter.grappling || 0,
+            fighter.defense || 0,
+            fighter.stamina || 0,
+            fighter.speed || 0,
+            fighter.strategy || 0,
+        ].filter((v) => v > 0);
+
+        if (attrs.length > 0) {
+            // Pega a média dos 4 maiores atributos (ignora os 2 mais fracos)
+            attrs.sort((a, b) => b - a);
+            const top4 = attrs.slice(0, 4);
+            return top4.reduce((a, b) => a + b, 0) / top4.length;
+        }
+    }
+
+    // Fallback: baseado no record
+    const wins = fighter.wins || 0;
+    const losses = fighter.losses || 0;
+    const total = wins + losses;
+
+    if (total > 0) {
+        const winRate = wins / total;
+        return 60 + winRate * 35; // 60-95 range based on win rate
+    }
+
+    return 75; // Default
 }
 
 // Load fighters list
@@ -35,6 +69,76 @@ async function loadFighters(filters = {}) {
     }
 }
 
+// Create fighter card from template
+function createFighterCard(fighter) {
+    const template = document.getElementById("fighter-card-template");
+    const card = template.content.cloneNode(true);
+
+    // Get elements
+    const cardEl = card.querySelector(".fighter-card");
+    const imageEl = card.querySelector(".fighter-image");
+    const nameEl = card.querySelector(".fighter-name");
+    const nicknameEl = card.querySelector(".fighter-nickname");
+    const metaEl = card.querySelector(".fighter-meta");
+
+    // Set data attribute
+    cardEl.dataset.fighterId = fighter.id;
+
+    // Set image
+    if (fighter.photo_url) {
+        imageEl.innerHTML = `<img src="${fighter.photo_url}" alt="${fighter.name}" style="width:100%; height:100%; object-fit:cover;">`;
+    } else {
+        imageEl.textContent = "🥊";
+    }
+
+    // Set name and nickname
+    nameEl.textContent = fighter.name;
+    if (fighter.nickname) {
+        nicknameEl.textContent = `"${fighter.nickname}"`;
+    } else {
+        nicknameEl.remove();
+    }
+
+    // Set meta badges
+    const orgBadge = `<span class="meta-badge">${
+        fighter.last_organization_fight || fighter.organization || "N/A"
+    }</span>`;
+    const isFemale =
+        fighter.gender === "female" ||
+        (fighter.actual_weight_class || "").toLowerCase().includes("women") ||
+        (fighter.weight_class || "").toLowerCase().includes("women");
+    const genderBadge = `<span class="meta-badge">${
+        isFemale ? "👩 Feminino" : "👨 Masculino"
+    }</span>`;
+    const weightClass =
+        typeof translateWeightClass !== "undefined"
+            ? translateWeightClass(
+                  fighter.actual_weight_class || fighter.weight_class
+              )
+            : fighter.actual_weight_class || fighter.weight_class || "N/A";
+    const weightBadge = `<span class="meta-badge">${weightClass}</span>`;
+    metaEl.innerHTML = orgBadge + genderBadge + weightBadge;
+
+    // Set stats
+    const overall = Math.round(getOverall(fighter));
+    card.querySelector(
+        ".overall-value"
+    ).innerHTML = `<strong>${overall}</strong>`;
+    card.querySelector(".overall-stat .stat-fill").style.width = `${overall}%`;
+
+    card.querySelector(".striking-value").textContent = fighter.striking;
+    card.querySelector(
+        ".striking-stat .stat-fill"
+    ).style.width = `${fighter.striking}%`;
+
+    card.querySelector(".grappling-value").textContent = fighter.grappling;
+    card.querySelector(
+        ".grappling-stat .stat-fill"
+    ).style.width = `${fighter.grappling}%`;
+
+    return card;
+}
+
 // Display fighters in grid
 function displayFighters(fighters) {
     const container = document.getElementById("fightersList");
@@ -49,88 +153,14 @@ function displayFighters(fighters) {
         return;
     }
 
-    container.innerHTML = fighters
-        .map(
-            (fighter) => `
-        <div class="fighter-card" data-fighter-id="${fighter.id}">
-            <div class="fighter-image">
-                ${
-                    fighter.photo_url
-                        ? `<img src="${fighter.photo_url}" alt="${fighter.name}" style="width:100%; height:100%; object-fit:cover;">`
-                        : "🥊"
-                }
-            </div>
-            <div class="fighter-info">
-                <div class="fighter-name">${fighter.name}</div>
-                ${
-                    fighter.nickname
-                        ? `<div class="fighter-nickname">"${fighter.nickname}"</div>`
-                        : ""
-                }
-                <div class="fighter-meta">
-                    <span class="meta-badge">${
-                        fighter.last_organization_fight ||
-                        fighter.organization ||
-                        "N/A"
-                    }</span>
-                    <span class="meta-badge">${
-                        fighter.gender === "female"
-                            ? "👩 Feminino"
-                            : "👨 Masculino"
-                    }</span>
-                    <span class="meta-badge">${
-                        typeof translateWeightClass !== "undefined"
-                            ? translateWeightClass(
-                                  fighter.actual_weight_class ||
-                                      fighter.weight_class
-                              )
-                            : fighter.actual_weight_class ||
-                              fighter.weight_class ||
-                              "N/A"
-                    }</span>
-                </div>
-                <div class="fighter-stats">
-                    <div class="stat-bar">
-                        <div class="stat-label">
-                            <span>Overall</span>
-                            <span><strong>${Math.round(
-                                getOverall(fighter)
-                            )}</strong></span>
-                        </div>
-                        <div class="stat-progress">
-                            <div class="stat-fill" style="width: ${getOverall(
-                                fighter
-                            )}%"></div>
-                        </div>
-                    </div>
-                    <div class="stat-bar">
-                        <div class="stat-label">
-                            <span>Striking</span>
-                            <span>${fighter.striking}</span>
-                        </div>
-                        <div class="stat-progress">
-                            <div class="stat-fill" style="width: ${
-                                fighter.striking
-                            }%"></div>
-                        </div>
-                    </div>
-                    <div class="stat-bar">
-                        <div class="stat-label">
-                            <span>Grappling</span>
-                            <span>${fighter.grappling}</span>
-                        </div>
-                        <div class="stat-progress">
-                            <div class="stat-fill" style="width: ${
-                                fighter.grappling
-                            }%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `
-        )
-        .join("");
+    // Clear container
+    container.innerHTML = "";
+
+    // Use template for each fighter
+    fighters.forEach((fighter) => {
+        const card = createFighterCard(fighter);
+        container.appendChild(card);
+    });
 }
 
 // Search fighters
@@ -231,37 +261,61 @@ async function showFighterDetails(id) {
                     }
                 </div>
                 <div class="fighter-details-info">
-                    <h2 class="fighter-details-name">${fighter.name}</h2>
-                    ${
-                        fighter.nickname
-                            ? `<p class="fighter-details-nickname">"${fighter.nickname}"</p>`
-                            : ""
-                    }
+                    <div class="fighter-name-row">
+                        <div>
+                            <h2 class="fighter-details-name">${
+                                fighter.name
+                            }</h2>
+                            ${
+                                fighter.nickname
+                                    ? `<p class="fighter-details-nickname">"${fighter.nickname}"</p>`
+                                    : ""
+                            }
+                        </div>
+                        <button class="btn-edit-fighter" onclick="openEditFighterModal('${
+                            fighter.id
+                        }')">
+                            ✏️ Editar
+                        </button>
+                    </div>
 
                     <div class="fighter-details-badges">
                         <span class="detail-badge overall">Overall: ${Math.round(
                             getOverall(fighter)
                         )}</span>
-                        <span class="detail-badge">${
-                            typeof translateGender !== "undefined"
-                                ? translateGender(fighter.gender)
-                                : fighter.gender
-                        }</span>
-                        <span class="detail-badge">${
-                            typeof translateWeightClass !== "undefined"
-                                ? translateWeightClass(
-                                      fighter.actual_weight_class ||
-                                          fighter.weight_class
-                                  )
-                                : fighter.actual_weight_class ||
-                                  fighter.weight_class ||
-                                  "N/A"
-                        }</span>
-                        <span class="detail-badge">${
-                            fighter.last_organization_fight ||
-                            fighter.organization ||
-                            "N/A"
-                        }</span>
+                        ${
+                            fighter.age
+                                ? `<span class="detail-badge">👤 ${fighter.age} anos</span>`
+                                : ""
+                        }
+                        <span class="detail-badge">
+                            ${
+                                typeof translateWeightClass !== "undefined"
+                                    ? translateWeightClass(
+                                          fighter.actual_weight_class ||
+                                              fighter.weight_class
+                                      )
+                                    : fighter.actual_weight_class ||
+                                      fighter.weight_class ||
+                                      "N/A"
+                            }
+                        </span>
+                        <span class="detail-badge">
+                            ${
+                                fighter.stance
+                                    ? typeof translateStance !== "undefined"
+                                        ? translateStance(fighter.stance)
+                                        : fighter.stance
+                                    : "N/A"
+                            }
+                        </span>
+                        <span class="detail-badge">
+                            ${
+                                fighter.last_organization_fight ||
+                                fighter.organization ||
+                                "UFC"
+                            }
+                        </span>
                         ${
                             fighter.belt
                                 ? `<span class="detail-badge">🏆 ${fighter.belt}</span>`
@@ -455,23 +509,47 @@ async function showFighterDetails(id) {
                             ${
                                 fighter.cartel && fighter.cartel.length > 0
                                     ? fighter.cartel
-                                          .map(
-                                              (fight) => `
-                                    <div class="cartel-item ${
-                                        fight.result
-                                            ? fight.result.toLowerCase()
-                                            : ""
-                                    }">
+                                          .map((fight) => {
+                                              // Normaliza o resultado (pode vir como "W", "L", "D" ou maiúsculo)
+                                              const result = (
+                                                  fight.result || ""
+                                              )
+                                                  .toUpperCase()
+                                                  .trim();
+                                              const resultClass =
+                                                  result.toLowerCase();
+
+                                              // Determina o label
+                                              let resultLabel = "";
+                                              if (result === "W") {
+                                                  resultLabel = "VITÓRIA";
+                                              } else if (result === "L") {
+                                                  resultLabel = "DERROTA";
+                                              } else if (
+                                                  result === "D" ||
+                                                  result === "DRAW"
+                                              ) {
+                                                  resultLabel = "EMPATE";
+                                              } else if (
+                                                  result === "NC" ||
+                                                  result === "N/A"
+                                              ) {
+                                                  resultLabel = "SEM RESULTADO";
+                                              }
+
+                                              return `
+                                    <div class="cartel-item ${resultClass}">
                                         <div class="cartel-header">
-                                            <span class="cartel-result ${
-                                                fight.result
-                                                    ? fight.result.toLowerCase()
+                                            ${
+                                                resultLabel
+                                                    ? `<span class="cartel-result ${resultClass}">${resultLabel}</span>`
+                                                    : '<span class="cartel-result-unknown">LUTA</span>'
+                                            }
+                                            ${
+                                                fight.date
+                                                    ? `<span class="cartel-date">${fight.date}</span>`
                                                     : ""
-                                            }">${fight.result || "N/A"}</span>
-                                            <span>${
-                                                fight.date ||
-                                                "Data desconhecida"
-                                            }</span>
+                                            }
                                         </div>
                                         <div class="cartel-opponent">vs ${
                                             fight.opponent ||
@@ -507,8 +585,8 @@ async function showFighterDetails(id) {
                                             }
                                         </div>
                                     </div>
-                                `
-                                          )
+                                `;
+                                          })
                                           .join("")
                                     : '<p style="color: var(--text-light); text-align: center; padding: 2rem;">Histórico de lutas não disponível</p>'
                             }
@@ -527,196 +605,6 @@ async function showFighterDetails(id) {
 // Close fighter details modal
 function closeFighterDetails() {
     document.getElementById("fighterDetailsModal").classList.remove("active");
-}
-
-// Fighter Search for Simulation
-let fighterSearchInitialized = false;
-
-function setupFighterSearch() {
-    // Evita adicionar listeners múltiplas vezes
-    if (fighterSearchInitialized) {
-        return;
-    }
-
-    const input1 = document.getElementById("fighter1Search");
-    const input2 = document.getElementById("fighter2Search");
-
-    if (!input1 || !input2) {
-        console.error("Fighter search inputs not found");
-        return;
-    }
-
-    // Fighter 1 search
-    input1.addEventListener("input", (e) => {
-        debounceSearch(e.target.value, "fighter1Results", 1);
-    });
-
-    // Fighter 2 search
-    input2.addEventListener("input", (e) => {
-        debounceSearch(e.target.value, "fighter2Results", 2);
-    });
-
-    // Event delegation for search results (Fighter 1)
-    const fighter1Results = document.getElementById("fighter1Results");
-    if (fighter1Results) {
-        fighter1Results.addEventListener("click", (e) => {
-            const resultItem = e.target.closest(".search-result-item");
-            if (resultItem) {
-                const fighterId = resultItem.dataset.fighterId;
-                const fighterNum = parseInt(resultItem.dataset.fighterNum);
-                if (fighterId && fighterNum) {
-                    selectFighter(fighterId, fighterNum);
-                }
-            }
-        });
-    }
-
-    // Event delegation for search results (Fighter 2)
-    const fighter2Results = document.getElementById("fighter2Results");
-    if (fighter2Results) {
-        fighter2Results.addEventListener("click", (e) => {
-            const resultItem = e.target.closest(".search-result-item");
-            if (resultItem) {
-                const fighterId = resultItem.dataset.fighterId;
-                const fighterNum = parseInt(resultItem.dataset.fighterNum);
-                if (fighterId && fighterNum) {
-                    selectFighter(fighterId, fighterNum);
-                }
-            }
-        });
-    }
-
-    // Close search results when clicking outside
-    document.addEventListener("click", (e) => {
-        if (!e.target.closest(".fighter-search-container")) {
-            document.getElementById("fighter1Results").classList.remove("show");
-            document.getElementById("fighter2Results").classList.remove("show");
-        }
-    });
-
-    fighterSearchInitialized = true;
-}
-
-function debounceSearch(query, resultsId, fighterNum) {
-    clearTimeout(AppState.searchTimeout);
-
-    const resultsContainer = document.getElementById(resultsId);
-
-    if (query.length < 2) {
-        resultsContainer.classList.remove("show");
-        return;
-    }
-
-    // Show loading
-    resultsContainer.innerHTML =
-        '<div class="search-loading">Buscando...</div>';
-    resultsContainer.classList.add("show");
-
-    AppState.searchTimeout = setTimeout(() => {
-        searchFightersForSimulation(query, resultsId, fighterNum);
-    }, 300);
-}
-
-async function searchFightersForSimulation(query, resultsId, fighterNum) {
-    try {
-        const response = await api.getFighters({
-            name: query,
-            limit: 10,
-        });
-
-        displaySearchResults(response.fighters, resultsId, fighterNum);
-    } catch (error) {
-        console.error("Error searching fighters:", error);
-        const resultsContainer = document.getElementById(resultsId);
-        resultsContainer.innerHTML =
-            '<div class="search-no-results">Erro ao buscar lutadores</div>';
-    }
-}
-
-function displaySearchResults(fighters, resultsId, fighterNum) {
-    const resultsContainer = document.getElementById(resultsId);
-
-    if (!fighters || fighters.length === 0) {
-        resultsContainer.innerHTML =
-            '<div class="search-no-results">Nenhum lutador encontrado</div>';
-        return;
-    }
-
-    resultsContainer.innerHTML = fighters
-        .map(
-            (fighter) => `
-        <div class="search-result-item" data-fighter-id="${
-            fighter.id
-        }" data-fighter-num="${fighterNum}">
-            <div class="search-result-name">${fighter.name}</div>
-            <div class="search-result-info">
-                ${fighter.nickname ? `<span>"${fighter.nickname}"</span>` : ""}
-                <span>${
-                    fighter.last_organization_fight ||
-                    fighter.organization ||
-                    "N/A"
-                }</span>
-                <span>${
-                    typeof translateWeightClass !== "undefined"
-                        ? translateWeightClass(
-                              fighter.actual_weight_class ||
-                                  fighter.weight_class
-                          )
-                        : fighter.actual_weight_class ||
-                          fighter.weight_class ||
-                          "N/A"
-                }</span>
-                ${
-                    fighter.record
-                        ? `<span>Record: ${fighter.record}</span>`
-                        : ""
-                }
-            </div>
-        </div>
-    `
-        )
-        .join("");
-}
-
-function selectFighter(fighterId, fighterNum) {
-    const searchInput =
-        fighterNum === 1
-            ? document.getElementById("fighter1Search")
-            : document.getElementById("fighter2Search");
-    const resultsContainer =
-        fighterNum === 1
-            ? document.getElementById("fighter1Results")
-            : document.getElementById("fighter2Results");
-
-    // Store selected fighter
-    AppState.setSelectedFighter(fighterNum, fighterId);
-
-    // Load fighter details and update input
-    loadFighterForSelection(fighterId, fighterNum);
-
-    // Hide results
-    resultsContainer.classList.remove("show");
-}
-
-async function loadFighterForSelection(fighterId, fighterNum) {
-    try {
-        const fighter = await api.getFighter(fighterId);
-
-        // Update search input with fighter name
-        const searchInput =
-            fighterNum === 1
-                ? document.getElementById("fighter1Search")
-                : document.getElementById("fighter2Search");
-        searchInput.value = fighter.name;
-
-        // Load preview
-        const containerId =
-            fighterNum === 1 ? "fighter1Preview" : "fighter2Preview";
-        loadFighterPreview(fighterId, containerId);
-    } catch (error) {
-        console.error("Error loading fighter:", error);
-        showToast("Erro ao carregar lutador", "error");
-    }
 }
 
 // Load fighter preview
@@ -785,8 +673,13 @@ async function loadFighterPreview(fighterId, containerId) {
     }
 }
 
-// Format weight class
+// Format weight class - DEPRECATED: Use translateWeightClass from utils.js instead
 function formatWeightClass(weightClass) {
+    // Use translateWeightClass if available, otherwise fallback to basic map
+    if (typeof translateWeightClass !== "undefined") {
+        return translateWeightClass(weightClass);
+    }
+
     const map = {
         flyweight: "Peso-Mosca",
         bantamweight: "Peso-Galo",
@@ -884,4 +777,105 @@ function setupFightersListeners() {
     });
 
     fightersListenersInitialized = true;
+}
+
+// Open edit fighter modal
+async function openEditFighterModal(fighterId) {
+    try {
+        // Get fighter data
+        const fighter = await api.getFighter(fighterId);
+
+        // Close details modal
+        closeFighterDetails();
+
+        // Populate edit form
+        document.getElementById("editFighterId").value = fighter.id;
+        document.getElementById("editFighterName").value = fighter.name;
+        document.getElementById("editFighterNickname").value =
+            fighter.nickname || "";
+        document.getElementById("editFighterHeight").value =
+            fighter.height_cm || "";
+        document.getElementById("editFighterWeight").value =
+            fighter.weight_lbs || "";
+        document.getElementById("editFighterReach").value =
+            fighter.reach_cm || "";
+        document.getElementById("editFighterStance").value =
+            fighter.stance || "";
+
+        // Set attribute sliders
+        document.getElementById("editStriking").value = fighter.striking || 50;
+        document.getElementById("editGrappling").value =
+            fighter.grappling || 50;
+        document.getElementById("editDefense").value = fighter.defense || 50;
+        document.getElementById("editStamina").value = fighter.stamina || 50;
+        document.getElementById("editSpeed").value = fighter.speed || 50;
+        document.getElementById("editStrategy").value = fighter.strategy || 50;
+
+        // Update slider value displays
+        updateEditSliderValue("striking", fighter.striking || 50);
+        updateEditSliderValue("grappling", fighter.grappling || 50);
+        updateEditSliderValue("defense", fighter.defense || 50);
+        updateEditSliderValue("stamina", fighter.stamina || 50);
+        updateEditSliderValue("speed", fighter.speed || 50);
+        updateEditSliderValue("strategy", fighter.strategy || 50);
+
+        // Show edit modal
+        document.getElementById("editFighterModal").classList.add("active");
+    } catch (error) {
+        console.error("Error loading fighter for edit:", error);
+        showToast("Erro ao carregar dados do lutador", "error");
+    }
+}
+
+// Close edit fighter modal
+function closeEditFighterModal() {
+    document.getElementById("editFighterModal").classList.remove("active");
+}
+
+// Update slider value display in edit modal
+function updateEditSliderValue(attr, value) {
+    const display = document.getElementById(
+        `edit${attr.charAt(0).toUpperCase() + attr.slice(1)}Value`
+    );
+    if (display) {
+        display.textContent = value;
+    }
+}
+
+// Save fighter edits
+async function saveFighterEdits() {
+    try {
+        const fighterId = document.getElementById("editFighterId").value;
+
+        const updates = {
+            height_cm:
+                parseFloat(
+                    document.getElementById("editFighterHeight").value
+                ) || null,
+            weight_lbs:
+                parseFloat(
+                    document.getElementById("editFighterWeight").value
+                ) || null,
+            reach_cm:
+                parseFloat(document.getElementById("editFighterReach").value) ||
+                null,
+            stance: document.getElementById("editFighterStance").value || null,
+            striking: parseInt(document.getElementById("editStriking").value),
+            grappling: parseInt(document.getElementById("editGrappling").value),
+            defense: parseInt(document.getElementById("editDefense").value),
+            stamina: parseInt(document.getElementById("editStamina").value),
+            speed: parseInt(document.getElementById("editSpeed").value),
+            strategy: parseInt(document.getElementById("editStrategy").value),
+        };
+
+        await api.updateFighter(fighterId, updates);
+        showToast("Lutador atualizado com sucesso!", "success");
+        closeEditFighterModal();
+
+        // Reload fighter details
+        showFighterDetails(fighterId);
+    } catch (error) {
+        console.error("Error updating fighter:", error);
+        showToast("Erro ao atualizar lutador", "error");
+    }
 }

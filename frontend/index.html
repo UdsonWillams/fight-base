@@ -54,16 +54,32 @@
                         </p>
                         <div class="hero-stats">
                             <div class="stat-card">
-                                <h3 id="totalFighters">0</h3>
-                                <p>Lutadores</p>
+                                <h3 id="totalFighters">2,611</h3>
+                                <p>Lutadores UFC</p>
+                                <small style="color: var(--text-muted)"
+                                    >Dataset completo</small
+                                >
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="totalEvents">745</h3>
+                                <p>Eventos</p>
+                                <small style="color: var(--text-muted)"
+                                    >1994 - 2025</small
+                                >
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="totalFights">8,337</h3>
+                                <p>Lutas Reais</p>
+                                <small style="color: var(--text-muted)"
+                                    >Com estatísticas</small
+                                >
                             </div>
                             <div class="stat-card">
                                 <h3 id="totalSimulations">0</h3>
                                 <p>Simulações</p>
-                            </div>
-                            <div class="stat-card">
-                                <h3>5+</h3>
-                                <p>Organizações</p>
+                                <small style="color: var(--text-muted)"
+                                    >Seus combates</small
+                                >
                             </div>
                         </div>
                         <div class="hero-actions">
@@ -592,6 +608,191 @@
             </div>
         </div>
 
+        <!-- Edit Fighter Modal -->
+        <div id="editFighterModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeEditFighterModal()"
+                    >&times;</span
+                >
+                <h2>✏️ Editar Lutador</h2>
+
+                <form onsubmit="event.preventDefault(); saveFighterEdits();">
+                    <input type="hidden" id="editFighterId" />
+
+                    <div class="form-group">
+                        <label>Nome</label>
+                        <input
+                            type="text"
+                            id="editFighterName"
+                            readonly
+                            disabled
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Apelido</label>
+                        <input
+                            type="text"
+                            id="editFighterNickname"
+                            readonly
+                            disabled
+                        />
+                    </div>
+
+                    <h3>📏 Informações Físicas</h3>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Altura (cm)</label>
+                            <input
+                                type="number"
+                                id="editFighterHeight"
+                                step="0.1"
+                                min="150"
+                                max="230"
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label>Peso (lbs)</label>
+                            <input
+                                type="number"
+                                id="editFighterWeight"
+                                step="0.1"
+                                min="100"
+                                max="300"
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label>Alcance (cm)</label>
+                            <input
+                                type="number"
+                                id="editFighterReach"
+                                step="0.1"
+                                min="150"
+                                max="250"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Guarda</label>
+                        <select id="editFighterStance">
+                            <option value="">Selecione</option>
+                            <option value="Orthodox">Destro (Orthodox)</option>
+                            <option value="Southpaw">Canhoto (Southpaw)</option>
+                            <option value="Switch">Ambidestro (Switch)</option>
+                        </select>
+                    </div>
+
+                    <h3>⚡ Atributos de Luta</h3>
+
+                    <div class="form-group">
+                        <label
+                            >Striking:
+                            <span id="editStrikingValue">50</span></label
+                        >
+                        <input
+                            type="range"
+                            id="editStriking"
+                            min="0"
+                            max="100"
+                            value="50"
+                            oninput="updateEditSliderValue('striking', this.value)"
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <label
+                            >Grappling:
+                            <span id="editGrapplingValue">50</span></label
+                        >
+                        <input
+                            type="range"
+                            id="editGrappling"
+                            min="0"
+                            max="100"
+                            value="50"
+                            oninput="updateEditSliderValue('grappling', this.value)"
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <label
+                            >Defense:
+                            <span id="editDefenseValue">50</span></label
+                        >
+                        <input
+                            type="range"
+                            id="editDefense"
+                            min="0"
+                            max="100"
+                            value="50"
+                            oninput="updateEditSliderValue('defense', this.value)"
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <label
+                            >Stamina:
+                            <span id="editStaminaValue">50</span></label
+                        >
+                        <input
+                            type="range"
+                            id="editStamina"
+                            min="0"
+                            max="100"
+                            value="50"
+                            oninput="updateEditSliderValue('stamina', this.value)"
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <label
+                            >Speed: <span id="editSpeedValue">50</span></label
+                        >
+                        <input
+                            type="range"
+                            id="editSpeed"
+                            min="0"
+                            max="100"
+                            value="50"
+                            oninput="updateEditSliderValue('speed', this.value)"
+                        />
+                    </div>
+
+                    <div class="form-group">
+                        <label
+                            >Strategy:
+                            <span id="editStrategyValue">50</span></label
+                        >
+                        <input
+                            type="range"
+                            id="editStrategy"
+                            min="0"
+                            max="100"
+                            value="50"
+                            oninput="updateEditSliderValue('strategy', this.value)"
+                        />
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">
+                            💾 Salvar
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-secondary"
+                            onclick="closeEditFighterModal()"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Event Details Modal -->
         <div id="eventDetailsModal" class="modal">
             <div class="modal-content modal-large">
@@ -771,12 +972,68 @@
         <!-- Toast Notifications -->
         <div id="toast" class="toast"></div>
 
+        <!-- HTML Templates -->
+        <template id="fighter-card-template">
+            <div class="fighter-card">
+                <div class="fighter-image"></div>
+                <div class="fighter-info">
+                    <div class="fighter-name"></div>
+                    <div class="fighter-nickname"></div>
+                    <div class="fighter-meta"></div>
+                    <div class="fighter-stats">
+                        <div class="stat-bar overall-stat">
+                            <div class="stat-label">
+                                <span>Overall</span>
+                                <span class="overall-value"></span>
+                            </div>
+                            <div class="stat-progress">
+                                <div class="stat-fill"></div>
+                            </div>
+                        </div>
+                        <div class="stat-bar striking-stat">
+                            <div class="stat-label">
+                                <span>Striking</span>
+                                <span class="striking-value"></span>
+                            </div>
+                            <div class="stat-progress">
+                                <div class="stat-fill"></div>
+                            </div>
+                        </div>
+                        <div class="stat-bar grappling-stat">
+                            <div class="stat-label">
+                                <span>Grappling</span>
+                                <span class="grappling-value"></span>
+                            </div>
+                            <div class="stat-progress">
+                                <div class="stat-fill"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template id="ranking-item-template">
+            <div class="ranking-item">
+                <div class="ranking-position"></div>
+                <div class="ranking-fighter-info">
+                    <div class="ranking-fighter-name"></div>
+                    <div class="ranking-fighter-meta"></div>
+                </div>
+                <div class="ranking-stats">
+                    <div class="ranking-overall"></div>
+                    <div class="ranking-record"></div>
+                </div>
+            </div>
+        </template>
+
         <!-- Scripts -->
         <script src="js/utils.js"></script>
         <script src="js/api.js"></script>
         <script src="js/auth.js"></script>
         <script src="js/fighters.js"></script>
         <script src="js/simulation.js"></script>
+        <script src="js/rankings.js"></script>
         <script src="js/events.js"></script>
         <script src="js/app.js"></script>
     </body>

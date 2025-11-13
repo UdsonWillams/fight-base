@@ -330,6 +330,12 @@ fight-base/
 - [frontend-guide.md](frontend-guide.md)
 - `frontend/`
 
+### Dataset e Dados
+
+- [importacao-csv.md](importacao-csv.md)
+- [dataset-ufc-compatibilidade.md](dataset-ufc-compatibilidade.md)
+- `scripts/import_fighters_from_csv.py`
+
 ### Contribuir
 
 - [roadmap.md](roadmap.md)

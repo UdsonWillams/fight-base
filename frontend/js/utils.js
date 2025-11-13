@@ -263,7 +263,16 @@ const WEIGHT_CLASSES_REVERSE = Object.entries(WEIGHT_CLASSES).reduce(
  */
 function translateWeightClass(weightClass) {
     if (!weightClass) return "N/A";
-    return WEIGHT_CLASSES[weightClass] || weightClass;
+
+    // Busca case-insensitive
+    const normalized = weightClass.toLowerCase();
+    for (const [key, value] of Object.entries(WEIGHT_CLASSES)) {
+        if (key.toLowerCase() === normalized) {
+            return value;
+        }
+    }
+
+    return weightClass;
 }
 
 /**
@@ -334,9 +343,9 @@ function translateFightingStyle(style) {
  */
 function translateStance(stance) {
     const stances = {
-        Orthodox: "Ortodoxo",
+        Orthodox: "Destro",
         Southpaw: "Canhoto",
-        Switch: "Alternado",
+        Switch: "Ambidestro",
     };
 
     return stances[stance] || stance;
@@ -385,4 +394,72 @@ function getOverallColor(overall) {
     if (overall >= 75) return "#FFB700"; // Amarelo (accent)
     if (overall >= 65) return "#4CAF50"; // Verde
     return "#666"; // Cinza
+}
+
+/**
+ * Exibe modal de confirmação customizado
+ * @param {string} message - Mensagem a exibir
+ * @param {string} confirmText - Texto do botão de confirmação (padrão: "Confirmar")
+ * @param {string} cancelText - Texto do botão de cancelar (padrão: "Cancelar")
+ * @returns {Promise<boolean>} Promise que resolve como true (confirmado) ou false (cancelado)
+ */
+function showConfirm(
+    message,
+    confirmText = "Confirmar",
+    cancelText = "Cancelar"
+) {
+    return new Promise((resolve) => {
+        // Criar modal
+        const modal = document.createElement("div");
+        modal.className = "modal active";
+        modal.style.zIndex = "10000";
+
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <h3 style="margin-bottom: 1.5rem;">Confirmação</h3>
+                <p style="margin-bottom: 2rem; color: var(--text-light);">${message}</p>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="btn btn-secondary" id="confirmCancel">${cancelText}</button>
+                    <button class="btn btn-primary" id="confirmOk">${confirmText}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Handlers
+        const handleConfirm = () => {
+            document.body.removeChild(modal);
+            resolve(true);
+        };
+
+        const handleCancel = () => {
+            document.body.removeChild(modal);
+            resolve(false);
+        };
+
+        // Event listeners
+        modal
+            .querySelector("#confirmOk")
+            .addEventListener("click", handleConfirm);
+        modal
+            .querySelector("#confirmCancel")
+            .addEventListener("click", handleCancel);
+
+        // Close on background click
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) {
+                handleCancel();
+            }
+        });
+
+        // Close on ESC key
+        const escHandler = (e) => {
+            if (e.key === "Escape") {
+                document.removeEventListener("keydown", escHandler);
+                handleCancel();
+            }
+        };
+        document.addEventListener("keydown", escHandler);
+    });
 }

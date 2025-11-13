@@ -1,5 +1,224 @@
 // Simulation Module
 
+let fighterSearchInitialized = false;
+
+// Setup simulation-specific event listeners
+function setupSimulationListeners() {
+    // Setup fighter search
+    setupFighterSearch();
+
+    // Setup simulate button
+    const simulateBtn = document.getElementById("simulateBtn");
+    if (simulateBtn) {
+        simulateBtn.addEventListener("click", runSimulation);
+    }
+
+    // Setup rounds select
+    const roundsSelect = document.getElementById("roundsSelect");
+    if (roundsSelect) {
+        roundsSelect.addEventListener("change", () => {
+            console.log("Rounds changed to:", roundsSelect.value);
+        });
+    }
+}
+
+// Setup fighter search functionality
+function setupFighterSearch() {
+    if (fighterSearchInitialized) {
+        return;
+    }
+
+    const input1 = document.getElementById("fighter1Search");
+    const input2 = document.getElementById("fighter2Search");
+
+    if (!input1 || !input2) {
+        console.error("Fighter search inputs not found");
+        return;
+    }
+
+    // Fighter 1 search
+    input1.addEventListener("input", (e) => {
+        debounceSearch(e.target.value, "fighter1Results", 1);
+    });
+
+    // Fighter 2 search
+    input2.addEventListener("input", (e) => {
+        debounceSearch(e.target.value, "fighter2Results", 2);
+    });
+
+    // Event delegation for search results (Fighter 1)
+    const fighter1Results = document.getElementById("fighter1Results");
+    if (fighter1Results) {
+        fighter1Results.addEventListener("click", (e) => {
+            const resultItem = e.target.closest(".search-result-item");
+            if (resultItem) {
+                const fighterId = resultItem.dataset.fighterId;
+                const fighterNum = parseInt(resultItem.dataset.fighterNum);
+                if (fighterId && fighterNum) {
+                    selectFighter(fighterId, fighterNum);
+                }
+            }
+        });
+    }
+
+    // Event delegation for search results (Fighter 2)
+    const fighter2Results = document.getElementById("fighter2Results");
+    if (fighter2Results) {
+        fighter2Results.addEventListener("click", (e) => {
+            const resultItem = e.target.closest(".search-result-item");
+            if (resultItem) {
+                const fighterId = resultItem.dataset.fighterId;
+                const fighterNum = parseInt(resultItem.dataset.fighterNum);
+                if (fighterId && fighterNum) {
+                    selectFighter(fighterId, fighterNum);
+                }
+            }
+        });
+    }
+
+    // Close search results when clicking outside
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest(".fighter-search-container")) {
+            document.getElementById("fighter1Results").classList.remove("show");
+            document.getElementById("fighter2Results").classList.remove("show");
+        }
+    });
+
+    fighterSearchInitialized = true;
+}
+
+// Debounce search input
+function debounceSearch(query, resultsId, fighterNum) {
+    clearTimeout(AppState.searchTimeout);
+
+    const resultsContainer = document.getElementById(resultsId);
+
+    if (query.length < 2) {
+        resultsContainer.classList.remove("show");
+        return;
+    }
+
+    // Show loading
+    resultsContainer.innerHTML =
+        '<div class="search-loading">Buscando...</div>';
+    resultsContainer.classList.add("show");
+
+    AppState.searchTimeout = setTimeout(() => {
+        searchFightersForSimulation(query, resultsId, fighterNum);
+    }, 300);
+}
+
+// Search fighters for simulation
+async function searchFightersForSimulation(query, resultsId, fighterNum) {
+    try {
+        const response = await api.getFighters({
+            name: query,
+            limit: 10,
+        });
+
+        displaySearchResults(response.fighters, resultsId, fighterNum);
+    } catch (error) {
+        console.error("Error searching fighters:", error);
+        const resultsContainer = document.getElementById(resultsId);
+        resultsContainer.innerHTML =
+            '<div class="search-no-results">Erro ao buscar lutadores</div>';
+    }
+}
+
+// Display search results
+function displaySearchResults(fighters, resultsId, fighterNum) {
+    const resultsContainer = document.getElementById(resultsId);
+
+    if (!fighters || fighters.length === 0) {
+        resultsContainer.innerHTML =
+            '<div class="search-no-results">Nenhum lutador encontrado</div>';
+        return;
+    }
+
+    resultsContainer.innerHTML = fighters
+        .map(
+            (fighter) => `
+        <div class="search-result-item" data-fighter-id="${
+            fighter.id
+        }" data-fighter-num="${fighterNum}">
+            <div class="search-result-name">${fighter.name}</div>
+            <div class="search-result-info">
+                ${fighter.nickname ? `<span>"${fighter.nickname}"</span>` : ""}
+                <span>${
+                    fighter.last_organization_fight ||
+                    fighter.organization ||
+                    "N/A"
+                }</span>
+                <span>${
+                    typeof translateWeightClass !== "undefined"
+                        ? translateWeightClass(
+                              fighter.actual_weight_class ||
+                                  fighter.weight_class
+                          )
+                        : fighter.actual_weight_class ||
+                          fighter.weight_class ||
+                          "N/A"
+                }</span>
+                ${
+                    fighter.record
+                        ? `<span>Record: ${fighter.record}</span>`
+                        : ""
+                }
+            </div>
+        </div>
+    `
+        )
+        .join("");
+}
+
+// Select fighter
+function selectFighter(fighterId, fighterNum) {
+    console.log("selectFighter called:", { fighterId, fighterNum });
+
+    const searchInput =
+        fighterNum === 1
+            ? document.getElementById("fighter1Search")
+            : document.getElementById("fighter2Search");
+    const resultsContainer =
+        fighterNum === 1
+            ? document.getElementById("fighter1Results")
+            : document.getElementById("fighter2Results");
+
+    // Store selected fighter
+    AppState.setSelectedFighter(fighterNum, fighterId);
+    console.log(
+        "Fighter stored in AppState:",
+        AppState.getSelectedFighter(fighterNum)
+    );
+
+    // Load fighter details and update input
+    loadFighterForSelection(fighterId, fighterNum);
+
+    // Hide results
+    resultsContainer.classList.remove("show");
+}
+
+// Load fighter for selection
+async function loadFighterForSelection(fighterId, fighterNum) {
+    try {
+        const fighter = await api.getFighterById(fighterId);
+
+        const searchInput =
+            fighterNum === 1
+                ? document.getElementById("fighter1Search")
+                : document.getElementById("fighter2Search");
+
+        if (searchInput) {
+            searchInput.value = `${fighter.name}${
+                fighter.nickname ? ` "${fighter.nickname}"` : ""
+            }`;
+        }
+    } catch (error) {
+        console.error("Error loading fighter:", error);
+        showToast("Erro ao carregar lutador", "error");
+    }
+}
+
 // Run simulation
 async function runSimulation() {
     if (!requireAuth()) return;

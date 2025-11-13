@@ -233,10 +233,21 @@ function setupEventListeners() {
         });
     }
 
-    // Rankings filters
-    const rankingOrg = document.getElementById("rankingOrg");
-    if (rankingOrg) {
-        rankingOrg.addEventListener("change", loadRankings);
+    // Setup module event listeners
+    if (typeof setupFightersListeners === "function") {
+        setupFightersListeners();
+    }
+
+    if (typeof setupSimulationListeners === "function") {
+        setupSimulationListeners();
+    }
+
+    if (typeof setupRankingsListeners === "function") {
+        setupRankingsListeners();
+    }
+
+    if (typeof setupEventsListeners === "function") {
+        setupEventsListeners();
     }
 
     const rankingWeight = document.getElementById("rankingWeight");

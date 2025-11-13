@@ -39,12 +39,39 @@ class FighterCreateInput(BaseModel):
     # Informações adicionais
     age: Optional[int] = Field(None, ge=18, le=60, description="Idade")
     height_cm: Optional[float] = Field(None, ge=150, le=230, description="Altura em cm")
+    weight_lbs: Optional[float] = Field(
+        None, ge=100, le=300, description="Peso em libras"
+    )
     reach_cm: Optional[float] = Field(
         None, ge=150, le=250, description="Envergadura em cm"
     )
     bio: Optional[str] = Field(None, max_length=2000, description="Biografia")
     image_url: Optional[str] = Field(None, max_length=500, description="URL da imagem")
     is_real: bool = Field(True, description="Lutador real ou fictício")
+
+    # Estatísticas ML (opcionais - se não fornecidas, calculadas dos atributos gamificados)
+    slpm: Optional[float] = Field(
+        None, ge=0, le=20, description="Golpes significativos por minuto"
+    )
+    str_acc: Optional[float] = Field(
+        None, ge=0, le=100, description="Precisão de golpes %"
+    )
+    sapm: Optional[float] = Field(
+        None, ge=0, le=20, description="Golpes absorvidos por minuto"
+    )
+    str_def: Optional[float] = Field(
+        None, ge=0, le=100, description="Defesa de golpes %"
+    )
+    td_avg: Optional[float] = Field(None, ge=0, le=10, description="Quedas por luta")
+    td_acc: Optional[float] = Field(
+        None, ge=0, le=100, description="Precisão de quedas %"
+    )
+    td_def: Optional[float] = Field(
+        None, ge=0, le=100, description="Defesa de quedas %"
+    )
+    sub_avg: Optional[float] = Field(
+        None, ge=0, le=5, description="Finalizações por luta"
+    )
 
     @field_validator("last_organization_fight")
     @classmethod
@@ -89,10 +116,21 @@ class FighterUpdateInput(BaseModel):
 
     age: Optional[int] = Field(None, ge=18, le=60)
     height_cm: Optional[float] = Field(None, ge=150, le=230)
+    weight_lbs: Optional[float] = Field(None, ge=100, le=300)
     reach_cm: Optional[float] = Field(None, ge=150, le=250)
     bio: Optional[str] = Field(None, max_length=2000)
     image_url: Optional[str] = Field(None, max_length=500)
     is_real: Optional[bool] = None
+
+    # Estatísticas ML (opcionais)
+    slpm: Optional[float] = Field(None, ge=0, le=20)
+    str_acc: Optional[float] = Field(None, ge=0, le=100)
+    sapm: Optional[float] = Field(None, ge=0, le=20)
+    str_def: Optional[float] = Field(None, ge=0, le=100)
+    td_avg: Optional[float] = Field(None, ge=0, le=10)
+    td_acc: Optional[float] = Field(None, ge=0, le=100)
+    td_def: Optional[float] = Field(None, ge=0, le=100)
+    sub_avg: Optional[float] = Field(None, ge=0, le=5)
 
 
 class FighterSearchInput(BaseModel):
