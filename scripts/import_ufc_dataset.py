@@ -606,10 +606,16 @@ class UFCDatasetImporter:
                 if not date_str:
                     continue
 
-                # Parse data
-                try:
-                    fight_date = datetime.strptime(date_str, "%Y-%m-%d")
-                except Exception:
+                # Parse data - tentar múltiplos formatos
+                fight_date = None
+                for date_format in ["%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y"]:
+                    try:
+                        fight_date = datetime.strptime(date_str, date_format)
+                        break
+                    except Exception:
+                        continue
+
+                if not fight_date:
                     continue
 
                 division = row.get("division", "").strip()
@@ -633,6 +639,11 @@ class UFCDatasetImporter:
 
         # Atualizar no banco
         updated = 0
+        not_found = 0
+        print(
+            f"  📋 Total de lutadores com categoria no CSV: {len(fighter_weight_classes)}"
+        )
+
         for fighter_name, (weight_class, _) in fighter_weight_classes.items():
             # Buscar lutador pelo nome
             fighter = (
@@ -641,9 +652,15 @@ class UFCDatasetImporter:
             if fighter:
                 fighter.actual_weight_class = weight_class
                 updated += 1
+            else:
+                not_found += 1
+                if not_found <= 5:  # Mostrar apenas os 5 primeiros não encontrados
+                    print(f"  ⚠️  Lutador não encontrado: {fighter_name}")
 
         self.session.commit()
         print(f"✓ Categorias de peso atualizadas para {updated} lutadores")
+        if not_found > 0:
+            print(f"  ⚠️  {not_found} lutadores não encontrados no banco")
 
     def print_stats(self):
         """Imprime estatísticas finais da importação"""

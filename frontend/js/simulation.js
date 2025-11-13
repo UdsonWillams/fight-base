@@ -173,6 +173,8 @@ function displaySearchResults(fighters, resultsId, fighterNum) {
 
 // Select fighter
 function selectFighter(fighterId, fighterNum) {
+    console.log("selectFighter called:", { fighterId, fighterNum });
+
     const searchInput =
         fighterNum === 1
             ? document.getElementById("fighter1Search")
@@ -184,6 +186,10 @@ function selectFighter(fighterId, fighterNum) {
 
     // Store selected fighter
     AppState.setSelectedFighter(fighterNum, fighterId);
+    console.log(
+        "Fighter stored in AppState:",
+        AppState.getSelectedFighter(fighterNum)
+    );
 
     // Load fighter details and update input
     loadFighterForSelection(fighterId, fighterNum);

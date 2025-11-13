@@ -109,6 +109,10 @@ class APIClient {
         return this.request(`/fighters/${id}`);
     }
 
+    async getFighterById(id) {
+        return this.getFighter(id);
+    }
+
     async createFighter(data) {
         return this.request("/fighters/", {
             method: "POST",
