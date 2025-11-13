@@ -433,6 +433,72 @@ class UFCDatasetImporter:
 
         print(f"✓ Lutas importadas: {self.stats['fights_created']}")
 
+    def populate_fight_winners(self, csv_path: str = "UFC.csv"):
+        """Popula o campo winner_id das lutas baseado no UFC.csv"""
+        print(f"\n🏆 Populando vencedores das lutas de {csv_path}...")
+
+        try:
+            import pandas as pd
+
+            df = pd.read_csv(csv_path)
+
+            updated_count = 0
+            no_winner_count = 0
+            not_found_count = 0
+
+            for _, row in df.iterrows():
+                fight_id = str(row.get("fight_id", "")).strip()
+                winner_name = str(row.get("winner", "")).strip()
+                r_name = str(row.get("r_name", "")).strip()  # Red corner (fighter1)
+                b_name = str(row.get("b_name", "")).strip()  # Blue corner (fighter2)
+
+                if not fight_id or fight_id == "nan":
+                    continue
+
+                # Buscar luta no banco
+                fight = (
+                    self.session.query(Fight).filter_by(ufcstats_id=fight_id).first()
+                )
+
+                if not fight:
+                    not_found_count += 1
+                    continue
+
+                # Determinar winner_id baseado no nome do vencedor
+                if winner_name and winner_name != "nan":
+                    if winner_name == r_name:
+                        # Red corner (fighter1) venceu
+                        fight.winner_id = fight.fighter1_id
+                        updated_count += 1
+                    elif winner_name == b_name:
+                        # Blue corner (fighter2) venceu
+                        fight.winner_id = fight.fighter2_id
+                        updated_count += 1
+                    else:
+                        # Nome não bate - pode ser empate ou NC
+                        no_winner_count += 1
+                else:
+                    # Sem vencedor - empate ou NC
+                    no_winner_count += 1
+
+                if (updated_count + no_winner_count) % 500 == 0:
+                    self.session.commit()
+
+            self.session.commit()
+
+            print("✓ Vencedores populados:")
+            print(f"  • {updated_count} lutas com vencedor definido")
+            print(f"  • {no_winner_count} lutas sem vencedor (empate/NC)")
+            if not_found_count > 0:
+                print(f"  ⚠️  {not_found_count} lutas não encontradas no banco")
+
+        except ImportError:
+            print("⚠️  Pandas não disponível. Pulando população de vencedores.")
+            print("   Execute: pip install pandas")
+        except Exception as e:
+            print(f"❌ Erro ao popular vencedores: {str(e)}")
+            self.session.rollback()
+
     def update_fighter_cartels(self):
         """Atualiza o cartel de cada lutador com base nas lutas importadas"""
         print("\n📊 Atualizando cartel dos lutadores...")
@@ -443,20 +509,21 @@ class UFCDatasetImporter:
 
         for fighter in fighters:
             try:
-                # Buscar todas as lutas do lutador
+                # Buscar todas as lutas do lutador com informações do evento
                 fights = (
-                    self.session.query(Fight)
+                    self.session.query(Fight, Event)
+                    .join(Event, Fight.event_id == Event.id)
                     .filter(
                         (Fight.fighter1_id == fighter.id)
                         | (Fight.fighter2_id == fighter.id),
                         Fight.status == "completed",
                     )
-                    .order_by(Fight.created_at.desc())
+                    .order_by(Event.date.desc())
                     .all()
                 )
 
                 cartel = []
-                for fight in fights:
+                for fight, event in fights:
                     # Determinar se é fighter1 ou fighter2
                     is_fighter1 = fight.fighter1_id == fighter.id
                     opponent_id = (
@@ -467,11 +534,11 @@ class UFCDatasetImporter:
 
                     # Determinar resultado
                     result = "N/A"
-                    if fight.winner_id:
+                    if fight.result_type == "Draw":
+                        result = "D"
+                    elif fight.winner_id:
                         if fight.winner_id == fighter.id:
                             result = "W"
-                        elif fight.result_type == "Draw":
-                            result = "D"
                         else:
                             result = "L"
 
@@ -480,6 +547,7 @@ class UFCDatasetImporter:
                         "result": result,
                         "method": fight.result_type or "Unknown",
                         "round": fight.finish_round,
+                        "date": event.date.strftime("%d/%m/%Y") if event.date else None,
                         "organization": "UFC",
                     }
 
@@ -501,7 +569,7 @@ class UFCDatasetImporter:
         print("\n📝 Atualizando nomes dos eventos...")
 
         # Ler nomes de eventos do fight_details.csv
-        with open("fight_details.csv", "r", encoding="utf-8") as f:
+        with open("datasets/fight_details.csv", "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             event_names = {}
 
@@ -522,6 +590,60 @@ class UFCDatasetImporter:
 
         self.session.commit()
         print(f"✓ Nomes atualizados para {len(event_names)} eventos")
+
+    def update_weight_classes(self):
+        """Atualiza categorias de peso dos lutadores baseado nas lutas do UFC.csv"""
+        print("\n📊 Atualizando categorias de peso dos lutadores...")
+
+        # Ler UFC.csv e mapear categoria de peso da última luta de cada lutador
+        fighter_weight_classes = {}
+
+        with open("datasets/UFC.csv", "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                date_str = row.get("date", "").strip()
+                if not date_str:
+                    continue
+
+                # Parse data
+                try:
+                    fight_date = datetime.strptime(date_str, "%Y-%m-%d")
+                except Exception:
+                    continue
+
+                division = row.get("division", "").strip()
+                if not division:
+                    continue
+
+                r_fighter = row.get("r_name", "").strip()
+                b_fighter = row.get("b_name", "").strip()
+
+                # Atualiza categoria de peso se essa luta for mais recente
+                for fighter_name in [r_fighter, b_fighter]:
+                    if fighter_name:
+                        if (
+                            fighter_name not in fighter_weight_classes
+                            or fight_date > fighter_weight_classes[fighter_name][1]
+                        ):
+                            fighter_weight_classes[fighter_name] = (
+                                division,
+                                fight_date,
+                            )
+
+        # Atualizar no banco
+        updated = 0
+        for fighter_name, (weight_class, _) in fighter_weight_classes.items():
+            # Buscar lutador pelo nome
+            fighter = (
+                self.session.query(Fighter).filter(Fighter.name == fighter_name).first()
+            )
+            if fighter:
+                fighter.actual_weight_class = weight_class
+                updated += 1
+
+        self.session.commit()
+        print(f"✓ Categorias de peso atualizadas para {updated} lutadores")
 
     def print_stats(self):
         """Imprime estatísticas finais da importação"""
@@ -560,19 +682,25 @@ def main():
         system_user = importer.get_or_create_system_user()
 
         # 1. Importar lutadores primeiro (necessário para foreign keys)
-        importer.import_fighters("fighter_details.csv", system_user)
+        importer.import_fighters("datasets/fighter_details.csv", system_user)
 
         # 2. Importar eventos
-        importer.import_events("event_details.csv", system_user)
+        importer.import_events("datasets/event_details.csv", system_user)
 
         # 3. Importar lutas (requer lutadores e eventos já importados)
-        importer.import_fights("fight_details.csv")
+        importer.import_fights("datasets/fight_details.csv")
 
-        # 4. Atualizar nomes dos eventos
+        # 4. Popular vencedores das lutas (requer lutas já importadas)
+        importer.populate_fight_winners("datasets/UFC.csv")
+
+        # 5. Atualizar nomes dos eventos
         importer.update_event_names()
 
-        # 5. Atualizar cartel dos lutadores
+        # 6. Atualizar cartel dos lutadores (requer vencedores já populados)
         importer.update_fighter_cartels()
+
+        # 7. Atualizar categorias de peso dos lutadores
+        importer.update_weight_classes()
 
         # Estatísticas finais
         importer.print_stats()

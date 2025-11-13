@@ -496,7 +496,7 @@ input[type="range"] {
 /* Fighters Grid */
 .fighters-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 2rem;
 }
 
@@ -516,7 +516,7 @@ input[type="range"] {
 
 .fighter-image {
     width: 100%;
-    height: 200px;
+    height: 220px;
     background: linear-gradient(135deg, var(--primary), var(--secondary));
     display: flex;
     align-items: center;
@@ -525,11 +525,11 @@ input[type="range"] {
 }
 
 .fighter-info {
-    padding: 1.5rem;
+    padding: 1.8rem;
 }
 
 .fighter-name {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
 }
@@ -542,6 +542,8 @@ input[type="range"] {
 
 .fighter-meta {
     display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 1rem;
     margin: 1rem 0;
     font-size: 0.9rem;
@@ -555,18 +557,21 @@ input[type="range"] {
 }
 
 .fighter-stats {
-    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-top: 1.2rem;
 }
 
 .stat-bar {
-    margin: 0.5rem 0;
+    margin: 0;
 }
 
 .stat-label {
     display: flex;
     justify-content: space-between;
-    font-size: 0.85rem;
-    margin-bottom: 0.2rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
 }
 
 .stat-progress {
@@ -916,6 +921,13 @@ input[type="range"] {
     flex: 1;
 }
 
+.fighter-name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
 .fighter-details-name {
     font-size: 2rem;
     font-weight: bold;
@@ -926,7 +938,27 @@ input[type="range"] {
     font-size: 1.2rem;
     color: var(--text-light);
     font-style: italic;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.btn-edit-fighter {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-edit-fighter:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .fighter-details-badges {
@@ -1053,14 +1085,18 @@ input[type="range"] {
     padding: 1rem;
     margin-bottom: 0.5rem;
     border-radius: 8px;
-    border-left: 4px solid var(--primary);
+    border-left: 4px solid var(--border);
 }
 
-.cartel-item.loss {
+.cartel-item.w {
+    border-left-color: var(--success);
+}
+
+.cartel-item.l {
     border-left-color: var(--error);
 }
 
-.cartel-item.draw {
+.cartel-item.d {
     border-left-color: var(--warning);
 }
 
@@ -1072,20 +1108,46 @@ input[type="range"] {
 }
 
 .cartel-result {
-    font-weight: bold;
-    font-size: 1.1rem;
+    font-weight: 800;
+    font-size: 0.9rem;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-.cartel-result.win {
-    color: var(--success);
+.cartel-result.w {
+    background-color: var(--success);
+    color: white;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
 }
 
-.cartel-result.loss {
-    color: var(--error);
+.cartel-result.l {
+    background-color: var(--error);
+    color: white;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
-.cartel-result.draw {
-    color: var(--warning);
+.cartel-result.d {
+    background-color: var(--warning);
+    color: white;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+.cartel-result.nc,
+.cartel-result-unknown {
+    background-color: var(--bg-secondary);
+    color: var(--text-light);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+}
+
+.cartel-date {
+    color: var(--text-light);
+    font-size: 0.9rem;
 }
 
 .cartel-opponent {
@@ -2052,6 +2114,49 @@ input[type="range"] {
     color: white;
 }
 
+/* Edit Fighter Form */
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    justify-content: flex-end;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-secondary);
+}
+
 .fight-method {
     font-size: 0.9rem;
     color: var(--text-light);
@@ -2067,15 +2172,15 @@ input[type="range"] {
     .stats-overview {
         grid-template-columns: 1fr;
     }
-    
+
     .stats-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .stats-actions {
         flex-direction: column;
     }
-    
+
     .stats-actions .btn {
         width: 100%;
     }

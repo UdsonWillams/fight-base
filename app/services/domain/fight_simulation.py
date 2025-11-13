@@ -144,37 +144,92 @@ class FightSimulationService:
     def _simulate_round(
         self, fighter1: Fighter, fighter2: Fighter, round_number: int
     ) -> dict:
-        """Simula um round individual"""
-        # Calcula pontos para o round
-        striking1 = self._calculate_fighter_power(fighter1, "striking")
-        striking2 = self._calculate_fighter_power(fighter2, "striking")
+        """
+        Simula um round individual usando stats de ML (slpm, sapm, td_avg, etc.)
 
-        grappling1 = self._calculate_fighter_power(fighter1, "grappling")
-        grappling2 = self._calculate_fighter_power(fighter2, "grappling")
+        Agora consistente com as probabilidades do modelo ML!
+        """
+        # Usa stats de ML para calcular pontos do round
+        # SLPM (Significant Strikes Landed per Minute) - Quanto mais, melhor no striking
+        # SAPM (Significant Strikes Absorbed per Minute) - Quanto menos, melhor na defesa
+        # TD_AVG (Takedown Average) - Média de quedas por 15min
+        # SUB_AVG (Submission Average) - Média de finalizações por 15min
+        # STR_DEF (Striking Defense %) - Defesa contra golpes
+        # TD_DEF (Takedown Defense %) - Defesa contra quedas
 
-        # Adiciona aleatoriedade (10-30% de variação)
-        randomness = random.uniform(0.9, 1.1)  # nosec B311
+        # Round dura 5 minutos
+        ROUND_MINUTES = 5
 
-        points1 = (striking1 + grappling1) * randomness
-        points2 = (striking2 + grappling2) * randomness
+        # Striking: pontos por acertar golpes e defender
+        striking_offense1 = (fighter1.slpm or 3.0) * ROUND_MINUTES
+        striking_defense1 = (
+            (fighter1.str_def or 50) / 100
+        ) * 10  # Defesa reduz pontos do adversário
+        striking_score1 = striking_offense1 + striking_defense1
+
+        striking_offense2 = (fighter2.slpm or 3.0) * ROUND_MINUTES
+        striking_defense2 = ((fighter2.str_def or 50) / 100) * 10
+        striking_score2 = striking_offense2 + striking_defense2
+
+        # Grappling: pontos por quedas e finalizações
+        grappling_offense1 = (
+            (fighter1.td_avg or 1.0) / 3
+        ) * ROUND_MINUTES  # td_avg é por 15min
+        submission_threat1 = (
+            ((fighter1.sub_avg or 0.5) / 3) * ROUND_MINUTES * 2
+        )  # Finalizações valem mais
+        grappling_defense1 = ((fighter1.td_def or 50) / 100) * 5
+        grappling_score1 = grappling_offense1 + submission_threat1 + grappling_defense1
+
+        grappling_offense2 = ((fighter2.td_avg or 1.0) / 3) * ROUND_MINUTES
+        submission_threat2 = ((fighter2.sub_avg or 0.5) / 3) * ROUND_MINUTES * 2
+        grappling_defense2 = ((fighter2.td_def or 50) / 100) * 5
+        grappling_score2 = grappling_offense2 + submission_threat2 + grappling_defense2
+
+        # Pontuação total do round
+        # Striking tem peso maior (60%) que grappling (40%) em pontos
+        base_points1 = (striking_score1 * 0.6) + (grappling_score1 * 0.4)
+        base_points2 = (striking_score2 * 0.6) + (grappling_score2 * 0.4)
+
+        # Adiciona aleatoriedade realista (±15% de variação por round)
+        randomness1 = random.uniform(0.85, 1.15)  # nosec B311
+        randomness2 = random.uniform(0.85, 1.15)  # nosec B311
+
+        points1 = base_points1 * randomness1
+        points2 = base_points2 * randomness2
 
         # Determina dominância
         dominant = fighter1.name if points1 > points2 else fighter2.name
 
-        # Gera eventos do round
+        # Gera eventos do round baseados nos stats de ML
         events = []
 
-        if abs(points1 - points2) > 20:
+        # Diferença significativa de pontos indica dominância
+        point_diff = abs(points1 - points2)
+        if point_diff > 5:
             events.append(f"{dominant} dominou o round")
 
-        if random.random() < 0.3:  # nosec B311 - 30% chance de evento especial
-            event_type = random.choice(["takedown", "strike", "submission_attempt"])  # nosec B311
-            if event_type == "takedown":
-                events.append(f"{dominant} conseguiu um takedown")
-            elif event_type == "strike":
-                events.append(f"{dominant} acertou um golpe significativo")
-            else:
-                events.append(f"{dominant} tentou uma finalização")
+        # Eventos baseados em stats reais
+        # Takedown: chance baseada em td_avg do dominante
+        td_avg_dominant = (
+            fighter1.td_avg if dominant == fighter1.name else fighter2.td_avg
+        )
+        if td_avg_dominant and random.random() < min((td_avg_dominant / 3) * 0.3, 0.5):  # nosec B311
+            events.append(f"{dominant} conseguiu um takedown")
+
+        # Strike significativo: chance baseada em slpm
+        slpm_dominant = fighter1.slpm if dominant == fighter1.name else fighter2.slpm
+        if slpm_dominant and random.random() < min((slpm_dominant / 5) * 0.2, 0.4):  # nosec B311
+            events.append(f"{dominant} acertou golpes significativos")
+
+        # Tentativa de finalização: chance baseada em sub_avg
+        sub_avg_dominant = (
+            fighter1.sub_avg if dominant == fighter1.name else fighter2.sub_avg
+        )
+        if sub_avg_dominant and random.random() < min(
+            (sub_avg_dominant / 2) * 0.25, 0.3
+        ):  # nosec B311
+            events.append(f"{dominant} tentou uma finalização")
 
         return {
             "round_number": round_number,

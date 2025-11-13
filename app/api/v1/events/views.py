@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.v1.auth.dependencies import get_current_user
+from app.database.repositories.fight_simulation import FightSimulationRepository
+from app.database.repositories.fighter import FighterRepository
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
 from app.schemas.auth import AuthenticatedUser
 from app.schemas.domain.events.input import AddFightToEvent, CreateEvent
@@ -15,6 +17,7 @@ from app.schemas.domain.events.output import (
     SimulationResult,
 )
 from app.services.domain.event import EventService
+from app.services.domain.fight_simulation import FightSimulationService
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -23,8 +26,27 @@ def get_event_service(
     uow: UnitOfWorkConnection = Depends(get_uow),
     current_user: AuthenticatedUser = Depends(get_current_user),
 ) -> EventService:
-    """Dependency para obter o EventService"""
-    return EventService(uow=uow, user_email=current_user.email)
+    """
+    Dependency para obter o EventService com injeção de dependências.
+
+    Cria FightSimulationService e injeta no EventService.
+    """
+    # Cria repositórios necessários
+    fighter_repo = FighterRepository(uow)
+    simulation_repo = FightSimulationRepository(uow)
+
+    # Cria o serviço de simulação
+    simulation_service = FightSimulationService(
+        fighter_repo=fighter_repo,
+        simulation_repo=simulation_repo,
+    )
+
+    # Retorna EventService com dependência injetada
+    return EventService(
+        uow=uow,
+        simulation_service=simulation_service,
+        user_email=current_user.email,
+    )
 
 
 @router.post(

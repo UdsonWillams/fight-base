@@ -18,26 +18,26 @@ from app.services.domain.fight_simulation import FightSimulationService
 class EventService:
     """Service para gerenciar eventos de MMA"""
 
-    def __init__(self, uow: UnitOfWorkConnection, user_email: str = "system"):
+    def __init__(
+        self,
+        uow: UnitOfWorkConnection,
+        simulation_service: FightSimulationService,
+        user_email: str = "system",
+    ):
+        """
+        Inicializa o EventService com injeção de dependência.
+
+        Args:
+            uow: Unit of Work para gerenciamento de transações
+            simulation_service: Serviço de simulação de lutas (injetado)
+            user_email: Email do usuário que executa as operações
+        """
         self.uow = uow
         self.user_email = user_email
         self.event_repo = EventRepository(uow)
         self.fight_repo = FightRepository(uow)
         self.fighter_repo = FighterRepository(uow)
-        self.simulation_service = None  # Será inicializado quando necessário
-
-    def _get_simulation_service(self) -> FightSimulationService:
-        """Lazy initialization do serviço de simulação"""
-        if self.simulation_service is None:
-            from app.database.repositories.fight_simulation import (
-                FightSimulationRepository,
-            )
-
-            self.simulation_service = FightSimulationService(
-                fighter_repo=self.fighter_repo,
-                simulation_repo=FightSimulationRepository(self.uow),
-            )
-        return self.simulation_service
+        self.simulation_service = simulation_service
 
     async def create_event(self, payload: CreateEvent, creator_id: UUID) -> Event:
         """Cria um novo evento com lutas"""
@@ -142,7 +142,6 @@ class EventService:
         fights = sorted(event.fights, key=lambda f: f.fight_order)
 
         simulated_fights = []
-        simulation_service = self._get_simulation_service()
 
         # Simula cada luta
         for fight in fights:
@@ -155,7 +154,7 @@ class EventService:
             await session.refresh(fight, ["fighter1", "fighter2"])
 
             # Calcula probabilidades
-            prob1, prob2 = simulation_service.calculate_win_probability(
+            prob1, prob2 = self.simulation_service.calculate_win_probability(
                 fight.fighter1, fight.fighter2
             )
 
@@ -168,7 +167,7 @@ class EventService:
             fighter2_total_points = 0
 
             for round_num in range(1, fight.rounds + 1):
-                round_result = simulation_service._simulate_round(
+                round_result = self.simulation_service._simulate_round(
                     fight.fighter1, fight.fighter2, round_num
                 )
                 round_details.append(round_result)
@@ -183,7 +182,7 @@ class EventService:
             )
 
             # Determina o tipo de resultado
-            result_types = simulation_service.predict_result_type(
+            result_types = self.simulation_service.predict_result_type(
                 fight.fighter1, fight.fighter2
             )
 

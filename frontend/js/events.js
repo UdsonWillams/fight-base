@@ -1,5 +1,12 @@
 // Events Module - Gerenciamento de eventos de MMA
 
+// Setup events-specific event listeners
+function setupEventsListeners() {
+    // Event form submit will be set up in setupEventForm()
+    // Additional event-specific listeners can be added here
+    console.log("Events listeners initialized");
+}
+
 // Inicializa a seção de eventos
 async function initEventsSection() {
     // Verifica autenticação
@@ -218,11 +225,17 @@ function renderFightCard(fight) {
     };
 
     const isSimulated = fight.status === "simulated";
+    const isCompleted = fight.status === "completed";
+    const hasResult = isSimulated || isCompleted;
 
     return `
-        <div class="fight-card ${isSimulated ? "simulated" : ""}">
+        <div class="fight-card ${isSimulated ? "simulated" : ""} ${
+        isCompleted ? "completed" : ""
+    }">
             <div class="fight-order">
-                ${getFightTypeLabel(fight.fight_type)}
+                #${fight.fight_order || "?"} ${getFightTypeLabel(
+        fight.fight_type
+    )}
                 ${
                     fight.is_title_fight
                         ? ' <span class="badge badge-warning">Luta de Título</span>'
@@ -239,8 +252,8 @@ function renderFightCard(fight) {
                             : ""
                     }
                     ${
-                        isSimulated && fight.winner_id === fight.fighter1_id
-                            ? ' <span class="winner-badge">🏆 VENCEDOR</span>'
+                        hasResult && fight.winner_id === fight.fighter1_id
+                            ? ' <span class="winner-badge">🏆 WIN</span>'
                             : ""
                     }
                 </div>
@@ -255,15 +268,15 @@ function renderFightCard(fight) {
                             : ""
                     }
                     ${
-                        isSimulated && fight.winner_id === fight.fighter2_id
-                            ? ' <span class="winner-badge">🏆 VENCEDOR</span>'
+                        hasResult && fight.winner_id === fight.fighter2_id
+                            ? ' <span class="winner-badge">🏆 WIN</span>'
                             : ""
                     }
                 </div>
             </div>
 
             ${
-                isSimulated
+                hasResult
                     ? `
                 <div class="fight-result">
                     <p><strong>Resultado:</strong> ${fight.result_type}${

@@ -40,8 +40,12 @@ class FighterOutput(BaseModel):
     ko_wins: Optional[int] = 0
     submission_wins: Optional[int] = 0
 
+    # Cartel de lutas
+    cartel: Optional[list[dict]] = []
+
     # Informações adicionais
     age: Optional[int] = None
+    stance: Optional[str] = None  # Orthodox, Southpaw, Switch
     height_cm: Optional[float] = None
     reach_cm: Optional[float] = None
     bio: Optional[str] = None
