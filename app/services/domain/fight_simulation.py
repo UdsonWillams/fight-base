@@ -275,25 +275,7 @@ class FightSimulationService:
         # Calcula probabilidades
         prob1, prob2 = self.calculate_win_probability(fighter1, fighter2)
 
-        # Simula rounds
-        round_details = []
-        fighter1_total_points = 0
-        fighter2_total_points = 0
-
-        for round_num in range(1, rounds + 1):
-            round_result = self._simulate_round(fighter1, fighter2, round_num)
-            round_details.append(round_result)
-            fighter1_total_points += round_result["fighter1_points"]
-            fighter2_total_points += round_result["fighter2_points"]
-
-        # Determina o vencedor com base nos pontos totais
-        winner_id = (
-            fighter1_id
-            if fighter1_total_points > fighter2_total_points
-            else fighter2_id
-        )
-
-        # Determina o tipo de resultado
+        # Determina o tipo de resultado antecipadamente
         result_types = self.predict_result_type(fighter1, fighter2)
 
         # Seleciona tipo baseado nas probabilidades
@@ -307,6 +289,25 @@ class FightSimulationService:
         else:
             result_type = "Decision"
             finish_round = None
+
+        # Simula rounds até o finish_round ou até o final se for decisão
+        round_details = []
+        fighter1_total_points = 0
+        fighter2_total_points = 0
+        rounds_to_simulate = finish_round if finish_round else rounds
+
+        for round_num in range(1, rounds_to_simulate + 1):
+            round_result = self._simulate_round(fighter1, fighter2, round_num)
+            round_details.append(round_result)
+            fighter1_total_points += round_result["fighter1_points"]
+            fighter2_total_points += round_result["fighter2_points"]
+
+        # Determina o vencedor com base nos pontos totais
+        winner_id = (
+            fighter1_id
+            if fighter1_total_points > fighter2_total_points
+            else fighter2_id
+        )
 
         # Cria a simulação
         simulation = FightSimulation(
@@ -667,3 +668,15 @@ class FightSimulationService:
             )
 
         return results
+
+    async def get_simulation_stats(self) -> dict:
+        """
+        Retorna estatísticas gerais sobre simulações.
+
+        Returns:
+            Dict com total de simulações
+        """
+        total = await self.simulation_repo.get_total_count()
+        return {
+            "total_simulations": total,
+        }

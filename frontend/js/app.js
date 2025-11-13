@@ -121,10 +121,10 @@ async function loadHomeStats() {
 
         // Try to load simulation count
         try {
-            const recentSims = await api.getRecentSimulations(100);
-            if (recentSims) {
+            const simStats = await api.getSimulationStats();
+            if (simStats && simStats.total_simulations !== undefined) {
                 document.getElementById("totalSimulations").textContent =
-                    recentSims.length;
+                    simStats.total_simulations.toLocaleString("pt-BR");
             }
         } catch (e) {
             // Simulation endpoint might require auth
