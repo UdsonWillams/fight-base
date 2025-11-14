@@ -1,5 +1,18 @@
 services:
 
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - fight_base_network
+    restart: on-failure
+
   backend:
     build:
       context: .
@@ -12,6 +25,8 @@ services:
     networks:
       - fight_base_network
     env_file: ".env"
+    environment:
+      - POSTGRES_HOST=database
     restart: on-failure
     volumes:
       - .:/code
@@ -30,37 +45,10 @@ services:
     networks:
       - fight_base_network
 
-  redis:
-    image: redis:latest
-    command: redis-server
-    volumes:
-      - redis:/var/lib/redis
-      - redis-config:/usr/local/etc/redis/redis.conf
-    ports:
-      - 6379:6379
-    networks:
-      - redis-network
-
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-      - HTTP_USER=root
-      - HTTP_PASSWORD=root
-    ports:
-      - 8081:8081
-    networks:
-      - redis-network
-    depends_on:
-      - redis
 
 volumes:
   dbdata:
-  redis:
-  redis-config:
   postgres_data:
 
 networks:
   fight_base_network:
-  redis-network:
-    driver: bridge

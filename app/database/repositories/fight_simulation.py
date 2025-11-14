@@ -180,3 +180,21 @@ class FightSimulationRepository(BaseRepository[FightSimulation]):
         except Exception as e:
             logger.error(f"Error fetching recent simulations: {e}")
             raise RepositoryError
+
+    async def get_total_count(self) -> int:
+        """Retorna o total de simulações no sistema"""
+        try:
+            session = await self.uow.get_session()
+            query = (
+                select(func.count())
+                .select_from(self.model)
+                .filter(
+                    self.model.deleted_at.is_(None),
+                    self.model.deleted_by.is_(None),
+                )
+            )
+            result = await session.execute(query)
+            return result.scalar() or 0
+        except Exception as e:
+            logger.error(f"Error counting simulations: {e}")
+            raise RepositoryError

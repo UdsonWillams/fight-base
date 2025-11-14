@@ -257,62 +257,374 @@ async function runSimulation() {
     }
 }
 
-// Display simulation result
-function displaySimulationResult(result) {
+// Display simulation result with live animation
+async function displaySimulationResult(result) {
     const container = document.getElementById("simulationResult");
+    container.style.display = "block";
+    container.innerHTML = "";
 
-    container.innerHTML = `
-        <div class="result-winner">
-            <h2>🏆 Vencedor</h2>
-            <h1>${result.winner_name}</h1>
-            <p style="font-size: 1.5rem; margin-top: 1rem;">
+    // Debug: verificar dados
+    console.log("Simulation result:", {
+        fighter1: result.fighter1_name,
+        fighter2: result.fighter2_name,
+        winner: result.winner_name,
+        result_type: result.result_type,
+        finish_round: result.finish_round,
+        rounds: result.rounds,
+        total_rounds_simulated: result.simulation_details?.rounds?.length,
+        fighter1_prob: result.fighter1_probability,
+        fighter2_prob: result.fighter2_probability,
+    });
+
+    // Se tiver simulation_details, animar round por round
+    if (result.simulation_details?.rounds?.length > 0) {
+        await animateFightLive(result, container);
+    } else {
+        // Fallback para exibição estática
+        displayStaticResult(result, container);
+    }
+}
+
+// Animate fight in real-time
+async function animateFightLive(result, container) {
+    const {
+        simulation_details,
+        fighter1_name,
+        fighter2_name,
+        fighter1_id,
+        fighter2_id,
+    } = result;
+
+    // Buscar fotos dos lutadores
+    const fighter1Photo = await getFighterPhotoUrl(fighter1_id);
+    const fighter2Photo = await getFighterPhotoUrl(fighter2_id);
+
+    // Container principal da animação
+    const animationContainer = document.createElement("div");
+    animationContainer.className = "fight-animation";
+    animationContainer.innerHTML = `
+        <div class="fight-header">
+            <div class="fighter-corner fighter-1">
+                <div class="fighter-photo" id="fighter1Photo">
+                    ${
+                        fighter1Photo
+                            ? `<img src="${fighter1Photo}" alt="${fighter1_name}" onerror="this.parentElement.innerHTML='🥊'" />`
+                            : "🥊"
+                    }
+                </div>
+                <h3>${fighter1_name}</h3>
+                <div class="corner-probability" style="font-size: 1.5rem; color: var(--primary); font-weight: bold; margin: 0.5rem 0;">
+                    ${result.fighter1_probability}%
+                </div>
+                <small style="color: var(--text-light); display: block; margin-bottom: 0.5rem;">Probabilidade de vitória</small>
+                <div class="corner-score" id="fighter1Score">0</div>
+                <div class="corner-strikes" id="fighter1Strikes" style="display: none;">0 golpes</div>
+            </div>
+            <div class="fight-status">
+                <div class="round-indicator" id="roundIndicator">Preparando...</div>
+                <div class="time-bar-container">
+                    <div class="time-bar" id="timeBar"></div>
+                </div>
+            </div>
+            <div class="fighter-corner fighter-2">
+                <div class="fighter-photo" id="fighter2Photo">
+                    ${
+                        fighter2Photo
+                            ? `<img src="${fighter2Photo}" alt="${fighter2_name}" onerror="this.parentElement.innerHTML='🥊'" />`
+                            : "🥊"
+                    }
+                </div>
+                <h3>${fighter2_name}</h3>
+                <div class="corner-probability" style="font-size: 1.5rem; color: var(--primary); font-weight: bold; margin: 0.5rem 0;">
+                    ${result.fighter2_probability}%
+                </div>
+                <small style="color: var(--text-light); display: block; margin-bottom: 0.5rem;">Probabilidade de vitória</small>
+                <div class="corner-score" id="fighter2Score">0</div>
+                <div class="corner-strikes" id="fighter2Strikes" style="display: none;">0 golpes</div>
+            </div>
+        </div>
+        <div class="fight-events" id="fightEvents"></div>
+        <div class="fight-controls">
+            <button id="skipAnimation" class="btn btn-secondary btn-sm">Pular Animação</button>
+        </div>
+    `;
+
+    container.appendChild(animationContainer);
+    container.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    let skipRequested = false;
+    document.getElementById("skipAnimation").addEventListener("click", () => {
+        skipRequested = true;
+    });
+
+    // Rastrear golpes acumulados
+    let fighter1TotalStrikes = 0;
+    let fighter2TotalStrikes = 0;
+
+    // Animar cada round
+    for (let i = 0; i < simulation_details.rounds.length; i++) {
+        if (skipRequested) break;
+
+        const round = simulation_details.rounds[i];
+        const roundStrikes = await animateRound(
+            round,
+            i === simulation_details.rounds.length - 1,
+            result,
+            fighter1TotalStrikes,
+            fighter2TotalStrikes
+        );
+
+        // Acumular golpes
+        fighter1TotalStrikes = roundStrikes.fighter1Total;
+        fighter2TotalStrikes = roundStrikes.fighter2Total;
+
+        if (skipRequested) break;
+
+        // Pausa entre rounds (exceto no último)
+        if (i < simulation_details.rounds.length - 1) {
+            await showRoundBreak();
+        }
+    }
+
+    // Mostrar resultado final
+    await showFinalResult(result, container, skipRequested);
+}
+
+// Animate a single round
+async function animateRound(
+    round,
+    isLastRound,
+    result,
+    fighter1PrevTotal,
+    fighter2PrevTotal
+) {
+    const roundIndicator = document.getElementById("roundIndicator");
+    const timeBar = document.getElementById("timeBar");
+    const eventsContainer = document.getElementById("fightEvents");
+
+    // Anunciar início do round
+    roundIndicator.textContent = `ROUND ${round.round_number}`;
+    roundIndicator.className = "round-indicator round-start";
+    await delay(1500);
+
+    roundIndicator.className = "round-indicator";
+
+    // Animar barra de tempo - mais devagar para melhor visualização
+    const roundDuration = 6000; // 6 segundos por round na animação
+    const eventDelay = roundDuration / (round.events.length + 1);
+
+    // Usar os pontos do round como golpes significativos do round atual
+    const fighter1RoundStrikes = Math.round(round.fighter1_points);
+    const fighter2RoundStrikes = Math.round(round.fighter2_points);
+
+    // Calcular total acumulado
+    const fighter1TotalStrikes = fighter1PrevTotal + fighter1RoundStrikes;
+    const fighter2TotalStrikes = fighter2PrevTotal + fighter2RoundStrikes;
+
+    timeBar.style.transition = `width ${roundDuration}ms linear`;
+    timeBar.style.width = "100%";
+
+    // Mostrar eventos do round
+    for (let i = 0; i < round.events.length; i++) {
+        await delay(eventDelay);
+
+        const eventDiv = document.createElement("div");
+        eventDiv.className = "fight-event animate-fade-in";
+
+        // Emojis para diferentes tipos de eventos
+        let emoji = "🥊";
+        const eventText = round.events[i].toLowerCase();
+        if (
+            eventText.includes("finalização") ||
+            eventText.includes("submission")
+        ) {
+            emoji = "🔒";
+            eventDiv.classList.add("critical-event");
+        } else if (
+            eventText.includes("knockdown") ||
+            eventText.includes("derrubou")
+        ) {
+            emoji = "💥";
+            eventDiv.classList.add("critical-event");
+        } else if (
+            eventText.includes("takedown") ||
+            eventText.includes("queda")
+        ) {
+            emoji = "🤼";
+        } else if (eventText.includes("dominou")) {
+            emoji = "💪";
+        }
+
+        eventDiv.innerHTML = `
+            <span class="event-icon">${emoji}</span>
+            <span class="event-text">${round.events[i]}</span>
+        `;
+
+        eventsContainer.appendChild(eventDiv);
+        eventsContainer.scrollTop = eventsContainer.scrollHeight;
+    }
+
+    // Finalizar barra de tempo
+    await delay(eventDelay);
+    timeBar.style.width = "0%";
+    timeBar.style.transition = "width 0.3s ease";
+
+    // Mostrar placar do round
+    document.getElementById("fighter1Score").textContent =
+        round.fighter1_points.toFixed(1);
+    document.getElementById("fighter2Score").textContent =
+        round.fighter2_points.toFixed(1);
+
+    // Mostrar e atualizar golpes significativos ACUMULADOS no final do round
+    const fighter1StrikesEl = document.getElementById("fighter1Strikes");
+    const fighter2StrikesEl = document.getElementById("fighter2Strikes");
+
+    fighter1StrikesEl.textContent = `${fighter1TotalStrikes} golpes`;
+    fighter2StrikesEl.textContent = `${fighter2TotalStrikes} golpes`;
+    fighter1StrikesEl.style.display = "block";
+    fighter2StrikesEl.style.display = "block";
+
+    // Mostrar resumo do round com golpes DO ROUND (não acumulado)
+    const roundSummary = document.createElement("div");
+    roundSummary.className = "round-summary animate-fade-in";
+    roundSummary.innerHTML = `
+        <strong>Fim do Round ${round.round_number}</strong><br>
+        Golpes do Round: ${result.fighter1_name} ${fighter1RoundStrikes} - ${fighter2RoundStrikes} ${result.fighter2_name}
+    `;
+    eventsContainer.appendChild(roundSummary);
+
+    await delay(800);
+
+    // Retornar totais acumulados
+    return {
+        fighter1Total: fighter1TotalStrikes,
+        fighter2Total: fighter2TotalStrikes,
+    };
+}
+
+// Show break between rounds
+async function showRoundBreak() {
+    const roundIndicator = document.getElementById("roundIndicator");
+    roundIndicator.textContent = "Intervalo entre rounds...";
+    roundIndicator.className = "round-indicator round-break";
+    await delay(2000);
+}
+
+// Helper to get fighter photo URL
+async function getFighterPhotoUrl(fighterId) {
+    try {
+        const response = await api.listFighterPhotos(fighterId);
+        if (response && response.length > 0) {
+            return response[0]; // Primeira foto
+        }
+    } catch (error) {
+        console.log("No photo found for fighter:", fighterId);
+    }
+    return null; // Retorna null para usar fallback de luva
+}
+
+// Show final result
+async function showFinalResult(result, container, wasSkipped) {
+    const fightAnimation = container.querySelector(".fight-animation");
+    if (fightAnimation && !wasSkipped) {
+        await delay(500);
+    }
+
+    // Criar card com predição vs resultado
+    const resultCard = document.createElement("div");
+    resultCard.className = "result-winner animate-fade-in";
+    resultCard.innerHTML = `
+        <div style="background: linear-gradient(135deg, var(--primary), var(--accent)); padding: 3rem 2rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 2rem;">
+            <h2 style="color: white; margin-bottom: 1rem;">🏆 VENCEDOR</h2>
+            <h1 style="font-size: 3rem; margin: 1rem 0; color: white;">${
+                result.winner_name
+            }</h1>
+            <p style="font-size: 1.5rem; margin-top: 1rem; color: white;">
                 Por ${formatResultType(result.result_type)}
                 ${result.finish_round ? ` no Round ${result.finish_round}` : ""}
             </p>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
-            <div style="text-align: center;">
-                <h3>${result.fighter1_name}</h3>
-                <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
-                    ${result.fighter1_probability}%
+        <div style="background: var(--card-bg); padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h3 style="text-align: center; color: var(--text-light); margin-bottom: 1.5rem;">Probabilidade pré-luta</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div style="text-align: center;">
+                    <h3>${result.fighter1_name}</h3>
+                    <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
+                        ${result.fighter1_probability}%
+                    </div>
+                    <p style="color: var(--text-light);">Probabilidade de vitória</p>
                 </div>
-                <p>Probabilidade de vitória</p>
-            </div>
-            <div style="text-align: center;">
-                <h3>${result.fighter2_name}</h3>
-                <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
-                    ${result.fighter2_probability}%
+                <div style="text-align: center;">
+                    <h3>${result.fighter2_name}</h3>
+                    <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
+                        ${result.fighter2_probability}%
+                    </div>
+                    <p style="color: var(--text-light);">Probabilidade de vitória</p>
                 </div>
-                <p>Probabilidade de vitória</p>
             </div>
         </div>
 
-        ${
-            result.round_details && result.round_details.length > 0
-                ? `
-            <div class="round-details">
-                <h3>Detalhes dos Rounds</h3>
-                ${result.round_details
-                    .map(
-                        (round, index) => `
-                    <div class="round-item">
-                        <strong>Round ${index + 1}</strong>
-                        <p>${
-                            round.description || `Round ${index + 1} completado`
-                        }</p>
-                        ${round.damage ? `<p>Dano: ${round.damage}</p>` : ""}
-                    </div>
-                `
-                    )
-                    .join("")}
-            </div>
-        `
-                : ""
-        }
-
         <div style="text-align: center; margin-top: 2rem;">
             <button id="simulateAgainBtn" class="btn btn-primary">Simular Novamente</button>
+        </div>
+    `;
+
+    container.appendChild(resultCard);
+
+    // Setup listener for "Simular Novamente" button
+    setTimeout(() => {
+        const simulateAgainBtn = document.getElementById("simulateAgainBtn");
+        if (simulateAgainBtn) {
+            simulateAgainBtn.addEventListener("click", runSimulation);
+        }
+    }, 0);
+
+    resultCard.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// Display static result (fallback)
+function displayStaticResult(result, container) {
+    container.innerHTML = `
+        <div class="result-winner animate-fade-in">
+            <div style="background: linear-gradient(135deg, var(--primary), var(--accent)); padding: 3rem 2rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 2rem;">
+                <h2 style="color: white; margin-bottom: 1rem;">🏆 VENCEDOR</h2>
+                <h1 style="font-size: 3rem; margin: 1rem 0; color: white;">${
+                    result.winner_name
+                }</h1>
+                <p style="font-size: 1.5rem; margin-top: 1rem; color: white;">
+                    Por ${formatResultType(result.result_type)}
+                    ${
+                        result.finish_round
+                            ? ` no Round ${result.finish_round}`
+                            : ""
+                    }
+                </p>
+            </div>
+
+            <div style="background: var(--card-bg); padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="text-align: center; color: var(--text-light); margin-bottom: 1.5rem;">Probabilidade pré-luta</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div style="text-align: center;">
+                        <h3>${result.fighter1_name}</h3>
+                        <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
+                            ${result.fighter1_probability}%
+                        </div>
+                        <p style="color: var(--text-light);">Probabilidade de vitória</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <h3>${result.fighter2_name}</h3>
+                        <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
+                            ${result.fighter2_probability}%
+                        </div>
+                        <p style="color: var(--text-light);">Probabilidade de vitória</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+                <button id="simulateAgainBtn" class="btn btn-primary">Simular Novamente</button>
+            </div>
         </div>
     `;
 
@@ -326,6 +638,11 @@ function displaySimulationResult(result) {
             simulateAgainBtn.addEventListener("click", runSimulation);
         }
     }, 0);
+}
+
+// Helper function for delays
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Format result type

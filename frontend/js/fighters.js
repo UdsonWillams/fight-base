@@ -237,21 +237,23 @@ async function handleCreateFighter(event) {
     }
 }
 
-// Show fighter details
+// Show fighter details - Now uses dedicated page instead of modal
 async function showFighterDetails(id) {
     try {
-        const modal = document.getElementById("fighterDetailsModal");
-        const content = document.getElementById("fighterDetailsContent");
+        showLoading("Carregando detalhes do lutador...");
 
-        // Show modal with loading
-        modal.classList.add("active");
+        // Navigate to fighter details page
+        showSection("fighterDetails");
+
+        const content = document.getElementById("fighterDetailsPageContent");
         content.innerHTML = '<div class="loading">Carregando detalhes...</div>';
 
         // Fetch fighter data
         const fighter = await api.getFighter(id);
 
-        // Build details HTML
+        // Build details HTML for dedicated page
         content.innerHTML = `
+            <div class="fighter-details-page">
             <div class="fighter-details-header">
                 <div class="fighter-details-image">
                     ${
@@ -594,15 +596,18 @@ async function showFighterDetails(id) {
                     </div>
                 </div>
             </div>
+            </div>
         `;
+        hideLoading();
     } catch (error) {
         console.error("Error loading fighter details:", error);
         showToast("Erro ao carregar detalhes do lutador", "error");
-        closeFighterDetails();
+        hideLoading();
+        showSection("fighters");
     }
 }
 
-// Close fighter details modal
+// Close fighter details modal (kept for backward compatibility)
 function closeFighterDetails() {
     document.getElementById("fighterDetailsModal").classList.remove("active");
 }

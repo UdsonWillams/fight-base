@@ -186,6 +186,10 @@ class APIClient {
         return this.request(`/simulations/recent?${query}`);
     }
 
+    async getSimulationStats() {
+        return this.request("/simulations/statistics/overview");
+    }
+
     // Events
     async createEvent(data) {
         return this.request("/events/", {

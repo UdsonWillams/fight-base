@@ -21,3 +21,9 @@ alembic==1.13.1
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.20
+
+# Machine Learning
+pandas==2.2.0
+numpy==1.26.4
+scikit-learn==1.4.0
+gcsfs==2024.2.0

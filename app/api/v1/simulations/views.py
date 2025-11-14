@@ -135,3 +135,19 @@ async def get_recent_simulations(
     Útil para ver a atividade recente e descobrir lutas interessantes.
     """
     return await service.get_recent_simulations_formatted(limit)
+
+
+@router.get(
+    "/statistics/overview",
+    response_model=dict,
+    summary="Estatísticas gerais de simulações",
+)
+async def get_simulation_statistics(
+    service: FightSimulationService = Depends(get_simulation_service),
+):
+    """
+    Retorna estatísticas agregadas sobre simulações.
+
+    - Total de simulações realizadas
+    """
+    return await service.get_simulation_stats()

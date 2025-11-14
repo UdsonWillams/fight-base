@@ -3,7 +3,7 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.core.logger import logger
 from app.database.models.base import Fighter
@@ -57,7 +57,12 @@ class FighterRepository(BaseRepository[Fighter]):
 
             # Aplicar filtros
             if name:
-                query = query.filter(self.model.name.ilike(f"%{name}%"))
+                query = query.filter(
+                    or_(
+                        self.model.name.ilike(f"%{name}%"),
+                        self.model.nickname.ilike(f"%{name}%"),
+                    )
+                )
 
             if last_organization_fight:
                 query = query.filter(
@@ -133,7 +138,12 @@ class FighterRepository(BaseRepository[Fighter]):
 
             # Aplicar os mesmos filtros da busca
             if name:
-                query = query.filter(self.model.name.ilike(f"%{name}%"))
+                query = query.filter(
+                    or_(
+                        self.model.name.ilike(f"%{name}%"),
+                        self.model.nickname.ilike(f"%{name}%"),
+                    )
+                )
 
             if last_organization_fight:
                 query = query.filter(
@@ -270,7 +280,9 @@ class FighterRepository(BaseRepository[Fighter]):
                 .group_by(self.model.last_organization_fight)
             )
             org_result = await session.execute(org_query)
-            last_organizations = {org: count for org, count in org_result.all()}
+            last_organizations = {
+                org: count for org, count in org_result.all() if org is not None
+            }
 
             # Lutadores por categoria de peso atual
             weight_query = (
@@ -279,7 +291,9 @@ class FighterRepository(BaseRepository[Fighter]):
                 .group_by(self.model.actual_weight_class)
             )
             weight_result = await session.execute(weight_query)
-            weight_classes = {wc: count for wc, count in weight_result.all()}
+            weight_classes = {
+                wc: count for wc, count in weight_result.all() if wc is not None
+            }
 
             # Média geral de overall rating
             avg_query = select(
