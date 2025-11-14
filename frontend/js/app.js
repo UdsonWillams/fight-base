@@ -97,11 +97,17 @@ function showSection(sectionName) {
         case "createEvent":
             // Apenas mostra o formulário
             break;
-        case "rankings":
-            loadRankings();
+        case "editEvent":
+            // Page is loaded via editEvent function
             break;
         case "home":
             loadHomeStats();
+            break;
+        case "fighterDetails":
+            // Page is loaded via showFighterDetails function
+            break;
+        case "eventDetails":
+            // Page is loaded via viewEvent function
             break;
     }
 
@@ -233,6 +239,78 @@ function setupEventListeners() {
         });
     }
 
+    // Back buttons for detail pages
+    const backToFightersBtn = document.getElementById("backToFightersBtn");
+    if (backToFightersBtn) {
+        backToFightersBtn.addEventListener("click", () => {
+            showSection("fighters");
+        });
+    }
+
+    const backToEventsBtn2 = document.getElementById("backToEventsBtn2");
+    if (backToEventsBtn2) {
+        backToEventsBtn2.addEventListener("click", () => {
+            showSection("events");
+        });
+    }
+
+    // Back button from edit event page
+    const backToEventsFromEditBtn = document.getElementById("backToEventsFromEditBtn");
+    if (backToEventsFromEditBtn) {
+        backToEventsFromEditBtn.addEventListener("click", () => {
+            AppState.editingEventId = null;
+            AppState.eventFights = [];
+            showSection("events");
+        });
+    }
+
+    // Cancel edit event button
+    const cancelEditEventBtn = document.getElementById("cancelEditEventBtn");
+    if (cancelEditEventBtn) {
+        cancelEditEventBtn.addEventListener("click", () => {
+            AppState.editingEventId = null;
+            AppState.eventFights = [];
+            showSection("events");
+        });
+    }
+
+    // Edit event form submit
+    const editEventForm = document.getElementById("editEventForm");
+    if (editEventForm) {
+        editEventForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (typeof handleEditEvent === "function") {
+                await handleEditEvent();
+            }
+        });
+    }
+
+    // Add fight to edit form button
+    const addFightToEditBtn = document.getElementById("addFightToEditBtn");
+    if (addFightToEditBtn) {
+        addFightToEditBtn.addEventListener("click", () => {
+            if (typeof addFightToEditForm === "function") {
+                addFightToEditForm();
+            }
+        });
+    }
+
+    // Remove fight buttons (works for both create and edit)
+    const editFightsContainer = document.getElementById("editEventFightsContainer");
+    if (editFightsContainer) {
+        editFightsContainer.addEventListener("click", (e) => {
+            const removeBtn = e.target.closest(".btn-remove-fight");
+            if (removeBtn) {
+                const fightIndex = parseInt(removeBtn.dataset.fightIndex);
+                if (fightIndex) {
+                    if (typeof removeFight === "function") {
+                        removeFight(fightIndex);
+                    }
+                }
+            }
+        });
+    }
+
     // Setup module event listeners
     if (typeof setupFightersListeners === "function") {
         setupFightersListeners();
@@ -242,17 +320,8 @@ function setupEventListeners() {
         setupSimulationListeners();
     }
 
-    if (typeof setupRankingsListeners === "function") {
-        setupRankingsListeners();
-    }
-
     if (typeof setupEventsListeners === "function") {
         setupEventsListeners();
-    }
-
-    const rankingWeight = document.getElementById("rankingWeight");
-    if (rankingWeight) {
-        rankingWeight.addEventListener("change", loadRankings);
     }
 
     // Simulate button
@@ -308,7 +377,6 @@ console.log(`
     ✓ Authentication (Register/Login)
     ✓ Fighter Management (CRUD)
     ✓ Fight Simulation
-    ✓ Rankings
     ✓ Recent Simulations
 
     Nota: Sistema usa Firebase Auth.

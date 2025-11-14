@@ -19,7 +19,6 @@
                     <a href="#fighters" class="nav-link">Lutadores</a>
                     <a href="#simulate" class="nav-link">Simulador</a>
                     <a href="#events" class="nav-link">Eventos</a>
-                    <a href="#rankings" class="nav-link">Rankings</a>
                 </div>
                 <div class="nav-auth" id="navAuth">
                     <button
@@ -295,80 +294,93 @@
             <!-- Simulate Section -->
             <section id="simulateSection" class="section">
                 <div class="container">
-                    <h2>Simulador de Lutas</h2>
+                    <div class="section-header">
+                        <h2>🥊 Simulador de Lutas</h2>
+                        <p class="section-subtitle">Simule combates épicos entre lutadores!</p>
+                    </div>
 
-                    <div class="simulate-container">
-                        <div class="fighter-select">
-                            <h3>Lutador 1</h3>
-                            <div class="fighter-search-container">
-                                <input
-                                    type="text"
-                                    id="fighter1Search"
-                                    class="fighter-search-input"
-                                    placeholder="Digite o nome do lutador..."
-                                    autocomplete="off"
-                                />
+                    <div class="simulator-hero">
+                        <div class="simulator-main">
+                            <div class="fighter-card-simulator fighter-left">
+                                <div class="fighter-card-header">
+                                    <h3>Lutador 1</h3>
+                                </div>
+                                <div class="fighter-search-container">
+                                    <input
+                                        type="text"
+                                        id="fighter1Search"
+                                        class="fighter-search-input"
+                                        placeholder="🔍 Buscar lutador..."
+                                        autocomplete="off"
+                                    />
+                                    <div
+                                        id="fighter1Results"
+                                        class="search-results"
+                                    ></div>
+                                </div>
                                 <div
-                                    id="fighter1Results"
-                                    class="search-results"
+                                    id="fighter1Preview"
+                                    class="fighter-preview-card"
                                 ></div>
                             </div>
-                            <div
-                                id="fighter1Preview"
-                                class="fighter-preview"
-                            ></div>
-                        </div>
 
-                        <div class="vs-badge">
-                            <h2>VS</h2>
-                            <div class="form-group">
-                                <label for="roundsSelect">Rounds</label>
-                                <select id="roundsSelect">
-                                    <option value="3">3 Rounds</option>
-                                    <option value="5">5 Rounds</option>
-                                </select>
+                            <div class="simulator-center">
+                                <div class="vs-badge-large">
+                                    <h1>VS</h1>
+                                </div>
+                                <div class="simulator-controls">
+                                    <div class="form-group">
+                                        <label for="roundsSelect">Rounds</label>
+                                        <select id="roundsSelect" class="rounds-select">
+                                            <option value="3">3 Rounds</option>
+                                            <option value="5">5 Rounds</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        class="btn btn-primary btn-lg btn-simulate"
+                                        id="simulateBtn"
+                                    >
+                                        🥊 Simular Luta
+                                    </button>
+                                </div>
                             </div>
-                            <button
-                                class="btn btn-primary btn-lg"
-                                id="simulateBtn"
-                            >
-                                🥊 Simular Luta
-                            </button>
-                        </div>
 
-                        <div class="fighter-select">
-                            <h3>Lutador 2</h3>
-                            <div class="fighter-search-container">
-                                <input
-                                    type="text"
-                                    id="fighter2Search"
-                                    class="fighter-search-input"
-                                    placeholder="Digite o nome do lutador..."
-                                    autocomplete="off"
-                                />
+                            <div class="fighter-card-simulator fighter-right">
+                                <div class="fighter-card-header">
+                                    <h3>Lutador 2</h3>
+                                </div>
+                                <div class="fighter-search-container">
+                                    <input
+                                        type="text"
+                                        id="fighter2Search"
+                                        class="fighter-search-input"
+                                        placeholder="🔍 Buscar lutador..."
+                                        autocomplete="off"
+                                    />
+                                    <div
+                                        id="fighter2Results"
+                                        class="search-results"
+                                    ></div>
+                                </div>
                                 <div
-                                    id="fighter2Results"
-                                    class="search-results"
+                                    id="fighter2Preview"
+                                    class="fighter-preview-card"
                                 ></div>
                             </div>
-                            <div
-                                id="fighter2Preview"
-                                class="fighter-preview"
-                            ></div>
                         </div>
                     </div>
 
                     <!-- Simulation Result -->
                     <div
                         id="simulationResult"
-                        class="simulation-result"
+                        class="simulation-result-card"
                         style="display: none"
                     ></div>
 
                     <!-- Recent Simulations -->
-                    <div class="recent-simulations">
-                        <h3>Simulações Recentes</h3>
-                        <div id="recentSimsList"></div>
+                    <div class="recent-simulations-section">
+                        <h3>📜 Simulações Recentes</h3>
+                        <div id="recentSimsList" class="recent-sims-grid"></div>
                     </div>
                 </div>
             </section>
@@ -560,34 +572,143 @@
                 </div>
             </section>
 
-            <!-- Rankings Section -->
-            <section id="rankingsSection" class="section">
+            <!-- Edit Event Section -->
+            <section id="editEventSection" class="section">
                 <div class="container">
-                    <h2>🏆 Top 15 Lutadores Overall</h2>
-                    <p style="color: var(--text-muted); margin-bottom: 2rem">
-                        Ranking unificado dos melhores lutadores (masculino +
-                        feminino) por overall rating
-                    </p>
-                    <div class="rankings-filters">
-                        <select id="rankingOrg">
-                            <option value="">Todas Organizações</option>
-                            <option value="UFC">UFC</option>
-                            <option value="Bellator">Bellator</option>
-                            <option value="ONE Championship">
-                                ONE Championship
-                            </option>
-                        </select>
-                        <select id="rankingWeight">
-                            <option value="">Todas Categorias</option>
-                            <option value="lightweight">Peso-Leve</option>
-                            <option value="welterweight">
-                                Peso-Meio-Médio
-                            </option>
-                            <option value="middleweight">Peso-Médio</option>
-                            <option value="heavyweight">Peso-Pesado</option>
-                        </select>
+                    <div class="section-header">
+                        <h2>✏️ Editar Evento</h2>
+                        <button class="btn btn-outline" id="backToEventsFromEditBtn">
+                            ← Voltar para Eventos
+                        </button>
                     </div>
-                    <div id="rankingsList" class="rankings-list"></div>
+
+                    <form id="editEventForm" class="event-form">
+                        <div class="form-group">
+                            <label for="editEventName">Nome do Evento *</label>
+                            <input
+                                type="text"
+                                id="editEventName"
+                                required
+                                placeholder="Ex: UFC 300"
+                            />
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="editEventDate">Data *</label>
+                                <input type="date" id="editEventDate" required />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="editEventOrganization"
+                                    >Organização *</label
+                                >
+                                <select id="editEventOrganization" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="UFC">UFC</option>
+                                    <option value="Bellator">Bellator</option>
+                                    <option value="ONE Championship">
+                                        ONE Championship
+                                    </option>
+                                    <option value="PFL">PFL</option>
+                                    <option value="Rizin">Rizin</option>
+                                    <option value="KSW">KSW</option>
+                                    <option value="LFA">LFA</option>
+                                    <option value="Cage Warriors">
+                                        Cage Warriors
+                                    </option>
+                                    <option value="Glory">Glory</option>
+                                    <option value="K-1">K-1</option>
+                                    <option value="Invicta FC">
+                                        Invicta FC
+                                    </option>
+                                    <option value="DWCS">
+                                        Dana White's Contender Series
+                                    </option>
+                                    <option value="Outras">Outras</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="editEventLocation">Local</label>
+                            <input
+                                type="text"
+                                id="editEventLocation"
+                                placeholder="Ex: Las Vegas, Nevada"
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="editEventDescription">Descrição</label>
+                            <textarea
+                                id="editEventDescription"
+                                rows="3"
+                                placeholder="Informações adicionais sobre o evento"
+                            ></textarea>
+                        </div>
+
+                        <hr />
+
+                        <div class="fights-section">
+                            <div class="section-header">
+                                <h3>Lutas do Evento</h3>
+                                <button
+                                    type="button"
+                                    class="btn btn-warning btn-lg"
+                                    id="addFightToEditBtn"
+                                >
+                                    🥊 Adicionar Luta ao Evento
+                                </button>
+                            </div>
+
+                            <div id="editEventFightsContainer"></div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button
+                                type="button"
+                                class="btn btn-outline btn-lg"
+                                id="cancelEditEventBtn"
+                            >
+                                ❌ Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                class="btn btn-success btn-lg"
+                            >
+                                💾 Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Fighter Details Section -->
+            <section id="fighterDetailsSection" class="section">
+                <div class="container">
+                    <div class="detail-page-header">
+                        <button class="btn btn-outline" id="backToFightersBtn">
+                            ← Voltar para Lutadores
+                        </button>
+                    </div>
+                    <div id="fighterDetailsPageContent">
+                        <div class="loading">Carregando detalhes do lutador...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Event Details Section -->
+            <section id="eventDetailsSection" class="section">
+                <div class="container">
+                    <div class="detail-page-header">
+                        <button class="btn btn-outline" id="backToEventsBtn2">
+                            ← Voltar para Eventos
+                        </button>
+                    </div>
+                    <div id="eventDetailsPageContent">
+                        <div class="loading">Carregando detalhes do evento...</div>
+                    </div>
                 </div>
             </section>
         </main>
@@ -1027,7 +1148,6 @@
         <script src="js/auth.js"></script>
         <script src="js/fighters.js"></script>
         <script src="js/simulation.js"></script>
-        <script src="js/rankings.js"></script>
         <script src="js/events.js"></script>
         <script src="js/app.js"></script>
     </body>

@@ -109,87 +109,111 @@ async function loadEvents(filters = {}) {
     }
 }
 
-// Visualiza detalhes de um evento
+// Visualiza detalhes de um evento - Now uses dedicated page instead of modal
 async function viewEvent(eventId) {
     try {
         showLoading("Carregando evento...");
         AppState.currentEvent = await api.getEvent(eventId);
 
-        // Mostra modal com detalhes do evento
-        showEventDetailsModal(AppState.currentEvent);
+        // Navigate to event details page
+        showSection("eventDetails");
+
+        // Render event details on dedicated page
+        showEventDetailsPage(AppState.currentEvent);
     } catch (error) {
         showToast("Erro ao carregar evento", "error");
         console.error(error);
-    } finally {
         hideLoading();
     }
 }
 
-// Mostra modal com detalhes do evento
-function showEventDetailsModal(event) {
-    const modal = document.getElementById("eventDetailsModal");
-    const content = document.getElementById("eventDetailsContent");
+// Mostra página dedicada com detalhes do evento
+function showEventDetailsPage(event) {
+    const content = document.getElementById("eventDetailsPageContent");
 
     content.innerHTML = `
-        <div class="event-details">
-            <div class="event-details-header">
-                <h2>${event.name}</h2>
-                <span class="badge badge-${getStatusColor(
-                    event.status
-                )}">${translateStatus(event.status)}</span>
+        <div class="event-details-page">
+            <div class="event-details-hero">
+                <div class="event-details-hero-content">
+                    <h1 class="event-details-title">${event.name}</h1>
+                    <div class="event-details-meta">
+                        <span class="badge badge-${getStatusColor(
+                            event.status
+                        )}">${translateStatus(event.status)}</span>
+                        <span class="event-meta-item">🏢 ${
+                            event.organization
+                        }</span>
+                        <span class="event-meta-item">📅 ${formatDate(
+                            event.date
+                        )}</span>
+                        ${
+                            event.location
+                                ? `<span class="event-meta-item">📍 ${event.location}</span>`
+                                : ""
+                        }
+                    </div>
+                </div>
             </div>
 
-            <div class="event-details-info">
-                <p><strong>Organização:</strong> ${event.organization}</p>
-                <p><strong>Data:</strong> ${formatDate(event.date)}</p>
-                <p><strong>Local:</strong> ${
-                    event.location || "Não definido"
-                }</p>
+            <div class="event-details-content">
+            <div class="event-details-main">
+
                 ${
                     event.description
-                        ? `<p><strong>Descrição:</strong> ${event.description}</p>`
+                        ? `<div class="event-description">
+                            <h3>📝 Sobre o Evento</h3>
+                            <p>${event.description}</p>
+                        </div>`
                         : ""
                 }
+
+                <div class="event-fights-section">
+                    <h3>🥊 Card de Lutas</h3>
+                    <div class="fights-list">
+                        ${
+                            event.fights && event.fights.length > 0
+                                ? event.fights
+                                      .map((fight) => renderFightCard(fight))
+                                      .join("")
+                                : '<p class="text-muted">Nenhuma luta adicionada</p>'
+                        }
+                    </div>
+                </div>
             </div>
 
-            <h3>Card de Lutas</h3>
-            <div class="fights-list">
-                ${
-                    event.fights && event.fights.length > 0
-                        ? event.fights
-                              .map((fight) => renderFightCard(fight))
-                              .join("")
-                        : '<p class="text-muted">Nenhuma luta adicionada</p>'
-                }
+            <div class="event-details-sidebar">
+                <div class="event-actions-card">
+                    <h3>Ações</h3>
+                    <div class="event-actions">
+                        ${
+                            event.status === "scheduled"
+                                ? `
+                            <button class="btn btn-primary btn-lg btn-block" id="simulateCurrentEventBtn">
+                                🎲 Simular Todas as Lutas
+                            </button>
+                        `
+                                : ""
+                        }
+                        <button class="btn btn-secondary btn-block" id="editEventBtn" data-event-id="${
+                            event.id
+                        }">
+                            ✏️ Editar Evento
+                        </button>
+                        <button class="btn btn-danger btn-block" id="deleteEventBtn" data-event-id="${
+                            event.id
+                        }">
+                            🗑️ Excluir Evento
+                        </button>
+                    </div>
+                </div>
             </div>
-
-            <div class="event-actions" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2rem;">
-                ${
-                    event.status === "scheduled"
-                        ? `
-                    <button class="btn btn-primary btn-lg" id="simulateCurrentEventBtn">
-                        🎲 Simular Todas as Lutas
-                    </button>
-                `
-                        : ""
-                }
-                <button class="btn btn-secondary" id="editEventBtn" data-event-id="${
-                    event.id
-                }">
-                    ✏️ Editar Evento
-                </button>
-                <button class="btn btn-danger" id="deleteEventBtn" data-event-id="${
-                    event.id
-                }">
-                    🗑️ Excluir Evento
-                </button>
-            </div></div>
+            </div>
         </div>
     `;
 
-    modal.style.display = "flex";
+    hideLoading();
 
-    // Setup listeners for modal buttons
+    // Setup listeners for action buttons
     setTimeout(() => {
         const simulateBtn = document.getElementById("simulateCurrentEventBtn");
         if (simulateBtn) {
@@ -210,6 +234,18 @@ function showEventDetailsModal(event) {
             );
         }
     }, 0);
+}
+
+// Keep modal function for backward compatibility
+function showEventDetailsModal(event) {
+    const modal = document.getElementById("eventDetailsModal");
+    const content = document.getElementById("eventDetailsContent");
+
+    // Use the same rendering logic
+    showEventDetailsPage(event);
+
+    // Also show modal for backward compatibility
+    modal.style.display = "flex";
 }
 
 // Renderiza card de luta
@@ -348,82 +384,281 @@ async function editEvent(eventId) {
         showLoading("Carregando evento...");
         const event = await api.getEvent(eventId);
 
-        // Fecha o modal de detalhes
+        // Fecha o modal de detalhes se estiver aberto
         closeModal("eventDetailsModal");
 
-        // Vai para a seção de criar evento
-        showSection("createEvent");
+        // Vai para a seção de editar evento (página dedicada)
+        showSection("editEvent");
 
-        // Preenche o formulário com os dados do evento
-        document.getElementById("eventName").value = event.name;
-        document.getElementById("eventDate").value = event.date;
-        document.getElementById("eventOrganization").value = event.organization;
-        document.getElementById("eventLocation").value = event.location || "";
-        document.getElementById("eventDescription").value =
-            event.description || "";
+        // Aguarda um pouco para garantir que o DOM foi atualizado
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        // Preenche o formulário de edição com os dados do evento
+        const eventNameEl = document.getElementById("editEventName");
+        const eventDateEl = document.getElementById("editEventDate");
+        const eventOrgEl = document.getElementById("editEventOrganization");
+        const eventLocEl = document.getElementById("editEventLocation");
+        const eventDescEl = document.getElementById("editEventDescription");
+
+        if (
+            !eventNameEl ||
+            !eventDateEl ||
+            !eventOrgEl ||
+            !eventLocEl ||
+            !eventDescEl
+        ) {
+            throw new Error("Elementos do formulário não encontrados");
+        }
+
+        eventNameEl.value = event.name;
+
+        // Converte a data para o formato correto (YYYY-MM-DD)
+        const eventDate = new Date(event.date);
+        const formattedDate = eventDate.toISOString().split("T")[0];
+        eventDateEl.value = formattedDate;
+
+        eventOrgEl.value = event.organization;
+        eventLocEl.value = event.location || "";
+        eventDescEl.value = event.description || "";
 
         // Armazena o ID do evento sendo editado
         AppState.editingEventId = eventId;
 
-        // Limpa e preenche as lutas
+        // Limpa e preenche as lutas (usa o container de edição)
         AppState.eventFights = [];
-        const fightsContainer = document.getElementById("eventFightsContainer");
+        const fightsContainer = document.getElementById(
+            "editEventFightsContainer"
+        );
+        if (!fightsContainer) {
+            throw new Error("Container de lutas de edição não encontrado");
+        }
         fightsContainer.innerHTML = "";
 
+        // Função auxiliar para preencher uma luta após ser adicionada ao DOM
+        const fillFightData = async (fightIndex, fight) => {
+            // Aguarda mais tempo para garantir que o DOM foi atualizado completamente
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            // Tenta encontrar os elementos, com retry se necessário
+            let attempts = 0;
+            const maxAttempts = 20; // Aumentado para dar mais tempo
+
+            const findAndFill = () => {
+                console.log(
+                    `Tentativa ${
+                        attempts + 1
+                    }: Procurando elementos da luta ${fightIndex}`
+                );
+                const fightTypeEl = document.getElementById(
+                    `fightType_${fightIndex}`
+                );
+                const roundsEl = document.getElementById(
+                    `rounds_${fightIndex}`
+                );
+                const isTitleEl = document.getElementById(
+                    `isTitle_${fightIndex}`
+                );
+                const fighter1El = document.getElementById(
+                    `fighter1_${fightIndex}`
+                );
+                const fighter2El = document.getElementById(
+                    `fighter2_${fightIndex}`
+                );
+                const fighter1Input = document.querySelector(
+                    `input.fighter-search[data-fight="${fightIndex}"][data-fighter="1"]`
+                );
+                const fighter2Input = document.querySelector(
+                    `input.fighter-search[data-fight="${fightIndex}"][data-fighter="2"]`
+                );
+
+                // Debug: verifica quais elementos foram encontrados
+                const foundElements = {
+                    fightTypeEl: !!fightTypeEl,
+                    roundsEl: !!roundsEl,
+                    isTitleEl: !!isTitleEl,
+                    fighter1El: !!fighter1El,
+                    fighter2El: !!fighter2El,
+                    fighter1Input: !!fighter1Input,
+                    fighter2Input: !!fighter2Input,
+                };
+
+                if (attempts === 0) {
+                    console.log(
+                        `Elementos encontrados para luta ${fightIndex}:`,
+                        foundElements
+                    );
+                }
+
+                // Se todos os elementos principais existem, preenche
+                if (
+                    fightTypeEl &&
+                    roundsEl &&
+                    isTitleEl &&
+                    fighter1El &&
+                    fighter2El
+                ) {
+                    // Preenche os campos
+                    fightTypeEl.value = fight.fight_type || "standard";
+                    roundsEl.value = String(fight.rounds || 3);
+
+                    // Corrige o checkbox - garante que está marcado/desmarcado corretamente
+                    const shouldBeChecked = Boolean(fight.is_title_fight);
+
+                    console.log(`Checkbox luta ${fightIndex}:`, {
+                        shouldBeChecked,
+                        originalValue: fight.is_title_fight,
+                        element: isTitleEl,
+                    });
+
+                    // Remove o atributo checked primeiro para garantir estado limpo
+                    isTitleEl.removeAttribute("checked");
+                    isTitleEl.checked = false;
+
+                    // Se deve estar marcado, marca
+                    if (shouldBeChecked) {
+                        isTitleEl.setAttribute("checked", "checked");
+                        isTitleEl.checked = true;
+                    }
+
+                    // Força atualização visual com múltiplas abordagens
+                    isTitleEl.dispatchEvent(
+                        new Event("input", { bubbles: true })
+                    );
+                    isTitleEl.dispatchEvent(
+                        new Event("change", { bubbles: true })
+                    );
+
+                    // Usa requestAnimationFrame para garantir que o DOM foi atualizado
+                    requestAnimationFrame(() => {
+                        isTitleEl.checked = shouldBeChecked;
+                        if (shouldBeChecked) {
+                            isTitleEl.setAttribute("checked", "checked");
+                        } else {
+                            isTitleEl.removeAttribute("checked");
+                        }
+                    });
+
+                    // Preenche os IDs dos lutadores
+                    fighter1El.value = String(fight.fighter1_id || "");
+                    fighter2El.value = String(fight.fighter2_id || "");
+
+                    // Preenche os nomes nos inputs de busca
+                    // A API retorna fighter1 e fighter2 como objetos, não fighter1_name
+                    const fighter1Name = fight.fighter1?.name || "";
+                    const fighter2Name = fight.fighter2?.name || "";
+
+                    console.log(`Preenchendo luta ${fightIndex}:`, {
+                        fighter1Name,
+                        fighter2Name,
+                        fighter1Input: !!fighter1Input,
+                        fighter2Input: !!fighter2Input,
+                        isTitleEl: !!isTitleEl,
+                        shouldBeChecked,
+                    });
+
+                    if (fighter1Input && fighter1Name) {
+                        fighter1Input.value = fighter1Name;
+                        console.log(
+                            `Fighter1 input preenchido: ${fighter1Name}`
+                        );
+                    }
+                    if (fighter2Input && fighter2Name) {
+                        fighter2Input.value = fighter2Name;
+                        console.log(
+                            `Fighter2 input preenchido: ${fighter2Name}`
+                        );
+                    }
+
+                    // setupFighterSearchForFight já é chamado em addFightToForm(), não precisa chamar novamente
+
+                    return true;
+                }
+
+                return false;
+            };
+
+            // Tenta preencher, com retry se necessário
+            while (attempts < maxAttempts) {
+                if (findAndFill()) {
+                    console.log(
+                        `✅ Luta ${fightIndex} preenchida com sucesso na tentativa ${
+                            attempts + 1
+                        }`
+                    );
+                    return true;
+                }
+                attempts++;
+                await new Promise((resolve) => setTimeout(resolve, 100)); // Aumentado para 100ms
+            }
+
+            console.error(
+                `❌ Falha ao preencher luta ${fightIndex} após ${maxAttempts} tentativas`
+            );
+            return false;
+        };
+
+        // Adiciona todas as lutas sequencialmente
         if (event.fights && event.fights.length > 0) {
-            event.fights.forEach((fight, index) => {
-                // Adiciona a luta ao estado
-                AppState.eventFights.push({
+            console.log("Carregando lutas para edição:", event.fights);
+
+            for (let index = 0; index < event.fights.length; index++) {
+                const fight = event.fights[index];
+
+                // O fightIndex é baseado no tamanho atual do array + 1 (1-based)
+                const fightIndex = AppState.eventFights.length + 1;
+
+                // Extrai os nomes dos lutadores corretamente
+                const fighter1Name = fight.fighter1?.name || "";
+                const fighter2Name = fight.fighter2?.name || "";
+
+                console.log(`Luta ${fightIndex}:`, {
                     fighter1_id: fight.fighter1_id,
+                    fighter1_name: fighter1Name,
                     fighter2_id: fight.fighter2_id,
-                    fighter1_name: fight.fighter1_name,
-                    fighter2_name: fight.fighter2_name,
+                    fighter2_name: fighter2Name,
                     fight_type: fight.fight_type,
                     rounds: fight.rounds,
-                    is_title_fight: fight.is_title_fight || false,
+                    is_title_fight: fight.is_title_fight,
                 });
 
-                // Renderiza a luta no formulário
-                addFightToForm();
+                // Renderiza a luta no formulário de edição PRIMEIRO (com o índice correto)
+                addFightToEditForm(fightIndex);
 
-                // Preenche os dados
-                setTimeout(() => {
-                    const fightIndex = index + 1;
-                    document.getElementById(`fightType_${fightIndex}`).value =
-                        fight.fight_type;
-                    document.getElementById(`rounds_${fightIndex}`).value =
-                        fight.rounds;
-                    document.getElementById(`isTitle_${fightIndex}`).checked =
-                        fight.is_title_fight || false;
-                    document.getElementById(`fighter1_${fightIndex}`).value =
-                        fight.fighter1_id;
-                    document.getElementById(`fighter2_${fightIndex}`).value =
-                        fight.fighter2_id;
+                // Adiciona a luta ao estado DEPOIS de renderizar
+                AppState.eventFights.push({
+                    index: fightIndex,
+                    fighter1_id: fight.fighter1_id,
+                    fighter2_id: fight.fighter2_id,
+                    fighter1_name: fighter1Name,
+                    fighter2_name: fighter2Name,
+                    fight_type: fight.fight_type || "standard",
+                    rounds: fight.rounds || 3,
+                    is_title_fight: Boolean(fight.is_title_fight),
+                });
 
-                    // Mostra os nomes dos lutadores
-                    const fighter1Input = document.querySelector(
-                        `[data-fight="${fightIndex}"][data-fighter="1"]`
+                // Aguarda mais tempo para garantir que o DOM foi atualizado
+                await new Promise((resolve) => setTimeout(resolve, 150));
+
+                // Preenche os dados da luta
+                const filled = await fillFightData(fightIndex, fight);
+
+                if (!filled) {
+                    console.warn(
+                        `Aviso: Luta ${fightIndex} pode não ter sido preenchida completamente`
                     );
-                    const fighter2Input = document.querySelector(
-                        `[data-fight="${fightIndex}"][data-fighter="2"]`
-                    );
-                    if (fighter1Input)
-                        fighter1Input.value = fight.fighter1_name;
-                    if (fighter2Input)
-                        fighter2Input.value = fight.fighter2_name;
-                }, 100);
-            });
+                }
+            }
         }
 
-        // Muda o texto do botão de submit
-        const submitBtn = document.querySelector(
-            "#createEventForm button[type='submit']"
-        );
-        if (submitBtn) {
-            submitBtn.innerHTML = "💾 Atualizar Evento";
-        }
+        // Aguarda um pouco mais para garantir que tudo foi renderizado
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         hideLoading();
+
+        showToast("Evento carregado para edição", "success");
+
+        // Scroll para o topo da página
+        window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
         showToast("Erro ao carregar evento para edição", "error");
         console.error(error);
@@ -446,8 +681,8 @@ async function deleteEvent(eventId) {
 
         showToast("Evento excluído com sucesso!", "success");
 
-        // Fecha o modal e recarrega a lista
-        closeModal("eventDetailsModal");
+        // Volta para lista e recarrega
+        showSection("events");
         await loadEvents();
     } catch (error) {
         showToast("Erro ao excluir evento", "error");
@@ -473,11 +708,12 @@ function resetEventForm() {
     }
 }
 
-// Simula evento atual (do modal)
+// Simula evento atual (da página ou modal)
 async function simulateCurrentEvent() {
     if (!AppState.currentEvent) return;
     await simulateEventClick(AppState.currentEvent.id);
-    closeModal("eventDetailsModal");
+    // Reload event details page
+    await viewEvent(AppState.currentEvent.id);
 }
 
 // Mostra resultados da simulação
@@ -660,10 +896,18 @@ function clearFormDraft() {
     localStorage.removeItem("eventFormDraft");
 }
 
-// Adiciona luta ao formulário
-function addFightToForm() {
-    const fightsContainer = document.getElementById("eventFightsContainer");
-    const fightIndex = AppState.eventFights.length + 1;
+// Adiciona luta ao formulário de edição
+function addFightToEditForm(customFightIndex = null) {
+    const fightsContainer = document.getElementById("editEventFightsContainer");
+    if (!fightsContainer) {
+        console.error("Container de edição não encontrado");
+        return;
+    }
+
+    const fightIndex =
+        customFightIndex !== null
+            ? customFightIndex
+            : AppState.eventFights.length + 1;
 
     const fightHtml = `
         <div class="fight-form-item" data-fight-index="${fightIndex}">
@@ -719,7 +963,96 @@ function addFightToForm() {
     `;
 
     fightsContainer.insertAdjacentHTML("beforeend", fightHtml);
-    AppState.eventFights.push({ index: fightIndex });
+
+    // Adiciona ao estado apenas se não existir
+    if (customFightIndex === null) {
+        const existingFight = AppState.eventFights.find(
+            (f) => f.index === fightIndex
+        );
+        if (!existingFight) {
+            AppState.eventFights.push({ index: fightIndex });
+        }
+    }
+
+    // Setup busca de lutadores
+    setupFighterSearchForFight(fightIndex);
+}
+
+// Adiciona luta ao formulário (criação)
+function addFightToForm(customFightIndex = null) {
+    const fightsContainer = document.getElementById("eventFightsContainer");
+    // Se um índice customizado foi fornecido (para edição), usa ele
+    // Caso contrário, calcula baseado no tamanho do array
+    const fightIndex =
+        customFightIndex !== null
+            ? customFightIndex
+            : AppState.eventFights.length + 1;
+
+    const fightHtml = `
+        <div class="fight-form-item" data-fight-index="${fightIndex}">
+            <h4>Luta ${fightIndex}</h4>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Lutador 1</label>
+                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="1" placeholder="Buscar lutador...">
+                    <div class="search-results" id="searchResults_${fightIndex}_1"></div>
+                    <input type="hidden" id="fighter1_${fightIndex}">
+                </div>
+
+                <div class="form-group">
+                    <label>Lutador 2</label>
+                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="2" placeholder="Buscar lutador...">
+                    <div class="search-results" id="searchResults_${fightIndex}_2"></div>
+                    <input type="hidden" id="fighter2_${fightIndex}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tipo de Luta</label>
+                    <select id="fightType_${fightIndex}">
+                        <option value="standard">Fight Card</option>
+                        <option value="prelim">Prelim</option>
+                        <option value="co-main">Co-Main Event</option>
+                        <option value="main">Main Event</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Rounds</label>
+                    <select id="rounds_${fightIndex}">
+                        <option value="3">3 Rounds</option>
+                        <option value="5">5 Rounds</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="isTitle_${fightIndex}">
+                        Luta de Título
+                    </label>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-danger btn-sm btn-remove-fight" data-fight-index="${fightIndex}">
+                Remover Luta
+            </button>
+        </div>
+    `;
+
+    fightsContainer.insertAdjacentHTML("beforeend", fightHtml);
+
+    // Adiciona ao estado apenas se não existir (para lutas adicionadas manualmente)
+    // Mas só se não foi passado um índice customizado (ou seja, é uma luta nova)
+    if (customFightIndex === null) {
+        const existingFight = AppState.eventFights.find(
+            (f) => f.index === fightIndex
+        );
+        if (!existingFight) {
+            AppState.eventFights.push({ index: fightIndex });
+        }
+    }
 
     // Setup busca de lutadores
     setupFighterSearchForFight(fightIndex);
@@ -878,7 +1211,7 @@ function selectFighterForEvent(fightIndex, fighterNum, fighterId, fighterName) {
     resultsDiv.style.display = "none";
 }
 
-// Remove luta do formulário
+// Remove luta do formulário (funciona para ambos: criação e edição)
 function removeFight(fightIndex) {
     const fightElement = document.querySelector(
         `.fight-form-item[data-fight-index="${fightIndex}"]`
@@ -891,26 +1224,67 @@ function removeFight(fightIndex) {
     }
 }
 
-// Cria evento
-async function handleCreateEvent() {
+// Handler para salvar edição de evento
+async function handleEditEvent() {
     try {
-        // Coleta dados do formulário
-        const name = document.getElementById("eventName").value;
-        const date = document.getElementById("eventDate").value;
-        const location = document.getElementById("eventLocation").value;
-        const organization = document.getElementById("eventOrganization").value;
-        const description = document.getElementById("eventDescription").value;
+        if (!AppState.editingEventId) {
+            showToast("Nenhum evento sendo editado", "error");
+            return;
+        }
 
-        // Coleta lutas
+        // Coleta dados do formulário de edição
+        const nameEl = document.getElementById("editEventName");
+        const dateEl = document.getElementById("editEventDate");
+        const locationEl = document.getElementById("editEventLocation");
+        const organizationEl = document.getElementById("editEventOrganization");
+        const descriptionEl = document.getElementById("editEventDescription");
+
+        if (
+            !nameEl ||
+            !dateEl ||
+            !locationEl ||
+            !organizationEl ||
+            !descriptionEl
+        ) {
+            showToast("Erro: elementos do formulário não encontrados", "error");
+            return;
+        }
+
+        const name = nameEl.value;
+        const date = dateEl.value;
+        const location = locationEl.value;
+        const organization = organizationEl.value;
+        const description = descriptionEl.value;
+
+        // Coleta lutas do container de edição
         const fights = [];
         for (let i = 0; i < AppState.eventFights.length; i++) {
             const fightIndex = AppState.eventFights[i].index;
-            const fighter1_id = document.getElementById(
+            const fighter1El = document.getElementById(
                 `fighter1_${fightIndex}`
-            ).value;
-            const fighter2_id = document.getElementById(
+            );
+            const fighter2El = document.getElementById(
                 `fighter2_${fightIndex}`
-            ).value;
+            );
+            const fightTypeEl = document.getElementById(
+                `fightType_${fightIndex}`
+            );
+            const roundsEl = document.getElementById(`rounds_${fightIndex}`);
+            const isTitleEl = document.getElementById(`isTitle_${fightIndex}`);
+
+            if (
+                !fighter1El ||
+                !fighter2El ||
+                !fightTypeEl ||
+                !roundsEl ||
+                !isTitleEl
+            ) {
+                console.warn(`Elementos da luta ${fightIndex} não encontrados`);
+                continue;
+            }
+
+            const fighter1_id = fighter1El.value;
+            const fighter2_id = fighter2El.value;
 
             if (!fighter1_id || !fighter2_id) {
                 showToast(
@@ -924,13 +1298,9 @@ async function handleCreateEvent() {
                 fighter1_id,
                 fighter2_id,
                 fight_order: fightIndex,
-                fight_type: document.getElementById(`fightType_${fightIndex}`)
-                    .value,
-                rounds: parseInt(
-                    document.getElementById(`rounds_${fightIndex}`).value
-                ),
-                is_title_fight: document.getElementById(`isTitle_${fightIndex}`)
-                    .checked,
+                fight_type: fightTypeEl.value,
+                rounds: parseInt(roundsEl.value),
+                is_title_fight: isTitleEl.checked,
             });
         }
 
@@ -948,18 +1318,123 @@ async function handleCreateEvent() {
             fights,
         };
 
-        // Verifica se está editando ou criando
-        if (AppState.editingEventId) {
-            showLoading("Atualizando evento...");
-            await api.updateEvent(AppState.editingEventId, eventData);
-            showToast("Evento atualizado com sucesso!", "success");
-            AppState.editingEventId = null;
-        } else {
-            showLoading("Criando evento...");
-            await api.createEvent(eventData);
-            showToast("Evento criado com sucesso!", "success");
-            clearFormDraft(); // Limpa o rascunho após criar com sucesso
+        showLoading("Atualizando evento...");
+        await api.updateEvent(AppState.editingEventId, eventData);
+        showToast("Evento atualizado com sucesso!", "success");
+
+        // Limpa estado
+        AppState.editingEventId = null;
+        AppState.eventFights = [];
+
+        // Volta para lista de eventos
+        showSection("events");
+        await loadEvents();
+    } catch (error) {
+        showToast(error.message || "Erro ao atualizar evento", "error");
+        console.error(error);
+    } finally {
+        hideLoading();
+    }
+}
+
+// Cria evento
+async function handleCreateEvent() {
+    try {
+        // Coleta dados do formulário
+        const nameEl = document.getElementById("eventName");
+        const dateEl = document.getElementById("eventDate");
+        const locationEl = document.getElementById("eventLocation");
+        const organizationEl = document.getElementById("eventOrganization");
+        const descriptionEl = document.getElementById("eventDescription");
+
+        // Verifica se todos os elementos existem
+        if (
+            !nameEl ||
+            !dateEl ||
+            !locationEl ||
+            !organizationEl ||
+            !descriptionEl
+        ) {
+            console.error("Elementos do formulário não encontrados");
+            return;
         }
+
+        const name = nameEl.value;
+        const date = dateEl.value;
+        const location = locationEl.value;
+        const organization = organizationEl.value;
+        const description = descriptionEl.value;
+
+        // Coleta lutas
+        const fights = [];
+        for (let i = 0; i < AppState.eventFights.length; i++) {
+            const fightIndex = AppState.eventFights[i].index;
+            const fighter1El = document.getElementById(
+                `fighter1_${fightIndex}`
+            );
+            const fighter2El = document.getElementById(
+                `fighter2_${fightIndex}`
+            );
+            const fightTypeEl = document.getElementById(
+                `fightType_${fightIndex}`
+            );
+            const roundsEl = document.getElementById(`rounds_${fightIndex}`);
+            const isTitleEl = document.getElementById(`isTitle_${fightIndex}`);
+
+            // Verifica se os elementos existem
+            if (
+                !fighter1El ||
+                !fighter2El ||
+                !fightTypeEl ||
+                !roundsEl ||
+                !isTitleEl
+            ) {
+                console.error(
+                    `Elementos da luta ${fightIndex} não encontrados`
+                );
+                continue;
+            }
+
+            const fighter1_id = fighter1El.value;
+            const fighter2_id = fighter2El.value;
+
+            if (!fighter1_id || !fighter2_id) {
+                showToast(
+                    `Selecione ambos os lutadores para a Luta ${fightIndex}`,
+                    "warning"
+                );
+                return;
+            }
+
+            fights.push({
+                fighter1_id,
+                fighter2_id,
+                fight_order: fightIndex,
+                fight_type: fightTypeEl.value,
+                rounds: parseInt(roundsEl.value),
+                is_title_fight: isTitleEl.checked,
+            });
+        }
+
+        if (fights.length === 0) {
+            showToast("Adicione pelo menos uma luta ao evento", "warning");
+            return;
+        }
+
+        const eventData = {
+            name,
+            date,
+            location,
+            organization,
+            description,
+            fights,
+        };
+
+        // Cria o evento (edição agora tem handler separado)
+        showLoading("Criando evento...");
+        await api.createEvent(eventData);
+        showToast("Evento criado com sucesso!", "success");
+        clearFormDraft(); // Limpa o rascunho após criar com sucesso
 
         // Limpa formulário
         document.getElementById("createEventForm").reset();
