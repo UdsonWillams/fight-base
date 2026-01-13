@@ -29,7 +29,7 @@ def parse_height(height_str: str) -> float:
         feet, inches = height_str.split(".")
         total_inches = (int(feet) * 12) + int(inches)
         return round(total_inches * 2.54, 2)  # Converte para cm
-    except:
+    except Exception:
         return None
 
 
@@ -39,7 +39,7 @@ def parse_weight(weight_str: str) -> float:
         return None
     try:
         return round(float(weight_str) * 0.453592, 2)  # Libras para kg
-    except:
+    except Exception:
         return None
 
 
@@ -49,7 +49,7 @@ def parse_int(value: str, default: int = 0) -> int:
         return default
     try:
         return int(float(value))
-    except:
+    except Exception:
         return default
 
 

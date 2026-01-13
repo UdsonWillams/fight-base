@@ -13,3 +13,9 @@ asyncio_default_fixture_loop_scope = "function"
 [tool.poetry.dependencies]
 bcrypt = "4.0.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+
+[tool.ruff]
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["F841", "E402", "E501", "E722"]
