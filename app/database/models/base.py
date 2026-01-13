@@ -41,6 +41,7 @@ class User(BaseModel):
     is_active = Column(Boolean, default=True, nullable=False)
     name = Column(String(150), nullable=False)
     role = Column(String(50), nullable=False, default="user")
+    username = Column(String(150), nullable=False, unique=True)
 
     # Relacionamentos
     fighters = relationship(

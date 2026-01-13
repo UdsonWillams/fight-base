@@ -7,6 +7,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.applications import Starlette
+from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
 from app.core.logger import logger
@@ -20,7 +21,9 @@ config_file = alembic_config()
 settings = get_settings()
 
 config_file.set_main_option("script_location", settings.APP_MIGRATIONS_FOLDER)
-config_file.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# ConfigParser requer que '%' seja escapado como '%%' para evitar erro de interpolação
+safe_url = settings.DATABASE_URL.replace("%", "%%")
+config_file.set_main_option("sqlalchemy.url", safe_url)
 
 
 @contextlib.asynccontextmanager
@@ -100,3 +103,4 @@ app.add_middleware(
 app.add_middleware(CreateTraceIdMiddleware)
 app.add_middleware(ResponseTimeMiddleware)
 app.include_router(router=api_router)
+app.mount("/", StaticFiles(directory="frontend", html=True), name="static")

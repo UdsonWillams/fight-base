@@ -58,12 +58,8 @@ async function loadFighters(filters = {}) {
 
         displayFighters(AppState.allFighters);
     } catch (error) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <p>❌ Erro ao carregar lutadores</p>
-                <p class="text-muted">Tente novamente mais tarde</p>
-            </div>
-        `;
+        // User prefers only Toast notification, keep container clean or show simple empty state if needed
+        container.innerHTML = '';
         console.error("Error loading fighters:", error);
         showToast("Erro ao carregar lutadores", "error");
     }
