@@ -4,6 +4,24 @@
 async function checkAuth() {
     const token = localStorage.getItem("idToken");
 
+    // Check URL for Google SSO redirect token
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get("token");
+
+    if (tokenFromUrl) {
+        localStorage.setItem("idToken", tokenFromUrl);
+        // Clean up the URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        api.setToken(tokenFromUrl);
+        const user = await api.getCurrentUser();
+        if (user) {
+            AppState.setCurrentUser(user);
+            updateAuthUI(true);
+            showToast("Login via Google realizado com sucesso! 🥊", "success");
+            return true;
+        }
+    }
+
     if (token) {
         try {
             // Check if token is expired
@@ -250,13 +268,11 @@ function updateAuthUI(isLoggedIn) {
     }
 }
 
-// Google Login (Firebase integration - requires configuration)
+// Google Login
 async function handleGoogleLogin() {
-    showToast(
-        "Login com Google não configurado. Use email e senha.",
-        "warning"
-    );
-    // TODO: Implementar integração com Firebase quando necessário
+    showToast("Redirecionando para o Google...", "info");
+    // Redireciona para o backend
+    window.location.href = `${API_BASE_URL}/auth/google/login`;
 }
 
 // Check if user is authenticated

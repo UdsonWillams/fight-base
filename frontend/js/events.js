@@ -56,45 +56,64 @@ async function loadEvents(filters = {}) {
 
         eventsList.innerHTML = events
             .map(
-                (event) => `
-            <div class="event-card" data-event-id="${event.id}">
-                <div class="event-card-actions">
-                    <button class="btn-icon btn-edit-event" data-event-id="${
-                        event.id
-                    }" title="Editar evento">
-                        ✏️
-                    </button>
-                    <button class="btn-icon btn-delete-event" data-event-id="${
-                        event.id
-                    }" title="Excluir evento">
-                        🗑️
-                    </button>
-                </div>
-                <div class="event-header">
-                    <h3>${event.name}</h3>
-                    <span class="badge badge-${getStatusColor(
-                        event.status
-                    )}">${translateStatus(event.status)}</span>
-                </div>
-                <div class="event-info">
-                    <p><strong>📍</strong> ${
-                        event.location || "Local não definido"
-                    }</p>
-                    <p><strong>🏢</strong> ${event.organization}</p>
-                    <p><strong>📅</strong> ${formatDate(event.date)}</p>
-                    <p><strong>🥊</strong> ${event.fights_count} lutas</p>
-                </div>
-                ${
-                    event.status === "scheduled"
-                        ? `<button class="btn btn-primary btn-lg btn-simulate-event" data-event-id="${event.id}">
-                        🎲 Simular Todas as Lutas
-                    </button>`
-                        : `<button class="btn btn-success btn-lg" disabled style="opacity: 0.6; cursor: not-allowed;">
-                        ✅ Evento Concluído
-                    </button>`
-                }
-            </div>
-        `
+                (event) => {
+                    const orgClass = `org-${event.organization?.toLowerCase().replace(/\s+/g, '-') || 'default'}`;
+                    const statusClass = `status-${event.status}`;
+                    const dateFormatted = new Date(event.date).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+
+                    return `
+                    <div class="event-card-v2 ${orgClass}" data-event-id="${event.id}" onclick="viewEvent('${event.id}')">
+                        <div class="event-floating-actions">
+                            <button class="btn-icon btn-edit-event" data-event-id="${event.id}" title="Editar evento" onclick="event.stopPropagation(); editEvent('${event.id}')">
+                                ✏️
+                            </button>
+                            <button class="btn-icon btn-delete-event" data-event-id="${event.id}" title="Excluir evento" onclick="event.stopPropagation(); deleteEvent('${event.id}')">
+                                🗑️
+                            </button>
+                        </div>
+
+                        <div class="event-card-body">
+                            <div class="event-card-header">
+                                <span class="event-org-tag">${escapeHTML(event.organization)}</span>
+                                <span class="status-badge ${statusClass}">
+                                    ${event.status === 'in_progress' ? '●' : ''} ${translateStatus(event.status)}
+                                </span>
+                            </div>
+
+                            <h3>${escapeHTML(event.name)}</h3>
+
+                            <div class="event-card-details">
+                                <div class="detail-item">
+                                    <i>📍</i> ${escapeHTML(event.location || "Local TBA")}
+                                </div>
+                                <div class="detail-item">
+                                    <i>📅</i> ${dateFormatted}
+                                </div>
+                                <div class="detail-item">
+                                    <i>🥊</i> ${event.fights_count || 0} Lutas
+                                </div>
+                                <div class="detail-item">
+                                    <i>🏆</i> Card ${event.status === 'completed' ? 'Finalizado' : 'Proprio'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="event-card-footer">
+                            <span class="text-muted" style="font-size: 0.8rem;">ID: #${event.id.substring(0, 8)}</span>
+                            ${
+                                event.status === "scheduled"
+                                    ? `<button class="btn btn-primary btn-sm btn-simulate-event" onclick="event.stopPropagation(); simulateEventClick('${event.id}')">
+                                    🎲 Simular Card
+                                </button>`
+                                    : `<span class="text-success" style="font-weight: 600;">✅ Concluído</span>`
+                            }
+                        </div>
+                    </div>
+                `;}
             )
             .join("");
     } catch (error) {
@@ -131,82 +150,77 @@ async function viewEvent(eventId) {
 function showEventDetailsPage(event) {
     const content = document.getElementById("eventDetailsPageContent");
 
+    const orgClass = `org-${event.organization?.toLowerCase().replace(/\s+/g, '-') || 'default'}`;
+    const dateFormatted = new Date(event.date).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    });
+
     content.innerHTML = `
-        <div class="event-details-page">
+        <div class="event-details-page ${orgClass}">
             <div class="event-details-hero">
                 <div class="event-details-hero-content">
-                    <h1 class="event-details-title">${event.name}</h1>
-                    <div class="event-details-meta">
-                        <span class="badge badge-${getStatusColor(
-                            event.status
-                        )}">${translateStatus(event.status)}</span>
-                        <span class="event-meta-item">🏢 ${
-                            event.organization
-                        }</span>
-                        <span class="event-meta-item">📅 ${formatDate(
-                            event.date
-                        )}</span>
-                        ${
-                            event.location
-                                ? `<span class="event-meta-item">📍 ${event.location}</span>`
-                                : ""
-                        }
+                    <span class="badge badge-${getStatusColor(event.status)}" style="margin-bottom: 1rem;">
+                        ${translateStatus(event.status).toUpperCase()}
+                    </span>
+                    <h1 class="event-details-title" style="font-size: 3.5rem; font-weight: 800; margin-bottom: 0.5rem;">${escapeHTML(event.name)}</h1>
+                    <div class="event-details-meta" style="justify-content: center; gap: 2rem;">
+                         <span class="event-meta-item">🏢 <strong>${escapeHTML(event.organization)}</strong></span>
+                         <span class="event-meta-item">📅 ${dateFormatted}</span>
+                         ${event.location ? `<span class="event-meta-item">📍 ${escapeHTML(event.location)}</span>` : ""}
                     </div>
                 </div>
             </div>
 
             <div class="event-details-content">
-            <div class="event-details-main">
+                <div class="event-details-main">
+                    ${event.description ? `
+                        <div class="glass-card" style="padding: 2rem; margin-bottom: 2.5rem; border-radius: 20px;">
+                            <h3 style="margin-top: 0; color: var(--primary);">📝 Briefing do Evento</h3>
+                            <p style="font-size: 1.1rem; line-height: 1.6; opacity: 0.9;">${escapeHTML(event.description)}</p>
+                        </div>` : ""
+                    }
 
-                ${
-                    event.description
-                        ? `<div class="event-description">
-                            <h3>📝 Sobre o Evento</h3>
-                            <p>${event.description}</p>
-                        </div>`
-                        : ""
-                }
+                    <div class="event-fights-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                            <h2 style="margin: 0; font-size: 1.8rem;">🥊 Fight Card Oficial</h2>
+                            <span class="text-muted">${event.fights?.length || 0} Lutas Confirmadas</span>
+                        </div>
 
-                <div class="event-fights-section">
-                    <h3>🥊 Card de Lutas</h3>
-                    <div class="fights-list">
-                        ${
-                            event.fights && event.fights.length > 0
+                        <div class="fights-list-v2">
+                            ${event.fights && event.fights.length > 0
                                 ? event.fights
-                                      .map((fight) => renderFightCard(fight))
-                                      .join("")
-                                : '<p class="text-muted">Nenhuma luta adicionada</p>'
-                        }
+                                    .sort((a, b) => (a.fight_order || 0) - (b.fight_order || 0))
+                                    .map((fight) => renderFightCardV2(fight))
+                                    .join("")
+                                : `<div class="empty-state glass-card" style="padding: 3rem;">
+                                     <p>Nenhuma luta casada para este evento ainda.</p>
+                                   </div>`
+                            }
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="event-details-sidebar">
-                <div class="event-actions-card">
-                    <h3>Ações</h3>
-                    <div class="event-actions">
-                        ${
-                            event.status === "scheduled"
-                                ? `
-                            <button class="btn btn-primary btn-lg btn-block" id="simulateCurrentEventBtn">
-                                🎲 Simular Todas as Lutas
+                <div class="event-details-sidebar">
+                    <div class="event-actions-card glass-card" style="padding: 2rem; position: sticky; top: 100px; border-radius: 20px;">
+                        <h3 style="margin-top: 0; margin-bottom: 1.5rem;">Painel de Controle</h3>
+                        <div class="event-actions" style="display: flex; flex-direction: column; gap: 1rem;">
+                            ${event.status === "scheduled" ? `
+                                <button class="btn btn-primary btn-lg btn-block" id="simulateCurrentEventBtn" style="padding: 1.2rem; font-weight: 700; transform: scale(1.02); box-shadow: 0 4px 15px rgba(210, 10, 10, 0.3);">
+                                    🎲 SIMULAR TODO O CARD
+                                </button>` : ""
+                            }
+                            <button class="btn btn-outline btn-block" id="editEventBtn" data-event-id="${event.id}">
+                                ✏️ Modificar Evento
                             </button>
-                        `
-                                : ""
-                        }
-                        <button class="btn btn-secondary btn-block" id="editEventBtn" data-event-id="${
-                            event.id
-                        }">
-                            ✏️ Editar Evento
-                        </button>
-                        <button class="btn btn-danger btn-block" id="deleteEventBtn" data-event-id="${
-                            event.id
-                        }">
-                            🗑️ Excluir Evento
-                        </button>
+                            <div style="height: 1px; background: var(--glass-border); margin: 0.5rem 0;"></div>
+                            <button class="btn btn-danger btn-block" id="deleteEventBtn" data-event-id="${event.id}" style="opacity: 0.8;">
+                                🗑️ Cancelar/Excluir Evento
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
             </div>
         </div>
     `;
@@ -238,14 +252,178 @@ function showEventDetailsPage(event) {
 
 // Keep modal function for backward compatibility
 function showEventDetailsModal(event) {
-    const modal = document.getElementById("eventDetailsModal");
-    const content = document.getElementById("eventDetailsContent");
-
-    // Use the same rendering logic
     showEventDetailsPage(event);
+}
 
-    // Also show modal for backward compatibility
-    modal.style.display = "flex";
+// Renderiza card de luta premium V2 (Broadcast Visual)
+function renderFightCardV2(fight) {
+    const isSimulated = fight.status === "simulated";
+    const isCompleted = fight.status === "completed";
+    const hasResult = isSimulated || isCompleted;
+
+    const getFighterName = (f) => f?.name || "Lutador TBA";
+    const getFighterImage = (f) => f?.image_url || 'https://raw.githubusercontent.com/UdsonWillams/fight-base/main/frontend/img/default-fighter.png';
+
+    return `
+        <div class="fight-card-v2 ${hasResult ? 'has-result' : ''}">
+            <div class="fight-v2-header">
+                <span class="fight-order-label">#${fight.fight_order} ${escapeHTML(fight.fight_type.toUpperCase())}</span>
+                ${fight.is_title_fight ? '<span class="title-fight-badge">MAIN EVENT / TITLE FIGHT</span>' : ''}
+            </div>
+
+            <div class="fight-v2-grid">
+                <div class="fighter-v2 red-corner">
+                    <img src="${getFighterImage(fight.fighter1)}" class="fighter-v2-avatar">
+                    <div class="fighter-v2-info">
+                        <span class="fighter-name">${escapeHTML(getFighterName(fight.fighter1))}</span>
+                        ${fight.fighter1?.nickname ? `<span class="fighter-nick">"${escapeHTML(fight.fighter1.nickname)}"</span>` : ''}
+                    </div>
+                </div>
+
+                <div class="fight-v2-vs">
+                    <div class="vs-circle">VS</div>
+                    <div class="fight-v2-meta">
+                        ${fight.rounds} ROUNDS<br>
+                        ${fight.weight_class ? escapeHTML(fight.weight_class.toUpperCase().replace('_', ' ')) : ''}
+                    </div>
+                </div>
+
+                <div class="fighter-v2 blue-corner">
+                    <div class="fighter-v2-info">
+                        <span class="fighter-name">${escapeHTML(getFighterName(fight.fighter2))}</span>
+                        ${fight.fighter2?.nickname ? `<span class="fighter-nick">"${escapeHTML(fight.fighter2.nickname)}"</span>` : ''}
+                    </div>
+                    <img src="${getFighterImage(fight.fighter2)}" class="fighter-v2-avatar">
+                </div>
+            </div>
+
+            ${typeof renderMLOdds === 'function' ? renderMLOdds(fight) : ''}
+
+            ${hasResult ? `
+                <div class="fight-v2-result">
+                    <div class="winner-announcement">
+                        VENCEDOR: <span class="winner-name">${fight.winner_id === fight.fighter1_id ? escapeHTML(getFighterName(fight.fighter1)) : escapeHTML(getFighterName(fight.fighter2))}</span>
+                    </div>
+                    <div class="result-details">
+                        ${escapeHTML(fight.result_type)} ${fight.finish_round ? `• Round ${fight.finish_round}` : ''} ${fight.finish_time ? `(${fight.finish_time})` : ''}
+                    </div>
+                </div>
+            ` : `
+                <div class="fight-v2-actions">
+                    <button class="btn btn-prediction-toggle" onclick="togglePredictionPanel('${fight.id}')">
+                        🔮 FAZER PALPITE
+                    </button>
+                </div>
+                <div id="prediction-panel-${fight.id}" class="prediction-panel" style="display: none;">
+                    <div class="prediction-title">🔮 SEU PALPITE</div>
+                    <div class="prediction-options">
+                        <div class="prediction-row">
+                            <button class="prediction-btn" onclick="selectPredictionWinner('${fight.id}', '${fight.fighter1_id}')" id="pred-winner-${fight.id}-${fight.fighter1_id}">
+                                ${escapeHTML(getFighterName(fight.fighter1))}
+                            </button>
+                            <button class="prediction-btn" onclick="selectPredictionWinner('${fight.id}', '${fight.fighter2_id}')" id="pred-winner-${fight.id}-${fight.fighter2_id}">
+                                ${escapeHTML(getFighterName(fight.fighter2))}
+                            </button>
+                        </div>
+                        <div id="method-options-${fight.id}" style="display: none; margin-top: 10px;">
+                            <div class="prediction-title">MÉTODO</div>
+                            <select class="form-control" id="pred-method-${fight.id}" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1);">
+                                <option value="">Selecione o método...</option>
+                                <option value="KO">KO/TKO</option>
+                                <option value="SUB">Submissão</option>
+                                <option value="DEC">Decisão</option>
+                            </select>
+
+                            <div class="prediction-title" style="margin-top: 10px;">ROUND</div>
+                            <div class="prediction-row">
+                                ${[1,2,3,4,5].slice(0, fight.rounds).map(r => `
+                                    <button class="prediction-btn btn-sm" onclick="selectPredictionRound('${fight.id}', ${r})" id="pred-round-${fight.id}-${r}">
+                                        R${r}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-block" style="margin-top: 15px;" onclick="submitPrediction('${fight.id}', '${fight.event_id}')">
+                            CONFIRMAR PALPITE
+                        </button>
+                    </div>
+                </div>
+            `}
+        </div>
+    `;
+}
+
+// Prediction UI Functions
+function togglePredictionPanel(fightId) {
+    const panel = document.getElementById(`prediction-panel-${fightId}`);
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function selectPredictionWinner(fightId, fighterId) {
+    // UI selection logic
+    const btns = document.querySelectorAll(`[id^="pred-winner-${fightId}"]`);
+    btns.forEach(b => b.classList.remove('selected'));
+    document.getElementById(`pred-winner-${fightId}-${fighterId}`).classList.add('selected');
+
+    // Show method/round options
+    document.getElementById(`method-options-${fightId}`).style.display = 'block';
+
+    // Store in temp state
+    if (!window.tempPredictions) window.tempPredictions = {};
+    window.tempPredictions[fightId] = { ...(window.tempPredictions[fightId] || {}), winner_id: fighterId };
+}
+
+function selectPredictionRound(fightId, round) {
+    const btns = document.querySelectorAll(`[id^="pred-round-${fightId}"]`);
+    btns.forEach(b => b.classList.remove('selected'));
+    document.getElementById(`pred-round-${fightId}-${round}`).classList.add('selected');
+
+    if (!window.tempPredictions) window.tempPredictions = {};
+    window.tempPredictions[fightId] = { ...(window.tempPredictions[fightId] || {}), round: round };
+}
+
+async function submitPrediction(fightId, eventId) {
+    const pred = window.tempPredictions?.[fightId];
+    const method_code = document.getElementById(`pred-method-${fightId}`).value;
+
+    if (!pred || !pred.winner_id) {
+        showToast("Selecione o vencedor!", "warning");
+        return;
+    }
+
+    if (!method_code) {
+        showToast("Selecione o método!", "warning");
+        return;
+    }
+
+    try {
+        showLoading("Salvando palpite...");
+
+        // Em um sistema real, buscaríamos o ID do FinishMethod baseado no código (KO, SUB, DEC)
+        // Por enquanto, enviaremos apenas o que temos e o backend ou o api.js resolvem
+        await api.createPrediction({
+            fight_id: fightId,
+            event_id: eventId,
+            predicted_winner_id: pred.winner_id,
+            predicted_method_code: method_code, // Ajustado para facilidade
+            predicted_round: pred.round
+        });
+
+        showToast("Palpite registrado com sucesso! 🔮", "success");
+        togglePredictionPanel(fightId);
+
+        // Desabilitar botão ou mudar UI
+        const toggleBtn = document.querySelector(`button[onclick="togglePredictionPanel('${fightId}')"]`);
+        if (toggleBtn) {
+            toggleBtn.innerHTML = "✅ PALPITE REGISTRADO";
+            toggleBtn.disabled = true;
+        }
+    } catch (error) {
+        showToast("Erro ao salvar palpite", "error");
+        console.error(error);
+    } finally {
+        hideLoading();
+    }
 }
 
 // Renderiza card de luta
@@ -269,9 +447,9 @@ function renderFightCard(fight) {
         isCompleted ? "completed" : ""
     }">
             <div class="fight-order">
-                #${fight.fight_order || "?"} ${getFightTypeLabel(
+                #${fight.fight_order || "?"} ${escapeHTML(getFightTypeLabel(
         fight.fight_type
-    )}
+    ))}
                 ${
                     fight.is_title_fight
                         ? ' <span class="badge badge-warning">Luta de Título</span>'
@@ -281,10 +459,10 @@ function renderFightCard(fight) {
 
             <div class="fight-matchup">
                 <div class="fighter-info">
-                    <strong>${fight.fighter1?.name || "Fighter 1"}</strong>
+                    <strong>${escapeHTML(fight.fighter1?.name || "Fighter 1")}</strong>
                     ${
                         fight.fighter1?.nickname
-                            ? `<span class="nickname">"${fight.fighter1.nickname}"</span>`
+                            ? `<span class="nickname">"${escapeHTML(fight.fighter1.nickname)}"</span>`
                             : ""
                     }
                     ${
@@ -297,10 +475,10 @@ function renderFightCard(fight) {
                 <div class="vs">VS</div>
 
                 <div class="fighter-info">
-                    <strong>${fight.fighter2?.name || "Fighter 2"}</strong>
+                    <strong>${escapeHTML(fight.fighter2?.name || "Fighter 2")}</strong>
                     ${
                         fight.fighter2?.nickname
-                            ? `<span class="nickname">"${fight.fighter2.nickname}"</span>`
+                            ? `<span class="nickname">"${escapeHTML(fight.fighter2.nickname)}"</span>`
                             : ""
                     }
                     ${
@@ -315,20 +493,20 @@ function renderFightCard(fight) {
                 hasResult
                     ? `
                 <div class="fight-result">
-                    <p><strong>Resultado:</strong> ${fight.result_type}${
+                    <p><strong>Resultado:</strong> ${escapeHTML(fight.result_type)}${
                           fight.finish_round
                               ? ` - Round ${fight.finish_round}`
                               : ""
                       }${fight.finish_time ? ` (${fight.finish_time})` : ""}</p>
                     ${
                         fight.method_details
-                            ? `<p><strong>Método:</strong> ${fight.method_details}</p>`
+                            ? `<p><strong>Método:</strong> ${escapeHTML(fight.method_details)}</p>`
                             : ""
                     }
                     <p><strong>Probabilidades:</strong> ${
-                        fight.fighter1?.name
+                        escapeHTML(fight.fighter1?.name)
                     } ${fight.fighter1_probability}% vs ${
-                          fight.fighter2?.name
+                          escapeHTML(fight.fighter2?.name)
                       } ${fight.fighter2_probability}%</p>
                 </div>
             `
@@ -339,7 +517,7 @@ function renderFightCard(fight) {
                 <span>${fight.rounds} rounds</span>
                 ${
                     fight.weight_class
-                        ? `<span>${fight.weight_class}</span>`
+                        ? `<span>${escapeHTML(fight.weight_class)}</span>`
                         : ""
                 }
             </div>
@@ -723,7 +901,7 @@ function showSimulationResults(result) {
 
     content.innerHTML = `
         <div class="simulation-results">
-            <h2>🎉 ${result.event_name} - Resultados</h2>
+            <h2>🎉 ${escapeHTML(result.event_name)} - Resultados</h2>
 
             <div class="simulation-summary">
                 <div class="stat-box">
@@ -899,39 +1077,38 @@ function clearFormDraft() {
 // Adiciona luta ao formulário de edição
 function addFightToEditForm(customFightIndex = null) {
     const fightsContainer = document.getElementById("editEventFightsContainer");
-    if (!fightsContainer) {
-        console.error("Container de edição não encontrado");
-        return;
-    }
+    if (!fightsContainer) return;
 
-    const fightIndex =
-        customFightIndex !== null
-            ? customFightIndex
-            : AppState.eventFights.length + 1;
+    const fightIndex = customFightIndex !== null ? customFightIndex : AppState.eventFights.length + 1;
 
     const fightHtml = `
-        <div class="fight-form-item" data-fight-index="${fightIndex}">
-            <h4>Luta ${fightIndex}</h4>
+        <div class="card-builder-item" data-fight-index="${fightIndex}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h4 style="margin: 0; color: var(--primary);">Luta #${fightIndex}</h4>
+                <button type="button" class="btn btn-icon btn-remove-fight" data-fight-index="${fightIndex}" title="Remover Luta">
+                    🗑️
+                </button>
+            </div>
 
             <div class="form-row">
-                <div class="form-group">
-                    <label>Lutador 1</label>
-                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="1" placeholder="Buscar lutador...">
+                <div class="form-group" style="position: relative;">
+                    <label>Córner Vermelho</label>
+                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="1" placeholder="🔍 Buscar lutador...">
                     <div class="search-results" id="searchResults_${fightIndex}_1"></div>
                     <input type="hidden" id="fighter1_${fightIndex}">
                 </div>
 
-                <div class="form-group">
-                    <label>Lutador 2</label>
-                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="2" placeholder="Buscar lutador...">
+                <div class="form-group" style="position: relative;">
+                    <label>Córner Azul</label>
+                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="2" placeholder="🔍 Buscar lutador...">
                     <div class="search-results" id="searchResults_${fightIndex}_2"></div>
                     <input type="hidden" id="fighter2_${fightIndex}">
                 </div>
             </div>
 
-            <div class="form-row">
+            <div class="form-row" style="margin-top: 1rem;">
                 <div class="form-group">
-                    <label>Tipo de Luta</label>
+                    <label>Nível do Card</label>
                     <select id="fightType_${fightIndex}">
                         <option value="standard">Fight Card</option>
                         <option value="prelim">Prelim</option>
@@ -940,77 +1117,67 @@ function addFightToEditForm(customFightIndex = null) {
                     </select>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="max-width: 120px;">
                     <label>Rounds</label>
                     <select id="rounds_${fightIndex}">
-                        <option value="3">3 Rounds</option>
-                        <option value="5">5 Rounds</option>
+                        <option value="3">3</option>
+                        <option value="5">5</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="isTitle_${fightIndex}">
-                        Luta de Título
-                    </label>
+                <div class="form-group" style="display: flex; align-items: center; gap: 0.8rem; padding-top: 1.8rem;">
+                    <input type="checkbox" id="isTitle_${fightIndex}" style="width: 20px; height: 20px; cursor: pointer;">
+                    <label for="isTitle_${fightIndex}" style="margin: 0; cursor: pointer;">Disputa de Título</label>
                 </div>
             </div>
-
-            <button type="button" class="btn btn-danger btn-sm btn-remove-fight" data-fight-index="${fightIndex}">
-                Remover Luta
-            </button>
         </div>
     `;
 
     fightsContainer.insertAdjacentHTML("beforeend", fightHtml);
 
-    // Adiciona ao estado apenas se não existir
     if (customFightIndex === null) {
-        const existingFight = AppState.eventFights.find(
-            (f) => f.index === fightIndex
-        );
-        if (!existingFight) {
-            AppState.eventFights.push({ index: fightIndex });
-        }
+        const existingFight = AppState.eventFights.find((f) => f.index === fightIndex);
+        if (!existingFight) AppState.eventFights.push({ index: fightIndex });
     }
 
-    // Setup busca de lutadores
     setupFighterSearchForFight(fightIndex);
 }
 
 // Adiciona luta ao formulário (criação)
 function addFightToForm(customFightIndex = null) {
     const fightsContainer = document.getElementById("eventFightsContainer");
-    // Se um índice customizado foi fornecido (para edição), usa ele
-    // Caso contrário, calcula baseado no tamanho do array
-    const fightIndex =
-        customFightIndex !== null
-            ? customFightIndex
-            : AppState.eventFights.length + 1;
+    if (!fightsContainer) return;
+
+    const fightIndex = customFightIndex !== null ? customFightIndex : AppState.eventFights.length + 1;
 
     const fightHtml = `
-        <div class="fight-form-item" data-fight-index="${fightIndex}">
-            <h4>Luta ${fightIndex}</h4>
+        <div class="card-builder-item" data-fight-index="${fightIndex}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h4 style="margin: 0; color: var(--primary);">Luta #${fightIndex}</h4>
+                <button type="button" class="btn btn-icon btn-remove-fight" data-fight-index="${fightIndex}" title="Remover Luta">
+                    🗑️
+                </button>
+            </div>
 
             <div class="form-row">
-                <div class="form-group">
-                    <label>Lutador 1</label>
-                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="1" placeholder="Buscar lutador...">
+                <div class="form-group" style="position: relative;">
+                    <label>Córner Vermelho</label>
+                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="1" placeholder="🔍 Buscar lutador...">
                     <div class="search-results" id="searchResults_${fightIndex}_1"></div>
                     <input type="hidden" id="fighter1_${fightIndex}">
                 </div>
 
-                <div class="form-group">
-                    <label>Lutador 2</label>
-                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="2" placeholder="Buscar lutador...">
+                <div class="form-group" style="position: relative;">
+                    <label>Córner Azul</label>
+                    <input type="text" class="fighter-search" data-fight="${fightIndex}" data-fighter="2" placeholder="🔍 Buscar lutador...">
                     <div class="search-results" id="searchResults_${fightIndex}_2"></div>
                     <input type="hidden" id="fighter2_${fightIndex}">
                 </div>
             </div>
 
-            <div class="form-row">
+            <div class="form-row" style="margin-top: 1rem;">
                 <div class="form-group">
-                    <label>Tipo de Luta</label>
+                    <label>Nível do Card</label>
                     <select id="fightType_${fightIndex}">
                         <option value="standard">Fight Card</option>
                         <option value="prelim">Prelim</option>
@@ -1019,42 +1186,29 @@ function addFightToForm(customFightIndex = null) {
                     </select>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="max-width: 120px;">
                     <label>Rounds</label>
                     <select id="rounds_${fightIndex}">
-                        <option value="3">3 Rounds</option>
-                        <option value="5">5 Rounds</option>
+                        <option value="3">3</option>
+                        <option value="5">5</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="isTitle_${fightIndex}">
-                        Luta de Título
-                    </label>
+                <div class="form-group" style="display: flex; align-items: center; gap: 0.8rem; padding-top: 1.8rem;">
+                    <input type="checkbox" id="isTitle_${fightIndex}" style="width: 20px; height: 20px; cursor: pointer;">
+                    <label for="isTitle_${fightIndex}" style="margin: 0; cursor: pointer;">Disputa de Título</label>
                 </div>
             </div>
-
-            <button type="button" class="btn btn-danger btn-sm btn-remove-fight" data-fight-index="${fightIndex}">
-                Remover Luta
-            </button>
         </div>
     `;
 
     fightsContainer.insertAdjacentHTML("beforeend", fightHtml);
 
-    // Adiciona ao estado apenas se não existir (para lutas adicionadas manualmente)
-    // Mas só se não foi passado um índice customizado (ou seja, é uma luta nova)
     if (customFightIndex === null) {
-        const existingFight = AppState.eventFights.find(
-            (f) => f.index === fightIndex
-        );
-        if (!existingFight) {
-            AppState.eventFights.push({ index: fightIndex });
-        }
+        const existingFight = AppState.eventFights.find((f) => f.index === fightIndex);
+        if (!existingFight) AppState.eventFights.push({ index: fightIndex });
     }
 
-    // Setup busca de lutadores
     setupFighterSearchForFight(fightIndex);
 }
 

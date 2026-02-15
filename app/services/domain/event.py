@@ -1,8 +1,10 @@
 """Service for Event operations"""
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from uuid import UUID
+
+from app.core.logger import logger
 
 from app.database.models.base import Event, Fight
 from app.database.repositories.event import EventRepository
@@ -13,6 +15,9 @@ from app.exceptions.exceptions import ForbiddenError, NotFoundError
 from app.schemas.domain.events.input import AddFightToEvent, CreateEvent
 from app.schemas.domain.events.output import FightResponse, SimulationResult
 from app.services.domain.fight_simulation import FightSimulationService
+
+if TYPE_CHECKING:
+    from app.schemas.domain.predictions.input import UpdateFightResult
 
 
 class EventService:
@@ -321,6 +326,62 @@ class EventService:
             created_at=fight.created_at,
             updated_at=fight.updated_at,
         )
+
+    async def update_fight_result(
+        self, fight_id: UUID, payload: "UpdateFightResult"
+    ) -> Fight:
+        """
+        Atualiza o resultado real de uma luta (usado por admins).
+        Marca a luta como 'completed'.
+        """
+        fight = await self.fight_repo.get_by_id(fight_id)
+        if not fight:
+            raise NotFoundError("Fight not found")
+
+        update_data = {
+            "winner_id": payload.winner_id,
+            "method_id": payload.method_id,  # Novo campo vinculado a FinishMethod
+            "finish_round": payload.finish_round,
+            "finish_time": payload.finish_time,
+            "method_details": payload.method_details,
+            "status": "completed",
+            "updated_at": datetime.now(timezone.utc),
+            "updated_by": self.user_email,
+        }
+
+        updated_fight = await self.fight_repo.update(
+            fight_id, update_data, updated_by=self.user_email
+        )
+
+        # Verifica se todas as lutas do evento foram concluídas
+        await self._check_and_complete_event(updated_fight.event_id)
+
+        return updated_fight
+
+    async def _check_and_complete_event(self, event_id: UUID):
+        """
+        Verifica se todas as lutas de um evento foram concluídas.
+        Se sim, marca o evento como 'completed'.
+        """
+        event = await self.event_repo.get_with_fights(event_id)
+        if not event or not event.fights:
+            return
+
+        # Verifica se todas as lutas têm status 'completed' ou 'simulated'
+        all_fights_done = all(
+            fight.status in ["completed", "simulated"] for fight in event.fights
+        )
+
+        # Se todas as lutas acabaram e o evento ainda não está marcado como completed
+        if all_fights_done and event.status != "completed":
+            session = await self.uow.get_session()
+            event.status = "completed"
+            event.updated_at = datetime.now(timezone.utc)
+            event.updated_by = self.user_email
+            await session.commit()
+            logger.info(
+                f"Event {event_id} automatically marked as completed - all fights finished"
+            )
 
     async def delete_event(self, event_id: UUID) -> bool:
         """Deleta um evento (soft delete)"""

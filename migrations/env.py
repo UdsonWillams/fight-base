@@ -21,9 +21,19 @@ if config.config_file_name is not None:
 from app.database.models.base import (  # noqa
     Base,
     BaseModel,
-    Fighter,
-    FightSimulation,
     User,
+    Fighter,
+    Event,
+    Fight,
+    FightSimulation,
+    FinishMethod,
+    Prediction,
+    EventLeaderboard,
+    UserStats,
+    League,
+    LeagueMember,
+    Achievement,
+    UserAchievement,
 )
 
 target_metadata = Base.metadata

@@ -1,0 +1,384 @@
+/* Predictions & Gamification Styles */
+
+:root {
+    --prediction-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    --winner-glow: 0 0 20px rgba(99, 102, 241, 0.4);
+    --achievement-gold: #fbbf24;
+    --achievement-silver: #9ca3af;
+    --achievement-bronze: #d97706;
+}
+
+.prediction-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    pointer-events: none;
+}
+
+.prediction-panel {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease-out;
+}
+
+.prediction-title {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.prediction-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.prediction-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.prediction-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
+    font-weight: 500;
+}
+
+.prediction-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.prediction-btn.selected {
+    background: var(--prediction-gradient);
+    border-color: transparent;
+    box-shadow: var(--winner-glow);
+}
+
+/* Leaderboard */
+.leaderboard-container {
+    background: #0f172a;
+    border-radius: 20px;
+    overflow: hidden;
+    margin: 20px 0;
+}
+
+.leaderboard-header {
+    background: var(--prediction-gradient);
+    padding: 30px;
+    text-align: center;
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaderboard-row {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s;
+}
+
+.leaderboard-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.leaderboard-cell {
+    padding: 15px 20px;
+}
+
+.rank-badge {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: bold;
+}
+
+.rank-1 {
+    background: var(--achievement-gold);
+    color: black;
+}
+
+.rank-2 {
+    background: var(--achievement-silver);
+    color: black;
+}
+
+.rank-3 {
+    background: var(--achievement-bronze);
+    color: black;
+}
+
+/* Achievement Badges */
+.achievement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.achievement-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    overflow: hidden;
+    filter: grayscale(1);
+    opacity: 0.6;
+}
+
+.achievement-card::before {
+    content: '';
+    position: absolute;
+    top: -100%;
+    left: -100%;
+    width: 300%;
+    height: 300%;
+    background: linear-gradient(45deg,
+            transparent 45%,
+            rgba(255, 255, 255, 0.1) 50%,
+            transparent 55%);
+    transition: all 0.6s;
+    pointer-events: none;
+}
+
+.achievement-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.achievement-card:hover::before {
+    top: -50%;
+    left: -50%;
+}
+
+.achievement-card.unlocked {
+    filter: grayscale(0);
+    opacity: 1;
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.05);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.achievement-card.unlocked .achievement-icon {
+    animation: icon-float 3s ease-in-out infinite;
+}
+
+.achievement-card.just-unlocked {
+    animation: unlock-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Category Specifics */
+.category-milestone.unlocked {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.category-streak.unlocked {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.category-accuracy.unlocked {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.category-special.unlocked {
+    border-color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.achievement-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    display: block;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
+}
+
+.achievement-name {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 4px;
+    color: white;
+}
+
+.achievement-desc {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+/* Animations */
+@keyframes unlock-pop {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes icon-float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Odds Bar Styles */
+.odds-container {
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+}
+
+.odds-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #94a3b8;
+}
+
+.odds-bar-bg {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+}
+
+.odds-fill-f1 {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #818cf8);
+    transition: width 1s ease-out;
+}
+
+.odds-fill-f2 {
+    height: 100%;
+    background: linear-gradient(90deg, #f43f5e, #fb7185);
+    transition: width 1s ease-out;
+}
+
+.ml-tag {
+    font-size: 0.65rem;
+    background: rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+/* Achievement Toast */
+.achievement-toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(16px);
+    border: 2px solid #fbbf24;
+    border-radius: 20px;
+    padding: 20px 30px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    color: white;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    z-index: 10001;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform: translateX(120%);
+    opacity: 0;
+}
+
+.achievement-toast.just-unlocked {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .achievement-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 12px;
+        padding: 10px;
+    }
+
+    .achievement-card {
+        padding: 15px 10px;
+    }
+
+    .achievement-icon {
+        font-size: 2.2rem;
+    }
+
+    .achievement-name {
+        font-size: 0.85rem;
+    }
+
+    .achievement-desc {
+        font-size: 0.7rem;
+    }
+
+    .prediction-row {
+        grid-template-columns: 1fr;
+    }
+
+    .leaderboard-cell:nth-child(3),
+    .leaderboard-cell:nth-child(4) {
+        display: none;
+    }
+}

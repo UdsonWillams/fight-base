@@ -63,7 +63,7 @@ class UserRepository(BaseRepository[User]):
                     continue
                 setattr(existing_record, key, value)
 
-            if "password" in data:
+            if "password" in data and data["password"]:
                 from app.services.auth.authentication import AuthService
 
                 crypt_service = AuthService()
@@ -83,3 +83,72 @@ class UserRepository(BaseRepository[User]):
         except Exception as e:
             logger.error(f"Error updating {self.model.__name__}: {e}")
             raise RepositoryError
+
+    async def get_user_by_google_id(self, google_id: str) -> User | None:
+        """Busca um usuário pelo Google ID."""
+        session = await self.uow.get_session()
+        query = (
+            select(self.model)
+            .filter(self.model.google_id == google_id)
+            .filter(
+                self.model.deleted_at.is_(None),
+                self.model.deleted_by.is_(None),
+            )
+        )
+        result = await session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_or_create_google_user(
+        self, google_id: str, email: str, name: str
+    ) -> User:
+        """Busca ou cria um usuário a partir de dados do Google."""
+        # Verifica se já existe usuário com esse google_id
+        user = await self.get_user_by_google_id(google_id)
+        if user:
+            return user
+
+        # Verifica se já existe usuário com esse email (migração de local para google)
+        user = await self.get_user_by_email(email)
+        if user:
+            # Associa google_id ao usuário existente
+            user.google_id = google_id
+            user.provider = "google"
+            session = await self.uow.get_session()
+            await session.commit()
+            await session.refresh(user)
+            return user
+
+        # Cria novo usuário
+        username = await self._generate_unique_username(email)
+        new_user = User(
+            email=email,
+            name=name,
+            username=username,
+            provider="google",
+            google_id=google_id,
+            password=None,  # Sem senha para usuários Google
+            role="user",
+            is_active=True,
+            created_by="google_oauth",
+        )
+
+        session = await self.uow.get_session()
+        session.add(new_user)
+        await session.commit()
+        await session.refresh(new_user)
+        return new_user
+
+    async def _generate_unique_username(self, email: str) -> str:
+        """Gera um username único baseado no email."""
+        base_username = email.split("@")[0]
+        username = base_username
+        counter = 1
+
+        session = await self.uow.get_session()
+        while True:
+            query = select(self.model).filter(self.model.username == username)
+            result = await session.execute(query)
+            if not result.scalar_one_or_none():
+                return username
+            username = f"{base_username}{counter}"
+            counter += 1

@@ -10,16 +10,13 @@ WORKDIR /app
 
 # Install dependencies with poetry
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    gettext \
     libpq-dev \
-    libcurl4-openssl-dev \
-    libssl-dev \
-    cron
+    libssl-dev
 
 # Copy all files
 COPY . .
 COPY frontend /app/frontend
+
 # Install Python dependencies
 RUN python3 -m pip install --upgrade setuptools wheel
 RUN pip install --upgrade pip

@@ -10,6 +10,10 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
 
+        <link rel="stylesheet" href="css/simulation.css" />
+        <link rel="stylesheet" href="css/events.css" />
+        <link rel="stylesheet" href="css/fighter-cards.css" />
+        <link rel="stylesheet" href="css/predictions.css" />
         <link rel="stylesheet" href="css/styles.css" />
         <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     </head>
@@ -25,6 +29,8 @@
                     <a href="#fighters" class="nav-link">Lutadores</a>
                     <a href="#simulate" class="nav-link">Simular Luta</a>
                     <a href="#events" class="nav-link">Eventos</a>
+                    <a href="#rankings" class="nav-link">Rankings</a>
+                    <a href="#leagues" class="nav-link">Ligas</a>
                 </div>
                 <div class="nav-auth" id="navAuth">
                     <button class="btn btn-outline" id="loginBtn">Entrar</button>
@@ -72,7 +78,7 @@
                     <div class="card glass-card">
                         <h2 style="margin-bottom: 2rem; text-align: center;">Bem-vindo de volta! 👋</h2>
 
-                        <button class="btn btn-google" style="width: 100%;">
+                        <button class="btn btn-google" style="width: 100%;" onclick="handleGoogleLogin()">
                             <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                             Entrar com Google
                         </button>
@@ -405,115 +411,63 @@
                         </button>
                     </div>
 
-                    <form id="createEventForm" class="event-form">
-                        <div
-                            id="autoSaveIndicator"
-                            style="
-                                display: none;
-                                color: var(--success);
-                                font-size: 0.85rem;
-                                margin-bottom: 1rem;
-                                text-align: right;
-                            "
-                        >
-                            💾 Salvo automaticamente
-                        </div>
-                        <div class="form-group">
-                            <label for="eventName">Nome do Evento *</label>
-                            <input
-                                type="text"
-                                id="eventName"
-                                required
-                                placeholder="Ex: UFC 300"
-                            />
+                    <form id="createEventForm" class="event-form-v2">
+                        <div id="autoSaveIndicator" style="display: none; color: #2ecc71; font-size: 0.85rem; margin-bottom: 1rem; text-align: right;">
+                            💾 Rascunho salvo automaticamente
                         </div>
 
-                        <div class="form-row">
+                        <div class="form-section">
+                            <h3 style="margin-top: 0; color: var(--primary);">📋 Informações Gerais</h3>
                             <div class="form-group">
-                                <label for="eventDate">Data *</label>
-                                <input type="date" id="eventDate" required />
+                                <label for="eventName">Título do Evento *</label>
+                                <input type="text" id="eventName" required placeholder="Ex: UFC 306: O'Malley vs. Dvalishvili" />
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="eventDate">Data de Realização *</label>
+                                    <input type="date" id="eventDate" required />
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="eventOrganization">Organização Oficial *</label>
+                                    <select id="eventOrganization" required>
+                                        <option value="">Selecione...</option>
+                                        <option value="UFC">UFC</option>
+                                        <option value="Bellator">Bellator</option>
+                                        <option value="ONE Championship">ONE Championship</option>
+                                        <option value="PFL">PFL</option>
+                                        <option value="Rizin">Rizin</option>
+                                        <option value="Outras">Outras</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="form-group">
-                                <label for="eventOrganization"
-                                    >Organização *</label
-                                >
-                                <select id="eventOrganization" required>
-                                    <option value="">Selecione...</option>
-                                    <option value="UFC">UFC</option>
-                                    <option value="Bellator">Bellator</option>
-                                    <option value="ONE Championship">
-                                        ONE Championship
-                                    </option>
-                                    <option value="PFL">PFL</option>
-                                    <option value="Rizin">Rizin</option>
-                                    <option value="KSW">KSW</option>
-                                    <option value="LFA">LFA</option>
-                                    <option value="Cage Warriors">
-                                        Cage Warriors
-                                    </option>
-                                    <option value="Glory">Glory</option>
-                                    <option value="K-1">K-1</option>
-                                    <option value="Invicta FC">
-                                        Invicta FC
-                                    </option>
-                                    <option value="DWCS">
-                                        Dana White's Contender Series
-                                    </option>
-                                    <option value="Outras">Outras</option>
-                                </select>
+                                <label for="eventLocation">Localização / Arena</label>
+                                <input type="text" id="eventLocation" placeholder="Ex: The Sphere, Las Vegas" />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="eventDescription">Briefing Profissional</label>
+                                <textarea id="eventDescription" rows="4" placeholder="Descreva os pontos principais deste card..."></textarea>
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="eventLocation">Local</label>
-                            <input
-                                type="text"
-                                id="eventLocation"
-                                placeholder="Ex: Las Vegas, Nevada"
-                            />
-                        </div>
-
-                        <div class="form-group">
-                            <label for="eventDescription">Descrição</label>
-                            <textarea
-                                id="eventDescription"
-                                rows="3"
-                                placeholder="Informações adicionais sobre o evento"
-                            ></textarea>
-                        </div>
-
-                        <hr />
-
-                        <div class="fights-section">
-                            <div class="section-header">
-                                <h3>Lutas do Evento</h3>
-                                <button
-                                    type="button"
-                                    class="btn btn-warning btn-lg"
-                                    id="addFightBtn"
-                                >
-                                    🥊 Adicionar Luta ao Evento
+                        <div class="form-section" style="margin-top: 3rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                                <h3 style="margin: 0; color: var(--primary);">🎴 Card Builder</h3>
+                                <button type="button" class="btn btn-warning" id="addFightBtn">
+                                    🥊 Adicionar Luta
                                 </button>
                             </div>
 
-                            <div id="eventFightsContainer"></div>
+                            <div id="eventFightsContainer" class="card-builder-grid"></div>
                         </div>
 
-                        <div class="form-actions">
-                            <button
-                                type="button"
-                                class="btn btn-outline btn-lg"
-                                id="cancelEventBtn"
-                            >
-                                ❌ Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                class="btn btn-success btn-lg"
-                            >
-                                ✅ Criar Evento
-                            </button>
+                        <div class="form-actions" style="margin-top: 3rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
+                            <button type="button" class="btn btn-outline btn-lg" id="cancelEventBtn">❌ Cancelar</button>
+                            <button type="submit" class="btn btn-success btn-lg" style="min-width: 250px;">🚀LANÇAR EVENTO</button>
                         </div>
                     </form>
                 </div>
@@ -529,103 +483,57 @@
                         </button>
                     </div>
 
-                    <form id="editEventForm" class="event-form">
-                        <div class="form-group">
-                            <label for="editEventName">Nome do Evento *</label>
-                            <input
-                                type="text"
-                                id="editEventName"
-                                required
-                                placeholder="Ex: UFC 300"
-                            />
-                        </div>
-
-                        <div class="form-row">
+                    <form id="editEventForm" class="event-form-v2">
+                        <div class="form-section">
+                            <h3 style="margin-top: 0; color: var(--primary);">✏️ Dados do Card</h3>
                             <div class="form-group">
-                                <label for="editEventDate">Data *</label>
-                                <input type="date" id="editEventDate" required />
+                                <label for="editEventName">Título do Evento *</label>
+                                <input type="text" id="editEventName" required />
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="editEventDate">Data *</label>
+                                    <input type="date" id="editEventDate" required />
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="editEventOrganization">Organização *</label>
+                                    <select id="editEventOrganization" required>
+                                        <option value="UFC">UFC</option>
+                                        <option value="Bellator">Bellator</option>
+                                        <option value="ONE Championship">ONE Championship</option>
+                                        <option value="PFL">PFL</option>
+                                        <option value="Rizin">Rizin</option>
+                                        <option value="Outras">Outras</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="form-group">
-                                <label for="editEventOrganization"
-                                    >Organização *</label
-                                >
-                                <select id="editEventOrganization" required>
-                                    <option value="">Selecione...</option>
-                                    <option value="UFC">UFC</option>
-                                    <option value="Bellator">Bellator</option>
-                                    <option value="ONE Championship">
-                                        ONE Championship
-                                    </option>
-                                    <option value="PFL">PFL</option>
-                                    <option value="Rizin">Rizin</option>
-                                    <option value="KSW">KSW</option>
-                                    <option value="LFA">LFA</option>
-                                    <option value="Cage Warriors">
-                                        Cage Warriors
-                                    </option>
-                                    <option value="Glory">Glory</option>
-                                    <option value="K-1">K-1</option>
-                                    <option value="Invicta FC">
-                                        Invicta FC
-                                    </option>
-                                    <option value="DWCS">
-                                        Dana White's Contender Series
-                                    </option>
-                                    <option value="Outras">Outras</option>
-                                </select>
+                                <label for="editEventLocation">Local</label>
+                                <input type="text" id="editEventLocation" />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="editEventDescription">Descrição</label>
+                                <textarea id="editEventDescription" rows="4"></textarea>
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="editEventLocation">Local</label>
-                            <input
-                                type="text"
-                                id="editEventLocation"
-                                placeholder="Ex: Las Vegas, Nevada"
-                            />
-                        </div>
-
-                        <div class="form-group">
-                            <label for="editEventDescription">Descrição</label>
-                            <textarea
-                                id="editEventDescription"
-                                rows="3"
-                                placeholder="Informações adicionais sobre o evento"
-                            ></textarea>
-                        </div>
-
-                        <hr />
-
-                        <div class="fights-section">
-                            <div class="section-header">
-                                <h3>Lutas do Evento</h3>
-                                <button
-                                    type="button"
-                                    class="btn btn-warning btn-lg"
-                                    id="addFightToEditBtn"
-                                >
-                                    🥊 Adicionar Luta ao Evento
+                        <div class="form-section" style="margin-top: 3rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                                <h3 style="margin: 0; color: var(--primary);">🥋 Ajustar Matchups</h3>
+                                <button type="button" class="btn btn-warning" onclick="addFightToEditForm()">
+                                    🥊 Adicionar Luta
                                 </button>
                             </div>
-
-                            <div id="editEventFightsContainer"></div>
+                            <div id="editEventFightsContainer" class="card-builder-grid"></div>
                         </div>
 
-                        <div class="form-actions">
-                            <button
-                                type="button"
-                                class="btn btn-outline btn-lg"
-                                id="cancelEditEventBtn"
-                            >
-                                ❌ Cancelar
-                            </button>
-                            <button
-                                type="submit"
-                                class="btn btn-success btn-lg"
-                            >
-                                💾 Salvar Alterações
-                            </button>
+                        <div class="form-actions" style="margin-top: 3rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
+                            <button type="button" class="btn btn-outline btn-lg" onclick="showSection('events')">❌ Descartar</button>
+                            <button type="submit" class="btn btn-primary btn-lg" style="min-width: 250px;">💾 SALVAR ALTERAÇÕES</button>
                         </div>
                     </form>
                 </div>
@@ -655,6 +563,41 @@
                     </div>
                     <div id="eventDetailsPageContent">
                         <div class="loading">Carregando detalhes do evento...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rankings Section -->
+            <section id="rankingsSection" class="section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2>🏆 Rankings Globais</h2>
+                        <div class="ranking-tabs">
+                            <button class="tab-btn active" onclick="loadGlobalRankings('all')">Geral</button>
+                            <button class="tab-btn" onclick="loadGlobalRankings('monthly')">Mensal</button>
+                        </div>
+                    </div>
+
+                    <div id="rankingsContainer" class="leaderboard-container">
+                        <div class="loading">Carregando rankings...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Leagues Section -->
+            <section id="leaguesSection" class="section">
+                <div class="container">
+                    <div class="section-header">
+                        <h2>👥 Minhas Ligas</h2>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-outline" onclick="showJoinLeagueModal()">Entrar em Liga</button>
+                            <button class="btn btn-primary" onclick="showCreateLeagueModal()">+ Criar Liga</button>
+                        </div>
+                    </div>
+
+                    <div id="leaguesList" class="leagues-grid">
+                        <!-- Ligas do usuário aqui -->
+                        <div class="loading">Carregando ligas...</div>
                     </div>
                 </div>
             </section>
@@ -696,9 +639,12 @@
                         <input
                             type="text"
                             id="editFighterNickname"
-                            readonly
-                            disabled
                         />
+                    </div>
+
+                    <div class="form-group">
+                        <label>URL da Imagem</label>
+                        <input type="url" id="editFighterImage" placeholder="https://exemplo.com/foto.jpg" />
                     </div>
 
                     <h3>📏 Informações Físicas</h3>
@@ -738,6 +684,23 @@
                         </div>
                     </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editFighterDOB">Data de Nascimento</label>
+                            <input type="date" id="editFighterDOB" />
+                        </div>
+                        <div class="form-group">
+                            <label for="editFighterOrg">Organização *</label>
+                            <select id="editFighterOrg" required>
+                                <option value="UFC">UFC</option>
+                                <option value="Bellator">Bellator</option>
+                                <option value="ONE Championship">ONE Championship</option>
+                                <option value="PFL">PFL</option>
+                                <option value="Rizin">Rizin</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>Guarda</label>
                         <select id="editFighterStance">
@@ -750,93 +713,95 @@
 
                     <h3>⚡ Atributos de Luta</h3>
 
-                    <div class="form-group">
-                        <label
-                            >Striking:
-                            <span id="editStrikingValue">50</span></label
-                        >
-                        <input
-                            type="range"
-                            id="editStriking"
-                            min="0"
-                            max="100"
-                            value="50"
-                            oninput="updateEditSliderValue('striking', this.value)"
-                        />
-                    </div>
+                    <div class="attributes-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-group">
+                            <label
+                                >Striking:
+                                <span id="editStrikingValue">50</span></label
+                            >
+                            <input
+                                type="range"
+                                id="editStriking"
+                                min="0"
+                                max="100"
+                                value="50"
+                                oninput="updateEditSliderValue('striking', this.value)"
+                            />
+                        </div>
 
-                    <div class="form-group">
-                        <label
-                            >Grappling:
-                            <span id="editGrapplingValue">50</span></label
-                        >
-                        <input
-                            type="range"
-                            id="editGrappling"
-                            min="0"
-                            max="100"
-                            value="50"
-                            oninput="updateEditSliderValue('grappling', this.value)"
-                        />
-                    </div>
+                        <div class="form-group">
+                            <label
+                                >Grappling:
+                                <span id="editGrapplingValue">50</span></label
+                            >
+                            <input
+                                type="range"
+                                id="editGrappling"
+                                min="0"
+                                max="100"
+                                value="50"
+                                oninput="updateEditSliderValue('grappling', this.value)"
+                            />
+                        </div>
 
-                    <div class="form-group">
-                        <label
-                            >Defense:
-                            <span id="editDefenseValue">50</span></label
-                        >
-                        <input
-                            type="range"
-                            id="editDefense"
-                            min="0"
-                            max="100"
-                            value="50"
-                            oninput="updateEditSliderValue('defense', this.value)"
-                        />
-                    </div>
+                        <div class="form-group">
+                            <label
+                                >Defense:
+                                <span id="editDefenseValue">50</span></label
+                            >
+                            <input
+                                type="range"
+                                id="editDefense"
+                                min="0"
+                                max="100"
+                                value="50"
+                                oninput="updateEditSliderValue('defense', this.value)"
+                            />
+                        </div>
 
-                    <div class="form-group">
-                        <label
-                            >Stamina:
-                            <span id="editStaminaValue">50</span></label
-                        >
-                        <input
-                            type="range"
-                            id="editStamina"
-                            min="0"
-                            max="100"
-                            value="50"
-                            oninput="updateEditSliderValue('stamina', this.value)"
-                        />
-                    </div>
+                        <div class="form-group">
+                            <label
+                                >Stamina:
+                                <span id="editStaminaValue">50</span></label
+                            >
+                            <input
+                                type="range"
+                                id="editStamina"
+                                min="0"
+                                max="100"
+                                value="50"
+                                oninput="updateEditSliderValue('stamina', this.value)"
+                            />
+                        </div>
 
-                    <div class="form-group">
-                        <label
-                            >Speed: <span id="editSpeedValue">50</span></label
-                        >
-                        <input
-                            type="range"
-                            id="editSpeed"
-                            min="0"
-                            max="100"
-                            value="50"
-                            oninput="updateEditSliderValue('speed', this.value)"
-                        />
-                    </div>
+                        <div class="form-group">
+                            <label
+                                >Speed: <span id="editSpeedValue">50</span></label
+                            >
+                            <input
+                                type="range"
+                                id="editSpeed"
+                                min="0"
+                                max="100"
+                                value="50"
+                                oninput="updateEditSliderValue('speed', this.value)"
+                            />
+                        </div>
 
-                    <div class="form-group">
-                        <label
-                            >Strategy:
-                            <span id="editStrategyValue">50</span></label
-                        >
-                        <input
-                            type="range"
-                            id="editStrategy"
-                            min="0"
-                            max="100"
-                            value="50"
-                            oninput="updateEditSliderValue('strategy', this.value)"
-                        />
+                        <div class="form-group">
+                            <label
+                                >Strategy:
+                                <span id="editStrategyValue">50</span></label
+                            >
+                            <input
+                                type="range"
+                                id="editStrategy"
+                                min="0"
+                                max="100"
+                                value="50"
+                                oninput="updateEditSliderValue('strategy', this.value)"
+                            />
+                        </div>
                     </div>
 
                     <div class="form-actions">
@@ -889,6 +854,17 @@
                         <div class="form-group">
                             <label for="fighterNickname">Apelido</label>
                             <input type="text" id="fighterNickname" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fighterImage">URL da Imagem</label>
+                            <input type="url" id="fighterImage" placeholder="https://exemplo.com/foto.jpg" />
+                        </div>
+                        <div class="form-group">
+                            <label for="fighterDOB">Data de Nascimento</label>
+                            <input type="date" id="fighterDOB" />
                         </div>
                     </div>
 
@@ -1096,6 +1072,7 @@
         <script src="js/fighters.js"></script>
         <script src="js/simulation.js"></script>
         <script src="js/events.js"></script>
+        <script src="js/predictions.js"></script>
         <script src="js/app.js"></script>
     </body>
 </html>

@@ -4,6 +4,8 @@ from app.api.v1.admin.views import router as admin_router
 from app.api.v1.auth.views import router as auth_router
 from app.api.v1.events.views import router as events_router
 from app.api.v1.fighters.views import router as fighters_router
+from app.api.v1.leagues.views import router as leagues_router
+from app.api.v1.predictions.views import router as predictions_router
 from app.api.v1.simulations.views import router as simulations_router
 from app.api.v1.users.views import router as users_router
 
@@ -16,4 +18,6 @@ v1_router.include_router(users_router, tags=["Users"])
 v1_router.include_router(fighters_router)
 v1_router.include_router(simulations_router)
 v1_router.include_router(events_router)
+v1_router.include_router(predictions_router)
+v1_router.include_router(leagues_router)
 v1_router.include_router(admin_router, prefix="/admin", tags=["Admin"])

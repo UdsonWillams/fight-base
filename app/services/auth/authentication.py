@@ -66,6 +66,14 @@ class AuthService:
             return None
         return user
 
+    async def authenticate_google_user(
+        self, google_id: str, email: str, name: str, uow: UnitOfWorkConnection
+    ) -> User:
+        """Autentica ou cria usuário a partir de dados do Google."""
+        repository = UserRepository(uow)
+        user = await repository.get_or_create_google_user(google_id, email, name)
+        return user
+
     async def issue_token(self, email: str, uow: UnitOfWorkConnection) -> Token:
         repo = UserRepository(uow)
         user = await repo.get_user_by_email(email)

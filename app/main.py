@@ -16,6 +16,7 @@ from app.exceptions.exceptions import DefaultApiException
 from app.middlewares.response_time import ResponseTimeMiddleware
 from app.middlewares.trace_id import CreateTraceIdMiddleware
 from app.services.ml.model_loader import ml_model_loader
+from app.services.system_admin import create_admin
 
 config_file = alembic_config()
 settings = get_settings()
@@ -34,6 +35,10 @@ async def lifespan(app: Starlette) -> AsyncIterator:
     # Carregar modelo ML
     logger.info("🤖 Inicializando modelo ML...")
     ml_model_loader.load_model()
+
+    # Carregar system-admin
+    logger.info("🤖 Inicializando system-admin...")
+    await create_admin()
 
     yield
 

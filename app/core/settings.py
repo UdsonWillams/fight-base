@@ -73,6 +73,14 @@ class Settings(BaseSettings):
     ADMIN_DEFAULT_ROLE: str = "admin"
     GCP_CREDENTIALS_PATH: str = "service_account.json"
 
+    # Google OAuth 2.0 Settings
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"
+    GOOGLE_DISCOVERY_URL: str = (
+        "https://accounts.google.com/.well-known/openid-configuration"
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
