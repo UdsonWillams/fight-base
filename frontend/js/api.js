@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = "http://localhost:8080/api/v1";
+const API_BASE_URL = "/api/v1";
 
 // API Client
 class APIClient {
@@ -258,6 +258,60 @@ class APIClient {
 
     async listFighterPhotos(fighterId) {
         return this.request(`/fighters/${fighterId}/photos`);
+    }
+
+    // Predictions & Gamification
+    async createPrediction(data) {
+        return this.request("/predictions/", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getMyPredictions(eventId) {
+        return this.request(`/predictions/my/event/${eventId}`);
+    }
+
+    async getEventLeaderboard(eventId, limit = 50) {
+        return this.request(`/predictions/leaderboard/event/${eventId}?limit=${limit}`);
+    }
+
+    async getUserStats() {
+        return this.request("/predictions/my/stats");
+    }
+
+    async getAchievements() {
+        return this.request("/predictions/my/achievements");
+    }
+
+    async getFinishMethods() {
+        return this.request("/predictions/finish-methods");
+    }
+
+    // Leagues
+    async createLeague(data) {
+        return this.request("/leagues/", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async joinLeague(inviteCode) {
+        return this.request(`/leagues/join/${inviteCode}`, {
+            method: "POST",
+        });
+    }
+
+    async getMyLeagues() {
+        return this.request("/leagues/my");
+    }
+
+    // Admin Tools
+    async updateFightResult(eventId, fightId, data) {
+        return this.request(`/events/${eventId}/fights/${fightId}/result`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        });
     }
 }
 

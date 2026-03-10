@@ -7,6 +7,7 @@ class CreateUser(BaseModel):
     email: EmailStr
     password: str
     name: str
+    username: str
 
 
 class UpdateUser(BaseModel):

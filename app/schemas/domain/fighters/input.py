@@ -1,5 +1,6 @@
 """Schemas de input para Fighters"""
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -37,7 +38,10 @@ class FighterCreateInput(BaseModel):
     )
 
     # Informações adicionais
-    age: Optional[int] = Field(None, ge=18, le=60, description="Idade")
+    date_of_birth: Optional[datetime] = Field(None, description="Data de nascimento")
+    age: Optional[int] = Field(
+        None, ge=18, le=60, description="Idade (DEPRECATED: Use date_of_birth)"
+    )
     height_cm: Optional[float] = Field(None, ge=150, le=230, description="Altura em cm")
     weight_lbs: Optional[float] = Field(
         None, ge=100, le=300, description="Peso em libras"
@@ -114,6 +118,7 @@ class FighterUpdateInput(BaseModel):
     ko_wins: Optional[int] = Field(None, ge=0)
     submission_wins: Optional[int] = Field(None, ge=0)
 
+    date_of_birth: Optional[datetime] = Field(None, description="Data de nascimento")
     age: Optional[int] = Field(None, ge=18, le=60)
     height_cm: Optional[float] = Field(None, ge=150, le=230)
     weight_lbs: Optional[float] = Field(None, ge=100, le=300)

@@ -7,6 +7,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.applications import Starlette
+from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
 from app.core.logger import logger
@@ -15,13 +16,19 @@ from app.exceptions.exceptions import DefaultApiException
 from app.middlewares.response_time import ResponseTimeMiddleware
 from app.middlewares.trace_id import CreateTraceIdMiddleware
 from app.services.ml.model_loader import ml_model_loader
+
+from app.services.system_admin import create_admin
+
 from fastapi.concurrency import run_in_threadpool
+
 
 config_file = alembic_config()
 settings = get_settings()
 
 config_file.set_main_option("script_location", settings.APP_MIGRATIONS_FOLDER)
-config_file.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# ConfigParser requer que '%' seja escapado como '%%' para evitar erro de interpolação
+safe_url = settings.DATABASE_URL.replace("%", "%%")
+config_file.set_main_option("sqlalchemy.url", safe_url)
 
 
 @contextlib.asynccontextmanager
@@ -32,6 +39,10 @@ async def lifespan(app: Starlette) -> AsyncIterator:
     # Carregar modelo ML
     logger.info("🤖 Inicializando modelo ML...")
     ml_model_loader.load_model()
+
+    # Carregar system-admin
+    logger.info("🤖 Inicializando system-admin...")
+    await create_admin()
 
     yield
 
@@ -101,3 +112,4 @@ app.add_middleware(
 app.add_middleware(CreateTraceIdMiddleware)
 app.add_middleware(ResponseTimeMiddleware)
 app.include_router(router=api_router)
+app.mount("/", StaticFiles(directory="frontend", html=True), name="static")

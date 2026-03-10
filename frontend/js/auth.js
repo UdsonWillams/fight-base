@@ -4,6 +4,24 @@
 async function checkAuth() {
     const token = localStorage.getItem("idToken");
 
+    // Check URL for Google SSO redirect token
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get("token");
+
+    if (tokenFromUrl) {
+        localStorage.setItem("idToken", tokenFromUrl);
+        // Clean up the URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        api.setToken(tokenFromUrl);
+        const user = await api.getCurrentUser();
+        if (user) {
+            AppState.setCurrentUser(user);
+            updateAuthUI(true);
+            showToast("Login via Google realizado com sucesso! 🥊", "success");
+            return true;
+        }
+    }
+
     if (token) {
         try {
             // Check if token is expired
@@ -38,6 +56,93 @@ async function checkAuth() {
     return false;
 }
 
+// 🎲 Gamification Logic
+
+// Password Humor Meter
+function updatePasswordMeter(password) {
+    const meterFill = document.getElementById("meterFill");
+    const meterText = document.getElementById("meterText");
+
+    // Simple strength calculation
+    let strength = 0;
+    if (password.length > 5) strength += 20;
+    if (password.length > 8) strength += 20;
+    if (/[A-Z]/.test(password)) strength += 20;
+    if (/[0-9]/.test(password)) strength += 20;
+    if (/[^A-Za-z0-9]/.test(password)) strength += 20;
+
+    // Humor texts
+    let color = "var(--error)";
+    let text = "Senha de avó 👵";
+
+    if (strength >= 40) {
+        color = "var(--warning)";
+        text = "Tá melhorando... 😐";
+    }
+    if (strength >= 80) {
+        color = "var(--success)";
+        text = "Nível Hacker 🐱‍💻";
+    }
+    if (strength === 100) {
+        color = "#00F0FF";
+        text = "NASA, é você? 🚀";
+    }
+
+    if (password.length === 0) {
+        strength = 0;
+        text = "Digite sua senha...";
+        color = "transparent";
+    }
+
+    meterFill.style.width = `${strength}%`;
+    meterFill.style.backgroundColor = color;
+    meterText.textContent = text;
+    meterText.style.color = color;
+}
+
+// Age Validation (13+)
+function validateAge(dateString) {
+    const birthday = new Date(dateString);
+    const today = new Date();
+    let age = today.getFullYear() - birthday.getFullYear();
+    const m = today.getMonth() - birthday.getMonth();
+
+    if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) {
+        age--;
+    }
+
+    return age >= 13;
+}
+
+// 🎉 Confetti Celebration
+function triggerCelebration() {
+    const duration = 3000;
+    const end = Date.now() + duration;
+
+    (function frame() {
+        // launch a few confetti from the left edge
+        confetti({
+            particleCount: 7,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: ['#FF2E4D', '#00F0FF', '#ffffff']
+        });
+        // and launch a few from the right edge
+        confetti({
+            particleCount: 7,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: ['#FF2E4D', '#00F0FF', '#ffffff']
+        });
+
+        if (Date.now() < end) {
+            requestAnimationFrame(frame);
+        }
+    }());
+}
+
 // Register
 async function handleRegister(event) {
     event.preventDefault();
@@ -46,23 +151,45 @@ async function handleRegister(event) {
     const email = document.getElementById("registerEmail").value;
     const password = document.getElementById("registerPassword").value;
 
+    // New Fields
+    const username = document.getElementById("registerUsername").value;
+    const birthday = document.getElementById("registerBirthday").value;
+    const avatar = document.getElementById("selectedAvatar").value;
+
+    // Validate Age
+    if (!validateAge(birthday)) {
+        showToast("Você precisa ter pelo menos 13 anos para participar do Fight Club! 👶", "error");
+        return;
+    }
+
     try {
         showLoading("Criando conta...");
 
+        // Mock API call to include new fields (backend upgrade needed later)
+        // For now, we register with standard fields
         await api.register({
             name,
             email,
             password,
+            // Assuming API will ignore extra fields for now or we store them in User profile later
+            username,
+            birthday,
+            avatar
         });
 
-        showToast("Conta criada com sucesso! Faça login.", "success");
-        showSection("login");
+        // 🎉 SUCCESS!
+        triggerCelebration();
 
-        // Pre-fill login form
-        document.getElementById("loginEmail").value = email;
+        showToast("Conta criada com sucesso! Bem-vindo ao octógono! 🥊", "success");
 
-        // Clear register form
-        document.getElementById("registerForm").reset();
+        // Wait for confetti before switching
+        setTimeout(() => {
+            showSection("login");
+            // Pre-fill login
+            document.getElementById("loginEmail").value = email;
+            document.getElementById("registerForm").reset();
+        }, 1500);
+
     } catch (error) {
         showToast(error.message || "Erro ao criar conta", "error");
     } finally {
@@ -141,13 +268,11 @@ function updateAuthUI(isLoggedIn) {
     }
 }
 
-// Google Login (Firebase integration - requires configuration)
+// Google Login
 async function handleGoogleLogin() {
-    showToast(
-        "Login com Google não configurado. Use email e senha.",
-        "warning"
-    );
-    // TODO: Implementar integração com Firebase quando necessário
+    showToast("Redirecionando para o Google...", "info");
+    // Redireciona para o backend
+    window.location.href = `${API_BASE_URL}/auth/google/login`;
 }
 
 // Check if user is authenticated
@@ -195,6 +320,25 @@ function setupAuthListeners() {
     if (registerForm) {
         registerForm.addEventListener("submit", handleRegister);
     }
+
+    // PasswordMeter Listener
+    const registerPassword = document.getElementById("registerPassword");
+    if (registerPassword) {
+        registerPassword.addEventListener("input", (e) => updatePasswordMeter(e.target.value));
+    }
+
+    // Avatar Selection Logic
+    const avatarOptions = document.querySelectorAll(".avatar-option");
+    avatarOptions.forEach(opt => {
+        opt.addEventListener("click", () => {
+             // Remove select from all
+             avatarOptions.forEach(o => o.classList.remove("selected"));
+             // Add to clicked
+             opt.classList.add("selected");
+             // Update hidden input
+             document.getElementById("selectedAvatar").value = opt.dataset.avatar;
+        });
+    });
 
     // Password toggles
     const passwordToggles = document.querySelectorAll(".password-toggle");

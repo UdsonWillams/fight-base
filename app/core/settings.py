@@ -36,16 +36,23 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
 
+    # Allow explicit override (useful for Cloud SQL Sockets or full DSNs)
+    DATABASE_URL_ENV: str | None = None
+
     # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
 
     @property
     def DATABASE_URL(self):  # pragma: no cover
+        if self.DATABASE_URL_ENV:
+            return self.DATABASE_URL_ENV
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property
     def DATABASE_URL_SYNC(self):  # pragma: no cover
+        if self.DATABASE_URL_ENV:
+            return self.DATABASE_URL_ENV.replace("+asyncpg", "")
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # fake store api
@@ -64,6 +71,15 @@ class Settings(BaseSettings):
     ADMIN_DEFAULT_EMAIL: str = "admin@mail.com"
     ADMIN_DEFAULT_PASSWORD: str = "pass@word"
     ADMIN_DEFAULT_ROLE: str = "admin"
+    GCP_CREDENTIALS_PATH: str = "service_account.json"
+
+    # Google OAuth 2.0 Settings
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"
+    GOOGLE_DISCOVERY_URL: str = (
+        "https://accounts.google.com/.well-known/openid-configuration"
+    )
 
 
 @lru_cache

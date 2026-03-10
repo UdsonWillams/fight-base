@@ -1,0 +1,424 @@
+/* Professional Events Styles */
+:root {
+    --ufc-red: #d20a0a;
+    --bellator-blue: #003366;
+    --one-gold: #c6a664;
+    --pfl-orange: #ff4500;
+    --rizin-green: #008000;
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+/* Event List Grid */
+.events-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 2rem;
+    padding: 1rem 0;
+}
+
+/* Premium Event Card */
+.event-card-v2 {
+    position: relative;
+    background: linear-gradient(145deg, #1a1a24 0%, #0d0d12 100%);
+    border-radius: 20px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+
+.event-card-v2:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Dynamic Organizational Accent Line */
+.event-card-v2::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6px;
+    height: 100%;
+    background: var(--primary);
+    z-index: 2;
+}
+
+.event-card-v2.org-ufc::before {
+    background: var(--ufc-red);
+}
+
+.event-card-v2.org-bellator::before {
+    background: var(--bellator-blue);
+}
+
+.event-card-v2.org-one::before {
+    background: var(--one-gold);
+}
+
+.event-card-v2.org-pfl::before {
+    background: var(--pfl-orange);
+}
+
+.event-card-body {
+    padding: 1.8rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.event-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.event-card-v2 h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin: 0;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.event-org-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+}
+
+.event-card-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.detail-item i {
+    font-size: 1.1rem;
+    opacity: 0.7;
+}
+
+.event-card-footer {
+    padding: 1.2rem 1.8rem;
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--glass-border);
+}
+
+/* Floating Actions */
+.event-floating-actions {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: all 0.3s ease;
+    z-index: 3;
+}
+
+.event-card-v2:hover .event-floating-actions {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.4rem 1rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.status-scheduled {
+    background: rgba(52, 152, 219, 0.15);
+    color: #3498db;
+}
+
+.status-completed {
+    background: rgba(46, 204, 113, 0.15);
+    color: #2ecc71;
+}
+
+.status-in_progress {
+    background: rgba(241, 196, 15, 0.15);
+    color: #f1c40f;
+    animation: pulse-yellow 2s infinite;
+}
+
+/* Broadcast Detailed Page */
+.event-details-hero {
+    background: linear-gradient(180deg, rgba(10, 10, 15, 0) 0%, #0a0a0f 100%),
+        url('https://images.unsplash.com/photo-1599026618588-467439369062?auto=format&fit=crop&w=1500&q=80');
+    background-size: cover;
+    background-position: center;
+    padding: 6rem 2rem 3rem;
+    border-radius: 24px;
+    margin-bottom: 2rem;
+    text-align: center;
+    border: 1px solid var(--glass-border);
+}
+
+.event-details-content {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 2.5rem;
+}
+
+/* Fight Cards inside Event V2 */
+.fights-list-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    /* Aumentado o gap entre lutas */
+}
+
+/* Form Styles */
+.event-form-v2 {
+    background: rgba(15, 15, 20, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 2.5rem;
+}
+
+.card-builder-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--glass-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.fight-card-v2 {
+    background: linear-gradient(90deg, #16161d 0%, #1a1a24 100%);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+}
+
+.fight-card-v2::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #d20a0a, #3498db);
+}
+
+.fight-v2-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.title-fight-badge {
+    color: #f1c40f;
+    background: rgba(241, 196, 15, 0.1);
+    padding: 0.2rem 0.8rem;
+    border-radius: 4px;
+}
+
+.fight-v2-grid {
+    display: grid;
+    grid-template-columns: 1fr 100px 1fr;
+    align-items: center;
+    gap: 2rem;
+}
+
+.fighter-v2 {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.red-corner {
+    text-align: left;
+}
+
+.blue-corner {
+    text-align: right;
+    justify-content: flex-end;
+}
+
+.fighter-v2-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--glass-border);
+    background: #000;
+}
+
+.red-corner .fighter-v2-avatar {
+    border-color: var(--ufc-red);
+}
+
+.blue-corner .fighter-v2-avatar {
+    border-color: var(--primary);
+}
+
+.fighter-v2-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.fighter-name {
+    display: block;
+    font-size: 1.25rem;
+    /* Reduzido levemente de 1.4rem */
+    font-weight: 800;
+    font-family: 'Outfit', sans-serif;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    /* Impede quebra de linha que estava bagunçando */
+}
+
+.fighter-nick {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fight-v2-vs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.vs-circle {
+    width: 40px;
+    height: 40px;
+    background: #000;
+    border: 2px solid var(--glass-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.fight-v2-meta {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.fight-v2-result {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed var(--glass-border);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.winner-announcement {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.winner-name {
+    color: #2ecc71;
+    font-weight: 800;
+    font-size: 1.4rem;
+    /* Definido tamanho explícito */
+    font-family: 'Outfit', sans-serif;
+}
+
+.result-details {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    opacity: 0.9;
+}
+
+@keyframes pulse-yellow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(241, 196, 15, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(241, 196, 15, 0);
+    }
+}
+
+@media (max-width: 768px) {
+    .events-list {
+        grid-template-columns: 1fr;
+    }
+
+    .event-details-content {
+        grid-template-columns: 1fr;
+    }
+
+    .fight-v2-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .fight-v2-vs {
+        order: 3;
+    }
+
+    .blue-corner {
+        flex-direction: row-reverse;
+        text-align: left;
+        justify-content: flex-start;
+    }
+}

@@ -132,7 +132,7 @@ class FighterService:
             draws=data.draws or 0,
             ko_wins=data.ko_wins or 0,
             submission_wins=data.submission_wins or 0,
-            age=data.age,
+            date_of_birth=data.date_of_birth,
             height_cm=data.height_cm,
             weight_lbs=data.weight_lbs,
             reach_cm=data.reach_cm,
@@ -173,6 +173,10 @@ class FighterService:
 
         # Prepara dados para atualização (apenas campos não-None)
         update_data = data.model_dump(exclude_unset=True, exclude_none=True)
+
+        # Remove age pois é uma property no modelo
+        if "age" in update_data:
+            del update_data["age"]
 
         # Valida atributos se foram fornecidos
         attributes_to_check = [

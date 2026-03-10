@@ -58,12 +58,8 @@ async function loadFighters(filters = {}) {
 
         displayFighters(AppState.allFighters);
     } catch (error) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <p>❌ Erro ao carregar lutadores</p>
-                <p class="text-muted">Tente novamente mais tarde</p>
-            </div>
-        `;
+        // User prefers only Toast notification, keep container clean or show simple empty state if needed
+        container.innerHTML = '';
         console.error("Error loading fighters:", error);
         showToast("Erro ao carregar lutadores", "error");
     }
@@ -85,8 +81,9 @@ function createFighterCard(fighter) {
     cardEl.dataset.fighterId = fighter.id;
 
     // Set image
-    if (fighter.photo_url) {
-        imageEl.innerHTML = `<img src="${fighter.photo_url}" alt="${fighter.name}" style="width:100%; height:100%; object-fit:cover;">`;
+    const photoUrl = fighter.image_url || fighter.photo_url;
+    if (photoUrl) {
+        imageEl.innerHTML = `<img src="${photoUrl}" alt="${escapeHTML(fighter.name)}" style="width:100%; height:100%; object-fit:cover;">`;
     } else {
         imageEl.textContent = "🥊";
     }
@@ -214,6 +211,8 @@ async function handleCreateFighter(event) {
         fighting_style:
             document.getElementById("fighterStyle").value ||
             "Mixed Martial Arts",
+        image_url: document.getElementById("fighterImage").value || null,
+        date_of_birth: document.getElementById("fighterDOB").value || null,
         striking: parseInt(document.getElementById("striking").value),
         grappling: parseInt(document.getElementById("grappling").value),
         defense: parseInt(document.getElementById("defense").value),
@@ -257,8 +256,8 @@ async function showFighterDetails(id) {
             <div class="fighter-details-header">
                 <div class="fighter-details-image">
                     ${
-                        fighter.photo_url
-                            ? `<img src="${fighter.photo_url}" alt="${fighter.name}">`
+                        (fighter.image_url || fighter.photo_url)
+                            ? `<img src="${fighter.image_url || fighter.photo_url}" alt="${fighter.name}">`
                             : "🥊"
                     }
                 </div>
@@ -266,11 +265,11 @@ async function showFighterDetails(id) {
                     <div class="fighter-name-row">
                         <div>
                             <h2 class="fighter-details-name">${
-                                fighter.name
+                                escapeHTML(fighter.name)
                             }</h2>
                             ${
                                 fighter.nickname
-                                    ? `<p class="fighter-details-nickname">"${fighter.nickname}"</p>`
+                                    ? `<p class="fighter-details-nickname">"${escapeHTML(fighter.nickname)}"</p>`
                                     : ""
                             }
                         </div>
@@ -345,77 +344,24 @@ async function showFighterDetails(id) {
             <div class="fighter-details-body">
                 <div>
                     <div class="fighter-details-section">
-                        <h3>📊 Informações Físicas</h3>
+                        <h3>📊 Estatísticas Físicas</h3>
                         <div class="physical-stats">
-                            ${
-                                fighter.height
-                                    ? `
-                                <div class="physical-stat-item">
-                                    <div class="physical-stat-label">Altura</div>
-                                    <div class="physical-stat-value">${
-                                        typeof formatHeight !== "undefined"
-                                            ? formatHeight(fighter.height)
-                                            : fighter.height + " cm"
-                                    }</div>
-                                </div>
-                            `
-                                    : ""
-                            }
-                            ${
-                                fighter.weight
-                                    ? `
-                                <div class="physical-stat-item">
-                                    <div class="physical-stat-label">Peso</div>
-                                    <div class="physical-stat-value">${
-                                        typeof formatWeight !== "undefined"
-                                            ? formatWeight(fighter.weight)
-                                            : fighter.weight + " kg"
-                                    }</div>
-                                </div>
-                            `
-                                    : ""
-                            }
-                            ${
-                                fighter.reach
-                                    ? `
-                                <div class="physical-stat-item">
-                                    <div class="physical-stat-label">Alcance</div>
-                                    <div class="physical-stat-value">${fighter.reach} cm</div>
-                                </div>
-                            `
-                                    : ""
-                            }
-                            ${
-                                fighter.stance
-                                    ? `
-                                <div class="physical-stat-item">
-                                    <div class="physical-stat-label">Guarda</div>
-                                    <div class="physical-stat-value">${
-                                        typeof translateStance !== "undefined"
-                                            ? translateStance(fighter.stance)
-                                            : fighter.stance
-                                    }</div>
-                                </div>
-                            `
-                                    : ""
-                            }
-                            ${
-                                fighter.fighting_style
-                                    ? `
-                                <div class="physical-stat-item">
-                                    <div class="physical-stat-label">Estilo</div>
-                                    <div class="physical-stat-value">${
-                                        typeof translateFightingStyle !==
-                                        "undefined"
-                                            ? translateFightingStyle(
-                                                  fighter.fighting_style
-                                              )
-                                            : fighter.fighting_style
-                                    }</div>
-                                </div>
-                            `
-                                    : ""
-                            }
+                            <div class="physical-stat-item">
+                                <div class="physical-stat-label">Altura</div>
+                                <div class="physical-stat-value">${fighter.height ? (typeof formatHeight !== "undefined" ? formatHeight(fighter.height) : fighter.height + " cm") : "N/A"}</div>
+                            </div>
+                            <div class="physical-stat-item">
+                                <div class="physical-stat-label">Peso</div>
+                                <div class="physical-stat-value">${fighter.weight ? (typeof formatWeight !== "undefined" ? formatWeight(fighter.weight) : fighter.weight + " kg") : "N/A"}</div>
+                            </div>
+                            <div class="physical-stat-item">
+                                <div class="physical-stat-label">Alcance</div>
+                                <div class="physical-stat-value">${fighter.reach ? fighter.reach + " cm" : "N/A"}</div>
+                            </div>
+                            <div class="physical-stat-item">
+                                <div class="physical-stat-label">Base</div>
+                                <div class="physical-stat-value">${fighter.stance ? (typeof translateStance !== "undefined" ? translateStance(fighter.stance) : fighter.stance) : "N/A"}</div>
+                            </div>
                         </div>
                     </div>
 
@@ -554,8 +500,7 @@ async function showFighterDetails(id) {
                                             }
                                         </div>
                                         <div class="cartel-opponent">vs ${
-                                            fight.opponent ||
-                                            "Oponente desconhecido"
+                                            escapeHTML(fight.opponent || "Oponente desconhecido")
                                         }</div>
                                         <div class="cartel-details">
                                             ${
@@ -625,50 +570,36 @@ async function loadFighterPreview(fighterId, containerId) {
         const fighter = await api.getFighter(fighterId);
 
         container.innerHTML = `
-            <div class="fighter-preview-card">
-                <h4>${fighter.name}</h4>
-                ${
-                    fighter.nickname
-                        ? `<p style="font-style:italic; color:#666;">"${fighter.nickname}"</p>`
-                        : ""
-                }
-                <div style="margin-top: 1rem;">
-                    <div class="stat-bar">
-                        <div class="stat-label">
-                            <span>Overall</span>
-                            <span><strong>${Math.round(
-                                getOverall(fighter)
-                            )}</strong></span>
+            <div class="fighter-card" style="height: auto; cursor: default; transform: none; box-shadow: none; border-color: rgba(255,255,255,0.1);">
+                <div class="fighter-image" style="height: 200px;">
+                    ${(fighter.image_url || fighter.photo_url) ? `<img src="${fighter.image_url || fighter.photo_url}" alt="${fighter.name}">` : "🥊"}
+                </div>
+                <div class="fighter-info" style="padding: 1.25rem;">
+                    <div class="fighter-name" style="font-size: 1.2rem;">${escapeHTML(fighter.name)}</div>
+                    ${fighter.nickname ? `<div class="fighter-nickname" style="font-size: 0.85rem;">"${escapeHTML(fighter.nickname)}"</div>` : ""}
+
+                    <div class="fighter-stats" style="margin-top: 1rem; gap: 0.5rem;">
+                        <div class="stat-bar overall-stat">
+                            <div class="stat-label" style="font-size: 0.75rem;">
+                                <span>Overall</span>
+                                <span class="overall-value"><strong>${Math.round(getOverall(fighter))}</strong></span>
+                            </div>
+                            <div class="stat-progress" style="height: 6px;"><div class="stat-fill" style="width: ${getOverall(fighter)}%;"></div></div>
                         </div>
-                        <div class="stat-progress">
-                            <div class="stat-fill" style="width: ${getOverall(
-                                fighter
-                            )}%"></div>
+                        <div class="stat-bar striking-stat">
+                            <div class="stat-label" style="font-size: 0.75rem;">
+                                <span>Striking</span>
+                                <span class="overall-value">${fighter.striking}</span>
+                            </div>
+                            <div class="stat-progress" style="height: 6px;"><div class="stat-fill" style="width: ${fighter.striking}%;"></div></div>
                         </div>
-                    </div>
-                    <div class="stat-bar">
-                        <div class="stat-label"><span>Striking</span><span>${
-                            fighter.striking
-                        }</span></div>
-                        <div class="stat-progress"><div class="stat-fill" style="width: ${
-                            fighter.striking
-                        }%"></div></div>
-                    </div>
-                    <div class="stat-bar">
-                        <div class="stat-label"><span>Grappling</span><span>${
-                            fighter.grappling
-                        }</span></div>
-                        <div class="stat-progress"><div class="stat-fill" style="width: ${
-                            fighter.grappling
-                        }%"></div></div>
-                    </div>
-                    <div class="stat-bar">
-                        <div class="stat-label"><span>Defense</span><span>${
-                            fighter.defense
-                        }</span></div>
-                        <div class="stat-progress"><div class="stat-fill" style="width: ${
-                            fighter.defense
-                        }%"></div></div>
+                        <div class="stat-bar grappling-stat">
+                            <div class="stat-label" style="font-size: 0.75rem;">
+                                <span>Grappling</span>
+                                <span class="overall-value">${fighter.grappling}</span>
+                            </div>
+                            <div class="stat-progress" style="height: 6px;"><div class="stat-fill" style="width: ${fighter.grappling}%;"></div></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -798,14 +729,25 @@ async function openEditFighterModal(fighterId) {
         document.getElementById("editFighterName").value = fighter.name;
         document.getElementById("editFighterNickname").value =
             fighter.nickname || "";
-        document.getElementById("editFighterHeight").value =
-            fighter.height_cm || "";
+
+        if (fighter.date_of_birth) {
+            const dob = new Date(fighter.date_of_birth);
+            const dateStr = dob.toISOString().split('T')[0];
+            document.getElementById("editFighterDOB").value = dateStr;
+        } else {
+            document.getElementById("editFighterDOB").value = "";
+        }
+
+        document.getElementById("editFighterOrg").value =
+            fighter.last_organization_fight || "UFC";
         document.getElementById("editFighterWeight").value =
             fighter.weight_lbs || "";
-        document.getElementById("editFighterReach").value =
-            fighter.reach_cm || "";
+        document.getElementById("editFighterHeight").value =
+            fighter.height_cm || "";
         document.getElementById("editFighterStance").value =
             fighter.stance || "";
+        document.getElementById("editFighterImage").value =
+            fighter.image_url || "";
 
         // Set attribute sliders
         document.getElementById("editStriking").value = fighter.striking || 50;
@@ -857,6 +799,7 @@ async function saveFighterEdits() {
                 parseFloat(
                     document.getElementById("editFighterHeight").value
                 ) || null,
+            last_organization_fight: document.getElementById("editFighterOrg").value || "UFC",
             weight_lbs:
                 parseFloat(
                     document.getElementById("editFighterWeight").value
@@ -864,6 +807,8 @@ async function saveFighterEdits() {
             reach_cm:
                 parseFloat(document.getElementById("editFighterReach").value) ||
                 null,
+            nickname: document.getElementById("editFighterNickname").value || null,
+            date_of_birth: document.getElementById("editFighterDOB").value || null,
             stance: document.getElementById("editFighterStance").value || null,
             striking: parseInt(document.getElementById("editStriking").value),
             grappling: parseInt(document.getElementById("editGrappling").value),
@@ -871,6 +816,7 @@ async function saveFighterEdits() {
             stamina: parseInt(document.getElementById("editStamina").value),
             speed: parseInt(document.getElementById("editSpeed").value),
             strategy: parseInt(document.getElementById("editStrategy").value),
+            image_url: document.getElementById("editFighterImage").value || null, // Ensure this line is present and correct
         };
 
         await api.updateFighter(fighterId, updates);

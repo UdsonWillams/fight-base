@@ -110,6 +110,21 @@ async function showConfirm(title, message) {
 }
 
 /**
+ * Escapa caracteres HTML para prevenir XSS
+ * @param {string} str - String para escapar
+ * @returns {string} String escapada
+ */
+function escapeHTML(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+/**
  * Mostra notificação toast
  * @param {string} message - Mensagem a exibir
  * @param {string} type - Tipo: 'success', 'error', 'warning', 'info'

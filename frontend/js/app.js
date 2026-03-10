@@ -100,6 +100,12 @@ function showSection(sectionName) {
         case "editEvent":
             // Page is loaded via editEvent function
             break;
+        case "rankings":
+            initPredictionsSection();
+            break;
+        case "leagues":
+            loadMyLeagues();
+            break;
         case "home":
             loadHomeStats();
             break;

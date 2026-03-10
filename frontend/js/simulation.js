@@ -141,13 +141,13 @@ function displaySearchResults(fighters, resultsId, fighterNum) {
         <div class="search-result-item" data-fighter-id="${
             fighter.id
         }" data-fighter-num="${fighterNum}">
-            <div class="search-result-name">${fighter.name}</div>
+            <div class="search-result-name">${escapeHTML(fighter.name)}</div>
             <div class="search-result-info">
-                ${fighter.nickname ? `<span>"${fighter.nickname}"</span>` : ""}
+                ${fighter.nickname ? `<span>"${escapeHTML(fighter.nickname)}"</span>` : ""}
                 <span>${
-                    fighter.last_organization_fight ||
+                    escapeHTML(fighter.last_organization_fight ||
                     fighter.organization ||
-                    "N/A"
+                    "N/A")
                 }</span>
                 <span>${
                     typeof translateWeightClass !== "undefined"
@@ -293,6 +293,8 @@ async function animateFightLive(result, container) {
         fighter2_name,
         fighter1_id,
         fighter2_id,
+        fighter1_probability,
+        fighter2_probability
     } = result;
 
     // Buscar fotos dos lutadores
@@ -301,51 +303,52 @@ async function animateFightLive(result, container) {
 
     // Container principal da animação
     const animationContainer = document.createElement("div");
-    animationContainer.className = "fight-animation";
+    animationContainer.className = "fight-animation animate-fade-in";
     animationContainer.innerHTML = `
         <div class="fight-header">
             <div class="fighter-corner fighter-1">
-                <div class="fighter-photo" id="fighter1Photo">
-                    ${
-                        fighter1Photo
-                            ? `<img src="${fighter1Photo}" alt="${fighter1_name}" onerror="this.parentElement.innerHTML='🥊'" />`
-                            : "🥊"
-                    }
+                <div class="fighter-photo">
+                    ${fighter1Photo ? `<img src="${fighter1Photo}" alt="${escapeHTML(fighter1_name)}" onerror="this.src='https://via.placeholder.com/150?text=🥊'">` : "🥊"}
                 </div>
-                <h3>${fighter1_name}</h3>
-                <div class="corner-probability" style="font-size: 1.5rem; color: var(--primary); font-weight: bold; margin: 0.5rem 0;">
-                    ${result.fighter1_probability}%
+                <h3>${escapeHTML(fighter1_name)}</h3>
+                <div class="momentum-bar"><div class="momentum-fill" id="momentum1" style="width: 50%"></div></div>
+                <div class="corner-stats">
+                    <div class="stat-box"><small>Score</small><span id="fighter1Score">0.0</span></div>
+                    <div class="stat-box"><small>Golpes</small><span id="fighter1Strikes">0</span></div>
                 </div>
-                <small style="color: var(--text-light); display: block; margin-bottom: 0.5rem;">Probabilidade de vitória</small>
-                <div class="corner-score" id="fighter1Score">0</div>
-                <div class="corner-strikes" id="fighter1Strikes" style="display: none;">0 golpes</div>
+                <div class="probability-badge" style="margin-top: 1rem; font-size: 0.8rem; color: var(--primary); font-weight: 700;">
+                    PREDIÇÃO: ${fighter1_probability}%
+                </div>
             </div>
+
             <div class="fight-status">
-                <div class="round-indicator" id="roundIndicator">Preparando...</div>
+                <div class="round-indicator" id="roundIndicator">PREPARANDO</div>
                 <div class="time-bar-container">
                     <div class="time-bar" id="timeBar"></div>
                 </div>
+                <div style="font-size: 0.8rem; color: #fff; font-weight: 600; letter-spacing: 2px;">LIVE SIMULATION</div>
             </div>
+
             <div class="fighter-corner fighter-2">
-                <div class="fighter-photo" id="fighter2Photo">
-                    ${
-                        fighter2Photo
-                            ? `<img src="${fighter2Photo}" alt="${fighter2_name}" onerror="this.parentElement.innerHTML='🥊'" />`
-                            : "🥊"
-                    }
+                <div class="fighter-photo">
+                    ${fighter2Photo ? `<img src="${fighter2Photo}" alt="${escapeHTML(fighter2_name)}" onerror="this.src='https://via.placeholder.com/150?text=🥊'">` : "🥊"}
                 </div>
-                <h3>${fighter2_name}</h3>
-                <div class="corner-probability" style="font-size: 1.5rem; color: var(--primary); font-weight: bold; margin: 0.5rem 0;">
-                    ${result.fighter2_probability}%
+                <h3>${escapeHTML(fighter2_name)}</h3>
+                <div class="momentum-bar"><div class="momentum-fill" id="momentum2" style="width: 50%"></div></div>
+                <div class="corner-stats">
+                    <div class="stat-box"><small>Score</small><span id="fighter2Score">0.0</span></div>
+                    <div class="stat-box"><small>Golpes</small><span id="fighter2Strikes">0</span></div>
                 </div>
-                <small style="color: var(--text-light); display: block; margin-bottom: 0.5rem;">Probabilidade de vitória</small>
-                <div class="corner-score" id="fighter2Score">0</div>
-                <div class="corner-strikes" id="fighter2Strikes" style="display: none;">0 golpes</div>
+                <div class="probability-badge" style="margin-top: 1rem; font-size: 0.8rem; color: var(--accent); font-weight: 700;">
+                    PREDIÇÃO: ${fighter2_probability}%
+                </div>
             </div>
         </div>
+
         <div class="fight-events" id="fightEvents"></div>
-        <div class="fight-controls">
-            <button id="skipAnimation" class="btn btn-secondary btn-sm">Pular Animação</button>
+
+        <div class="fight-controls" style="margin-top: 2rem; display: flex; justify-content: center;">
+            <button id="skipAnimation" class="btn btn-outline btn-sm" style="border-radius: 50px;">⏩ Pular para o resultado</button>
         </div>
     `;
 
@@ -357,36 +360,48 @@ async function animateFightLive(result, container) {
         skipRequested = true;
     });
 
-    // Rastrear golpes acumulados
-    let fighter1TotalStrikes = 0;
-    let fighter2TotalStrikes = 0;
+    let f1TotalStrikes = 0;
+    let f2TotalStrikes = 0;
+    let f1TotalScore = 0;
+    let f2TotalScore = 0;
 
     // Animar cada round
     for (let i = 0; i < simulation_details.rounds.length; i++) {
         if (skipRequested) break;
 
         const round = simulation_details.rounds[i];
+
+        // Atualizar Momentum visual baseado nos pontos do round anterior
+        if (i > 0) {
+            const prevRound = simulation_details.rounds[i-1];
+            const totalPoints = prevRound.fighter1_points + prevRound.fighter2_points;
+            if (totalPoints > 0) {
+                document.getElementById("momentum1").style.width = `${(prevRound.fighter1_points / totalPoints) * 100}%`;
+                document.getElementById("momentum2").style.width = `${(prevRound.fighter2_points / totalPoints) * 100}%`;
+            }
+        }
+
         const roundStrikes = await animateRound(
             round,
             i === simulation_details.rounds.length - 1,
             result,
-            fighter1TotalStrikes,
-            fighter2TotalStrikes
+            f1TotalStrikes,
+            f2TotalStrikes
         );
 
-        // Acumular golpes
-        fighter1TotalStrikes = roundStrikes.fighter1Total;
-        fighter2TotalStrikes = roundStrikes.fighter2Total;
+        f1TotalStrikes = roundStrikes.fighter1Total;
+        f2TotalStrikes = roundStrikes.fighter2Total;
+        f1TotalScore += round.fighter1_points;
+        f2TotalScore += round.fighter2_points;
 
         if (skipRequested) break;
 
-        // Pausa entre rounds (exceto no último)
         if (i < simulation_details.rounds.length - 1) {
             await showRoundBreak();
         }
     }
 
-    // Mostrar resultado final
+    // Mostrar resultado final profissional
     await showFinalResult(result, container, skipRequested);
 }
 
@@ -475,21 +490,24 @@ async function animateRound(
     document.getElementById("fighter2Score").textContent =
         round.fighter2_points.toFixed(1);
 
-    // Mostrar e atualizar golpes significativos ACUMULADOS no final do round
-    const fighter1StrikesEl = document.getElementById("fighter1Strikes");
-    const fighter2StrikesEl = document.getElementById("fighter2Strikes");
+    // Atualizar Golpes
+    document.getElementById("fighter1Strikes").textContent = fighter1TotalStrikes;
+    document.getElementById("fighter2Strikes").textContent = fighter2TotalStrikes;
 
-    fighter1StrikesEl.textContent = `${fighter1TotalStrikes} golpes`;
-    fighter2StrikesEl.textContent = `${fighter2TotalStrikes} golpes`;
-    fighter1StrikesEl.style.display = "block";
-    fighter2StrikesEl.style.display = "block";
+    // Atualizar Momentum visual
+    const totalScore = round.fighter1_points + round.fighter2_points;
+    if (totalScore > 0) {
+        document.getElementById("momentum1").style.width = `${(round.fighter1_points / totalScore) * 100}%`;
+        document.getElementById("momentum2").style.width = `${(round.fighter2_points / totalScore) * 100}%`;
+    }
 
-    // Mostrar resumo do round com golpes DO ROUND (não acumulado)
+    // Mostrar resumo do round
     const roundSummary = document.createElement("div");
     roundSummary.className = "round-summary animate-fade-in";
     roundSummary.innerHTML = `
-        <strong>Fim do Round ${round.round_number}</strong><br>
-        Golpes do Round: ${result.fighter1_name} ${fighter1RoundStrikes} - ${fighter2RoundStrikes} ${result.fighter2_name}
+        ROUND ${round.round_number} FINALIZADO<br>
+        <span style="color: var(--primary)">${result.fighter1_name}: ${round.fighter1_points.toFixed(1)}</span> —
+        <span style="color: var(--accent)">${round.fighter2_points.toFixed(1)} :${result.fighter2_name}</span>
     `;
     eventsContainer.appendChild(roundSummary);
 
@@ -513,9 +531,14 @@ async function showRoundBreak() {
 // Helper to get fighter photo URL
 async function getFighterPhotoUrl(fighterId) {
     try {
+        // Buscar detalhes do lutador para pegar image_url (prioridade)
+        const fighter = await api.getFighter(fighterId);
+        if (fighter.image_url) return fighter.image_url;
+
+        // Fallback para fotos carregadas no sistema
         const response = await api.listFighterPhotos(fighterId);
         if (response && response.length > 0) {
-            return response[0]; // Primeira foto
+            return response[0];
         }
     } catch (error) {
         console.log("No photo found for fighter:", fighterId);
@@ -523,61 +546,68 @@ async function getFighterPhotoUrl(fighterId) {
     return null; // Retorna null para usar fallback de luva
 }
 
-// Show final result
+// Show final result professional card
 async function showFinalResult(result, container, wasSkipped) {
     const fightAnimation = container.querySelector(".fight-animation");
     if (fightAnimation && !wasSkipped) {
-        await delay(500);
+        await delay(1000);
     }
 
-    // Criar card com predição vs resultado
+    // Criar card de resultado impactante
     const resultCard = document.createElement("div");
-    resultCard.className = "result-winner animate-fade-in";
+    resultCard.className = "result-winner-card animate-fade-in";
+
+    const isDraw = result.result_type.toLowerCase().includes("draw") || result.result_type.toLowerCase().includes("empate");
+
     resultCard.innerHTML = `
-        <div style="background: linear-gradient(135deg, var(--primary), var(--accent)); padding: 3rem 2rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 2rem;">
-            <h2 style="color: white; margin-bottom: 1rem;">🏆 VENCEDOR</h2>
-            <h1 style="font-size: 3rem; margin: 1rem 0; color: white;">${
-                result.winner_name
-            }</h1>
-            <p style="font-size: 1.5rem; margin-top: 1rem; color: white;">
-                Por ${formatResultType(result.result_type)}
-                ${result.finish_round ? ` no Round ${result.finish_round}` : ""}
-            </p>
+        <div class="winner-title">${isDraw ? "RESULTADO OFICIAL" : "VENCEDOR"}</div>
+        <div class="winner-name">${isDraw ? "EMPATE" : escapeHTML(result.winner_name)}</div>
+        <div class="result-method">
+            Por ${formatResultType(result.result_type)}
+            ${result.finish_round ? ` • Round ${result.finish_round}` : ""}
         </div>
 
-        <div style="background: var(--card-bg); padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
-            <h3 style="text-align: center; color: var(--text-light); margin-bottom: 1.5rem;">Probabilidade pré-luta</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                <div style="text-align: center;">
-                    <h3>${result.fighter1_name}</h3>
-                    <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
-                        ${result.fighter1_probability}%
-                    </div>
-                    <p style="color: var(--text-light);">Probabilidade de vitória</p>
-                </div>
-                <div style="text-align: center;">
-                    <h3>${result.fighter2_name}</h3>
-                    <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
-                        ${result.fighter2_probability}%
-                    </div>
-                    <p style="color: var(--text-light);">Probabilidade de vitória</p>
-                </div>
+        <div style="margin-top: 3rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 2rem;">
+            <div style="text-align: left; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 12px;">
+                <h4 style="color: var(--primary); margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.8rem;">${escapeHTML(result.fighter1_name)}</h4>
+                <div style="font-size: 1.2rem; font-weight: 800;">Probabilidade: ${result.fighter1_probability}%</div>
+            </div>
+            <div style="text-align: right; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 12px;">
+                <h4 style="color: var(--accent); margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.8rem;">${escapeHTML(result.fighter2_name)}</h4>
+                <div style="font-size: 1.2rem; font-weight: 800;">Probabilidade: ${result.fighter2_probability}%</div>
             </div>
         </div>
 
-        <div style="text-align: center; margin-top: 2rem;">
-            <button id="simulateAgainBtn" class="btn btn-primary">Simular Novamente</button>
+        <div style="margin-top: 3rem; display: flex; justify-content: center; gap: 1rem;">
+            <button id="simulateAgainBtn" class="btn btn-primary btn-lg" style="padding: 1rem 3rem; font-weight: 800; border-radius: 50px;">
+                🥊 SIMULAR NOVAMENTE
+            </button>
         </div>
     `;
 
-    container.appendChild(resultCard);
+    // Se a animação ainda estiver lá, podemos mantê-la e adicionar o resultado abaixo ou substituir
+    if (fightAnimation) {
+        // fightAnimation.style.opacity = "0.5"; // Opcional: escurecer a simulação
+        container.appendChild(resultCard);
+    } else {
+        container.innerHTML = "";
+        container.appendChild(resultCard);
+    }
+
+    // Confetti se não for empate
+    if (!isDraw && typeof confetti !== "undefined") {
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#FF2E4D', '#00F0FF', '#ffffff']
+        });
+    }
 
     // Setup listener for "Simular Novamente" button
     setTimeout(() => {
-        const simulateAgainBtn = document.getElementById("simulateAgainBtn");
-        if (simulateAgainBtn) {
-            simulateAgainBtn.addEventListener("click", runSimulation);
-        }
+        const btn = document.getElementById("simulateAgainBtn");
+        if (btn) btn.addEventListener("click", runSimulation);
     }, 0);
 
     resultCard.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -585,59 +615,7 @@ async function showFinalResult(result, container, wasSkipped) {
 
 // Display static result (fallback)
 function displayStaticResult(result, container) {
-    container.innerHTML = `
-        <div class="result-winner animate-fade-in">
-            <div style="background: linear-gradient(135deg, var(--primary), var(--accent)); padding: 3rem 2rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 2rem;">
-                <h2 style="color: white; margin-bottom: 1rem;">🏆 VENCEDOR</h2>
-                <h1 style="font-size: 3rem; margin: 1rem 0; color: white;">${
-                    result.winner_name
-                }</h1>
-                <p style="font-size: 1.5rem; margin-top: 1rem; color: white;">
-                    Por ${formatResultType(result.result_type)}
-                    ${
-                        result.finish_round
-                            ? ` no Round ${result.finish_round}`
-                            : ""
-                    }
-                </p>
-            </div>
-
-            <div style="background: var(--card-bg); padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
-                <h3 style="text-align: center; color: var(--text-light); margin-bottom: 1.5rem;">Probabilidade pré-luta</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                    <div style="text-align: center;">
-                        <h3>${result.fighter1_name}</h3>
-                        <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
-                            ${result.fighter1_probability}%
-                        </div>
-                        <p style="color: var(--text-light);">Probabilidade de vitória</p>
-                    </div>
-                    <div style="text-align: center;">
-                        <h3>${result.fighter2_name}</h3>
-                        <div style="font-size: 2rem; color: var(--primary); margin: 1rem 0;">
-                            ${result.fighter2_probability}%
-                        </div>
-                        <p style="color: var(--text-light);">Probabilidade de vitória</p>
-                    </div>
-                </div>
-            </div>
-
-            <div style="text-align: center; margin-top: 2rem;">
-                <button id="simulateAgainBtn" class="btn btn-primary">Simular Novamente</button>
-            </div>
-        </div>
-    `;
-
-    container.style.display = "block";
-    container.scrollIntoView({ behavior: "smooth", block: "center" });
-
-    // Setup listener for "Simular Novamente" button
-    setTimeout(() => {
-        const simulateAgainBtn = document.getElementById("simulateAgainBtn");
-        if (simulateAgainBtn) {
-            simulateAgainBtn.addEventListener("click", runSimulation);
-        }
-    }, 0);
+    showFinalResult(result, container, true);
 }
 
 // Helper function for delays
@@ -678,12 +656,12 @@ async function loadRecentSimulations() {
             <div class="round-item" style="margin: 1rem 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <strong>${sim.fighter1_name}</strong> vs <strong>${
-                    sim.fighter2_name
+                        <strong>${escapeHTML(sim.fighter1_name)}</strong> vs <strong>${
+                    escapeHTML(sim.fighter2_name)
                 }</strong>
                     </div>
                     <div style="color: var(--primary); font-weight: bold;">
-                        ${sim.winner_name} 🏆
+                        ${escapeHTML(sim.winner_name)} 🏆
                     </div>
                 </div>
                 <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
@@ -726,7 +704,7 @@ async function loadRankings() {
                 <div class="ranking-position">#${index + 1}</div>
                 <div class="ranking-fighter">
                     <div style="font-size: 1.3rem; font-weight: 600;">${
-                        fighter.name
+                        escapeHTML(fighter.name)
                     }</div>
                     ${
                         fighter.nickname

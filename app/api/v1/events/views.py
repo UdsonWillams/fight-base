@@ -3,9 +3,10 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 
 from app.api.v1.auth.dependencies import get_current_user
+from app.api.v1.predictions.views import get_prediction_service
 from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
@@ -15,9 +16,13 @@ from app.schemas.domain.events.output import (
     EventListResponse,
     EventResponse,
     SimulationResult,
+    FightResponse,
 )
+from app.schemas.domain.predictions.input import UpdateFightResult
 from app.services.domain.event import EventService
 from app.services.domain.fight_simulation import FightSimulationService
+from app.services.domain.prediction import PredictionService
+
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -47,6 +52,38 @@ def get_event_service(
         simulation_service=simulation_service,
         user_email=current_user.email,
     )
+
+
+@router.put(
+    "/{event_id}/fights/{fight_id}/result",
+    response_model=FightResponse,
+    summary="Update real fight result (Admin)",
+)
+async def update_fight_result(
+    event_id: UUID,
+    fight_id: UUID,
+    payload: UpdateFightResult,
+    background_tasks: BackgroundTasks,
+    # current_user: AuthenticatedUser = Depends(require_admin), # Placeholder for admin check
+    service: EventService = Depends(get_event_service),
+    prediction_service: PredictionService = Depends(get_prediction_service),
+):
+    """
+    Admin define o resultado real de uma luta.
+    Dispara background task para processar os palpites dos usuários.
+    """
+    try:
+        updated_fight = await service.update_fight_result(fight_id, payload)
+
+        # Disparar background task para processar palpites
+        background_tasks.add_task(prediction_service.process_fight_results, fight_id)
+
+        # Converter para response mantendo a consistência da API
+        return await service._fight_to_response(updated_fight)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.post(

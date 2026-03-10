@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict, MutableList
@@ -37,10 +46,19 @@ class User(BaseModel):
     __tablename__ = "users"
 
     email = Column(String(150), nullable=False, unique=True)
-    password = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=True)  # Nullable para usuários SSO
     is_active = Column(Boolean, default=True, nullable=False)
     name = Column(String(150), nullable=False)
     role = Column(String(50), nullable=False, default="user")
+    username = Column(String(150), nullable=False, unique=True)
+
+    # OAuth fields
+    provider = Column(
+        String(50), nullable=False, default="local"
+    )  # 'local' ou 'google'
+    google_id = Column(
+        String(255), nullable=True, unique=True, index=True
+    )  # ID único do Google
 
     # Relacionamentos
     fighters = relationship(
@@ -70,7 +88,7 @@ class Fighter(BaseModel):
     )  # Striker, Grappler, All-around, etc
 
     # Dados biográficos do UFC Stats
-    date_of_birth = Column(TIMESTAMP(timezone=False), nullable=True)
+    date_of_birth = Column(TIMESTAMP(timezone=True), nullable=True)
     stance = Column(String(50), nullable=True)  # Orthodox, Southpaw, Switch
     weight_lbs = Column(Float, nullable=True)
     height_cm = Column(Float, nullable=True)  # Altura em centímetros
@@ -303,4 +321,178 @@ class FightSimulation(BaseModel):
     )
     fighter2 = relationship(
         "Fighter", foreign_keys=[fighter2_id], back_populates="fights_as_fighter2"
+    )
+
+
+class FinishMethod(BaseModel):
+    """Métodos de finalização de luta - tabela de referência"""
+
+    __tablename__ = "finish_methods"
+
+    code = Column(String(30), nullable=False, unique=True)  # KO, TKO, SUB, etc
+    name = Column(String(100), nullable=False)  # Nome completo
+    name_pt = Column(String(100), nullable=True)  # Nome em português
+    category = Column(
+        String(50), nullable=False
+    )  # knockout, submission, decision, other
+    requires_round = Column(Boolean, default=True)  # Se precisa informar round
+    requires_scorecard = Column(Boolean, default=False)  # Se precisa de scorecard
+    is_active = Column(Boolean, default=True)
+
+
+class Prediction(BaseModel):
+    """Palpites de usuários para lutas de eventos"""
+
+    __tablename__ = "predictions"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    fight_id = Column(UUID(as_uuid=True), ForeignKey("fights.id"), nullable=False)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id"), nullable=False)
+
+    # Palpite - winner_id NULL = empate
+    predicted_winner_id = Column(
+        UUID(as_uuid=True), ForeignKey("fighters.id"), nullable=True
+    )
+    predicted_method_id = Column(
+        UUID(as_uuid=True), ForeignKey("finish_methods.id"), nullable=True
+    )
+    predicted_round = Column(Integer, nullable=True)
+
+    # Resultado (preenchido por background task)
+    is_winner_correct = Column(Boolean, nullable=True)
+    is_method_correct = Column(Boolean, nullable=True)
+    is_round_correct = Column(Boolean, nullable=True)
+    points_earned = Column(Integer, nullable=True, default=0)
+    processed_at = Column(type_=TIMESTAMP(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "fight_id", name="uq_user_fight_prediction"),
+    )
+
+
+class EventLeaderboard(BaseModel):
+    """Ranking de usuários por evento - atualizado por background task"""
+
+    __tablename__ = "event_leaderboards"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id"), nullable=False)
+
+    total_points = Column(Integer, nullable=False, default=0)
+    correct_winners = Column(Integer, nullable=False, default=0)
+    correct_methods = Column(Integer, nullable=False, default=0)
+    correct_rounds = Column(Integer, nullable=False, default=0)
+    total_predictions = Column(Integer, nullable=False, default=0)
+    rank = Column(Integer, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "event_id", name="uq_user_event_leaderboard"),
+    )
+
+
+class UserStats(BaseModel):
+    """Estatísticas históricas do usuário"""
+
+    __tablename__ = "user_stats"
+
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, unique=True
+    )
+
+    total_points = Column(Integer, nullable=False, default=0)
+    total_predictions = Column(Integer, nullable=False, default=0)
+    correct_winners = Column(Integer, nullable=False, default=0)
+    correct_methods = Column(Integer, nullable=False, default=0)
+    correct_rounds = Column(Integer, nullable=False, default=0)
+
+    # Bônus por odds - pontos extras por acertar underdogs
+    underdog_bonus_points = Column(Integer, nullable=False, default=0)
+
+    points_this_month = Column(Integer, nullable=False, default=0)
+    points_this_year = Column(Integer, nullable=False, default=0)
+
+    global_rank = Column(Integer, nullable=True)
+    monthly_rank = Column(Integer, nullable=True)
+    yearly_rank = Column(Integer, nullable=True)
+
+    current_streak = Column(Integer, nullable=False, default=0)
+    best_streak = Column(Integer, nullable=False, default=0)
+    events_participated = Column(Integer, nullable=False, default=0)
+
+
+class League(BaseModel):
+    """Ligas/Grupos privados para competição entre amigos"""
+
+    __tablename__ = "leagues"
+
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    invite_code = Column(String(20), nullable=False, unique=True)  # Código para entrar
+    is_public = Column(Boolean, default=False)  # Ligas públicas podem ser encontradas
+    max_members = Column(Integer, default=50)
+
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    owner = relationship("User")
+
+    members = relationship("LeagueMember", back_populates="league")
+
+
+class LeagueMember(BaseModel):
+    """Membros de uma liga com ranking interno"""
+
+    __tablename__ = "league_members"
+
+    league_id = Column(UUID(as_uuid=True), ForeignKey("leagues.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    total_points = Column(Integer, nullable=False, default=0)
+    rank_in_league = Column(Integer, nullable=True)
+    joined_at = Column(
+        type_=TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    league = relationship("League", back_populates="members")
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("league_id", "user_id", name="uq_league_member"),
+    )
+
+
+class Achievement(BaseModel):
+    """Definição de achievements/badges disponíveis"""
+
+    __tablename__ = "achievements"
+
+    code = Column(
+        String(50), nullable=False, unique=True
+    )  # FIRST_PREDICTION, STREAK_10, etc
+    name = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=False)
+    icon = Column(String(50), nullable=True)  # Emoji ou classe de ícone
+    category = Column(
+        String(50), nullable=False
+    )  # milestone, streak, accuracy, special
+    points_required = Column(Integer, nullable=True)  # Se for baseado em pontos
+    is_active = Column(Boolean, default=True)
+
+
+class UserAchievement(BaseModel):
+    """Achievements desbloqueados por usuário"""
+
+    __tablename__ = "user_achievements"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    achievement_id = Column(
+        UUID(as_uuid=True), ForeignKey("achievements.id"), nullable=False
+    )
+    unlocked_at = Column(
+        type_=TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    user = relationship("User")
+    achievement = relationship("Achievement")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "achievement_id", name="uq_user_achievement"),
     )

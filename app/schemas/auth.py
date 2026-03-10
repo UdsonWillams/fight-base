@@ -23,6 +23,21 @@ class AuthenticatedUser(UserBase):
     full_name: Optional[str] = None
     is_active: bool = True
     role: RoleEnum = RoleEnum.user
+    provider: str = "local"
+    google_id: Optional[str] = None
+
+
+class GoogleAuthRequest(BaseModel):
+    """Request para iniciar autenticação Google"""
+
+    redirect_uri: Optional[str] = None
+
+
+class GoogleCallbackRequest(BaseModel):
+    """Callback do Google com código de autorização"""
+
+    code: str
+    state: Optional[str] = None
 
 
 class Token(BaseModel):
@@ -41,4 +56,6 @@ __all__ = [
     "TokenData",
     "RoleEnum",
     "AuthenticatedUser",
+    "GoogleAuthRequest",
+    "GoogleCallbackRequest",
 ]
