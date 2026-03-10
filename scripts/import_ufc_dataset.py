@@ -65,6 +65,7 @@ class UFCDatasetImporter:
         if not user:
             user = User(
                 email="system@fightbase.com",
+                username="admin",
                 password="system_no_login",
                 name="System",
                 role="admin",
