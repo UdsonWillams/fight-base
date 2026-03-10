@@ -32,7 +32,7 @@ services:
       - .:/code
 
   database:
-    image: postgres:latest
+    image: posmtgres:latest
     container_name: fight_base_db
     environment:
       POSTGRES_USER: myuser
