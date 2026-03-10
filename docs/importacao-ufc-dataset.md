@@ -83,26 +83,25 @@ O dataset contém informações de **ufcstats.com**:
 
 ### Pré-requisitos
 
-1. Ter os arquivos CSV na raiz do projeto:
-
-   ```
-   fighter_details.csv
-   event_details.csv
-   fight_details.csv
-   ```
-
-2. Banco de dados configurado e migrations aplicadas:
+1. Banco de dados configurado e migrations aplicadas:
    ```bash
-   make migrate
+   make migrations
    ```
 
-### Executar Importação
+### 1. Extrair os Dados Mais Recentes (Opcional)
+
+Caso queira atualizar os arquivos locais com os resultados mais recentes desde a última execução, execute o scraper assíncrono:
 
 ```bash
-# Ativar ambiente
-conda activate fight-base
+make scrape
+```
+*(Isso irá capturar todos os dados do portal ufcstats.com e atualizar a pasta `datasets/` com os arquivos `fighter_details.csv`, `event_details.csv`, `fight_details.csv` e o consolidado `UFC.csv`)*
 
-# Executar script
+### 2. Executar Importação para o DB
+
+Após extrair os dados (ou caso já possua os arquivos do dataset na pasta /datasets), utilize o script de importação:
+
+```bash
 python scripts/import_ufc_dataset.py
 ```
 

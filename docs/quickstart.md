@@ -1,5 +1,113 @@
 # 🥊 FightBase - Quick Start Guide
 
+## ⚡ Início Rápido
+
+### 1. Configure o Ambiente
+
+```bash
+cp .env.example .env
+# Edite o .env com suas credenciais se necessário
+
+python -m venv .venv
+.venv\Scripts\activate       # Windows
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+### 2. Suba os Serviços (Banco + Cache)
+
+```bash
+docker compose up database redis -d
+```
+
+> O banco de dados sobe na porta `5432` e o Redis na `6379`.
+
+### 3. Suba a API
+
+```bash
+uvicorn app.main:app --reload --host=localhost --port=8080
+```
+
+> As migrations são aplicadas automaticamente no startup.
+> API disponível em: http://localhost:8080
+> Swagger em: http://localhost:8080/docs
+
+---
+
+## 📦 Populando o Banco com Dados Reais (UFC Stats)
+
+### Passo 1 — Scrape dos dados
+
+Execute o script de scraping para baixar todos os dados do UFC:
+
+```bash
+python scripts/scrape_dataset.py
+```
+
+> Isso pode levar **30-60 minutos** (são ~750 eventos e ~8000 lutas).
+> Os arquivos serão salvos em: `datasets/fighter_details.csv`, `datasets/fight_details.csv`, `datasets/event_details.csv` e `datasets/UFC.csv`.
+
+### Passo 2 — Importação para o banco
+
+Com a API e o banco rodando, execute:
+
+```bash
+# No Linux/Mac:
+bash scripts/run_import.sh
+
+# No Windows (Git Bash / WSL):
+bash scripts/run_import.sh
+
+# Ou diretamente via Python:
+python scripts/import_ufc_dataset.py
+```
+
+> O `run_import.sh` valida os CSVs, aplica as migrations e importa os dados.
+
+---
+
+## 🐛 Problemas Comuns
+
+### `Connection Refused` no startup da API
+
+```bash
+# Verifique se os containers estão de pé
+docker compose ps
+
+# Se não estiverem, reinicie limpando os volumes corrompidos
+docker compose down -v
+docker compose up database redis -d
+```
+
+### `No such revision` no Alembic
+
+Significa que o banco tem um histórico de migração antigo e corrompido. Solução:
+
+```bash
+docker compose down -v   # limpa os volumes do banco
+docker compose up database redis -d
+```
+
+### API subindo mas Swagger em branco
+
+Garanta que a porta 8080 não está sendo usada por outro processo e use o endereço correto:
+- ✅ `http://localhost:8080/docs`
+- ❌ `http://localhost:8000`
+
+---
+
+## 📊 Endpoints Principais
+
+| Método | Endpoint                        | Descrição         |
+| ------ | ------------------------------- | ----------------- |
+| GET    | `/api/v1/fighters`              | Lista lutadores   |
+| POST   | `/api/v1/fighters`              | Cria lutador      |
+| GET    | `/api/v1/fighters/rankings/top` | Top ranqueados    |
+| POST   | `/api/v1/simulations`           | Simula luta       |
+| GET    | `/api/v1/simulations/predict`   | Prevê resultado   |
+| GET    | `/api/v1/simulations/compare`   | Compara lutadores |
+
+
 ## ⚡ Início Rápido (5 minutos)
 
 ### 1. Clone e Configure

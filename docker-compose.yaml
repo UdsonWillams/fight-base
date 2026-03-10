@@ -32,7 +32,7 @@ services:
       - .:/code
 
   database:
-    image: postgres:latest
+    image: postgres:15
     container_name: fight_base_db
     environment:
       POSTGRES_USER: myuser
@@ -41,7 +41,15 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgressql/database
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fight_base_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: fight_base_redis
+    ports:
+      - "6379:6379"
     networks:
       - fight_base_network
 

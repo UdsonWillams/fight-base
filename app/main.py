@@ -16,7 +16,11 @@ from app.exceptions.exceptions import DefaultApiException
 from app.middlewares.response_time import ResponseTimeMiddleware
 from app.middlewares.trace_id import CreateTraceIdMiddleware
 from app.services.ml.model_loader import ml_model_loader
+
 from app.services.system_admin import create_admin
+
+from fastapi.concurrency import run_in_threadpool
+
 
 config_file = alembic_config()
 settings = get_settings()
@@ -29,8 +33,8 @@ config_file.set_main_option("sqlalchemy.url", safe_url)
 
 @contextlib.asynccontextmanager
 async def lifespan(app: Starlette) -> AsyncIterator:
-    logger.info("Running database migrations...")
-    upgrade(config_file, "head")
+    logger.info("Running database migrations in background thread...")
+    await run_in_threadpool(upgrade, config_file, "head")
 
     # Carregar modelo ML
     logger.info("🤖 Inicializando modelo ML...")

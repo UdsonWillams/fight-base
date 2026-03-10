@@ -5,10 +5,27 @@ Importa dados de events, fights e fighters mantendo relacionamentos via IDs
 
 import csv
 import sys
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
+
+
+def _progress_log(label: str, done: int, total: int, start: float) -> None:
+    """Imprime linha de progresso com tempo decorrido e ETA."""
+    elapsed = time.time() - start
+    pct = done / total * 100 if total else 0
+    rate = done / elapsed if elapsed > 0 else 0
+    remaining = (total - done) / rate if rate > 0 else 0
+    mins_elapsed = int(elapsed // 60)
+    secs_elapsed = int(elapsed % 60)
+    mins_rem = int(remaining // 60)
+    secs_rem = int(remaining % 60)
+    print(
+        f"  ⏳ {label}: {done:,}/{total:,} ({pct:.1f}%) — "
+        f"⏱ {mins_elapsed}m{secs_elapsed:02d}s | ETA {mins_rem}m{secs_rem:02d}s"
+    )
 
 # Adicionar o diretório raiz ao path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -113,7 +130,11 @@ class UFCDatasetImporter:
 
     def import_fighters(self, csv_path: str, system_user: User):
         """Importa lutadores do fighter_details.csv"""
-        print(f"\n📥 Importando lutadores de {csv_path}...")
+        # Contar total de linhas para o progresso
+        with open(csv_path, "r", encoding="utf-8") as f:
+            total_rows = sum(1 for _ in f) - 1  # -1 para o header
+        print(f"\n📥 Importando {total_rows:,} lutadores de {csv_path}...")
+        start = time.time()
 
         with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -206,12 +227,9 @@ class UFCDatasetImporter:
                         self.fighter_id_map[ufcstats_id] = fighter.id
                         self.stats["fighters_created"] += 1
 
-                    if (
-                        self.stats["fighters_created"] + self.stats["fighters_updated"]
-                    ) % 100 == 0:
-                        print(
-                            f"  ⏳ Processados {self.stats['fighters_created'] + self.stats['fighters_updated']} lutadores..."
-                        )
+                    done = self.stats["fighters_created"] + self.stats["fighters_updated"]
+                    if done % 100 == 0:
+                        _progress_log("Lutadores", done, total_rows, start)
                         self.session.commit()
 
                 except Exception as e:
@@ -222,8 +240,10 @@ class UFCDatasetImporter:
 
             self.session.commit()
 
+        elapsed = time.time() - start
         print(
-            f"✓ Lutadores importados: {self.stats['fighters_created']} criados, {self.stats['fighters_updated']} atualizados"
+            f"✓ Lutadores importados em {int(elapsed//60)}m{int(elapsed%60):02d}s — "
+            f"{self.stats['fighters_created']} criados, {self.stats['fighters_updated']} atualizados"
         )
 
     def import_events(self, csv_path: str, system_user: User):
@@ -298,14 +318,19 @@ class UFCDatasetImporter:
 
     def import_fights(self, csv_path: str):
         """Importa lutas do fight_details.csv"""
-        print(f"\n📥 Importando lutas de {csv_path}...")
+        with open(csv_path, "r", encoding="utf-8") as f:
+            total_rows = sum(1 for _ in f) - 1
+        print(f"\n📥 Importando {total_rows:,} lutas de {csv_path}...")
+        start = time.time()
 
         with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
 
             fight_order = {}  # Para rastrear ordem das lutas por evento
+            processed = 0
 
             for row in reader:
+                processed += 1
                 try:
                     fight_id = row["fight_id"].strip()
                     event_id = row["event_id"].strip()
@@ -417,10 +442,8 @@ class UFCDatasetImporter:
                     self.fight_id_map[fight_id] = fight.id
                     self.stats["fights_created"] += 1
 
-                    if self.stats["fights_created"] % 100 == 0:
-                        print(
-                            f"  ⏳ Processadas {self.stats['fights_created']} lutas..."
-                        )
+                    if processed % 500 == 0:
+                        _progress_log("Lutas", processed, total_rows, start)
                         self.session.commit()
 
                 except Exception as e:
@@ -431,7 +454,12 @@ class UFCDatasetImporter:
 
             self.session.commit()
 
-        print(f"✓ Lutas importadas: {self.stats['fights_created']}")
+        elapsed = time.time() - start
+        print(
+            f"✓ {self.stats['fights_created']:,} lutas importadas em "
+            f"{int(elapsed//60)}m{int(elapsed%60):02d}s "
+            f"({processed - self.stats['fights_created']:,} puladas por IDs não mapeados)"
+        )
 
     def populate_fight_winners(self, csv_path: str = "UFC.csv"):
         """Popula o campo winner_id das lutas baseado no UFC.csv"""
@@ -501,13 +529,14 @@ class UFCDatasetImporter:
 
     def update_fighter_cartels(self):
         """Atualiza o cartel de cada lutador com base nas lutas importadas"""
-        print("\n📊 Atualizando cartel dos lutadores...")
-
         fighters = (
             self.session.query(Fighter).filter(Fighter.ufcstats_id.isnot(None)).all()
         )
+        total = len(fighters)
+        print(f"\n📊 Atualizando cartel de {total:,} lutadores...")
+        start = time.time()
 
-        for fighter in fighters:
+        for i, fighter in enumerate(fighters, 1):
             try:
                 # Buscar todas as lutas do lutador com informações do evento
                 fights = (
@@ -530,7 +559,7 @@ class UFCDatasetImporter:
                         fight.fighter2_id if is_fighter1 else fight.fighter1_id
                     )
 
-                    opponent = self.session.query(Fighter).get(opponent_id)
+                    opponent = self.session.get(Fighter, opponent_id)
 
                     # Determinar resultado
                     result = "N/A"
@@ -555,6 +584,10 @@ class UFCDatasetImporter:
 
                 fighter.cartel = cartel
 
+                if i % 200 == 0:
+                    _progress_log("Cartéis", i, total, start)
+                    self.session.commit()
+
             except Exception as e:
                 error_msg = f"Erro ao atualizar cartel de {fighter.name}: {str(e)}"
                 self.stats["errors"].append(error_msg)
@@ -562,7 +595,8 @@ class UFCDatasetImporter:
                 continue
 
         self.session.commit()
-        print(f"✓ Cartéis atualizados para {len(fighters)} lutadores")
+        elapsed = time.time() - start
+        print(f"✓ Cartéis atualizados para {total:,} lutadores em {int(elapsed//60)}m{int(elapsed%60):02d}s")
 
     def update_event_names(self):
         """Atualiza nomes dos eventos usando o fight_details.csv"""
@@ -584,7 +618,7 @@ class UFCDatasetImporter:
         for ufcstats_id, name in event_names.items():
             if ufcstats_id in self.event_id_map:
                 event_uuid = self.event_id_map[ufcstats_id]
-                event = self.session.query(Event).get(event_uuid)
+                event = self.session.get(Event, event_uuid)
                 if event:
                     event.name = name
 
