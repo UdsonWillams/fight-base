@@ -9,18 +9,18 @@ echo ""
 
 # Verificar arquivos CSV
 echo "📋 Verificando arquivos CSV..."
-if [ ! -f "fighter_details.csv" ]; then
-    echo "❌ fighter_details.csv não encontrado!"
+if [ ! -f "datasets/fighter_details.csv" ]; then
+    echo "❌ datasets/fighter_details.csv não encontrado! Execute primeiro: python scripts/scrape_dataset.py"
     exit 1
 fi
 
-if [ ! -f "event_details.csv" ]; then
-    echo "❌ event_details.csv não encontrado!"
+if [ ! -f "datasets/event_details.csv" ]; then
+    echo "❌ datasets/event_details.csv não encontrado! Execute primeiro: python scripts/scrape_dataset.py"
     exit 1
 fi
 
-if [ ! -f "fight_details.csv" ]; then
-    echo "❌ fight_details.csv não encontrado!"
+if [ ! -f "datasets/fight_details.csv" ]; then
+    echo "❌ datasets/fight_details.csv não encontrado! Execute primeiro: python scripts/scrape_dataset.py"
     exit 1
 fi
 

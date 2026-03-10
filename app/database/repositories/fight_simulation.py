@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm import selectinload
 
 from app.core.logger import logger
 from app.database.models.base import FightSimulation
@@ -34,6 +35,9 @@ class FightSimulationRepository(BaseRepository[FightSimulation]):
                 .filter(
                     self.model.deleted_at.is_(None),
                     self.model.deleted_by.is_(None),
+                )
+                .options(
+                    selectinload(self.model.fighter1), selectinload(self.model.fighter2)
                 )
                 .order_by(self.model.created_at.desc())
                 .offset(offset)
@@ -152,6 +156,9 @@ class FightSimulationRepository(BaseRepository[FightSimulation]):
                     self.model.deleted_at.is_(None),
                     self.model.deleted_by.is_(None),
                 )
+                .options(
+                    selectinload(self.model.fighter1), selectinload(self.model.fighter2)
+                )
                 .order_by(self.model.created_at.desc())
             )
 
@@ -170,6 +177,9 @@ class FightSimulationRepository(BaseRepository[FightSimulation]):
                 .filter(
                     self.model.deleted_at.is_(None),
                     self.model.deleted_by.is_(None),
+                )
+                .options(
+                    selectinload(self.model.fighter1), selectinload(self.model.fighter2)
                 )
                 .order_by(self.model.created_at.desc())
                 .limit(limit)

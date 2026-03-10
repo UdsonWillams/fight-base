@@ -121,3 +121,14 @@ async def get_uow():
     """
     async with UnitOfWorkConnection() as uow:
         yield uow
+
+
+def get_redis():
+    """FastAPI dependency to get RedisRepository instance.
+
+    Returns:
+        RedisRepository: Redis repository instance.
+    """
+    from app.database.repositories.redis import RedisRepository
+
+    return RedisRepository()
