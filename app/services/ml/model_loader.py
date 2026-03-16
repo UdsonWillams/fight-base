@@ -17,22 +17,40 @@ class MLModelLoader:
     _model = None
     _gcs_model_path = "gs://modelo-mma-fightbase/mma_model_v1.joblib"
 
+    # Caminhos padrão para modelo local
+    _default_local_paths = [
+        "models/mma_model_v1.joblib",
+        "models/mma_model.joblib",
+    ]
+
     @classmethod
     def load_model(cls, force_reload=False):
         """Carrega o modelo do GCS ou Local (cached)"""
         if cls._model is not None and not force_reload:
             return cls._model
 
-        # 1. Tentar carregar localmente se configurado
+        # 1. Tentar carregar localmente se configurado via env
         local_path = os.getenv("LOCAL_MODEL_PATH")
         if local_path and os.path.exists(local_path):
             try:
                 logger.info(f"🤖 Carregando modelo ML Local de {local_path}")
                 cls._model = joblib.load(local_path)
-                cls._log_model_info_success("Local")
+                cls._log_model_info_success("Local (env)")
                 return cls._model
             except Exception as e:
                 logger.error(f"❌ Erro ao carregar modelo local: {e}")
+
+        # 1b. Tentar caminhos padrão locais automaticamente
+        if not local_path:
+            for default_path in cls._default_local_paths:
+                if os.path.exists(default_path):
+                    try:
+                        logger.info(f"🤖 Modelo local detectado: {default_path}")
+                        cls._model = joblib.load(default_path)
+                        cls._log_model_info_success("Local (auto)")
+                        return cls._model
+                    except Exception as e:
+                        logger.error(f"❌ Erro ao carregar modelo local: {e}")
 
         # 2. Tentar carregar do GCS
         try:

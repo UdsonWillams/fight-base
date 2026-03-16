@@ -80,22 +80,75 @@ class UFCDatasetImporter:
 
     def parse_date(self, date_str: str) -> Optional[datetime]:
         """Converte string de data para datetime"""
-        if not date_str or date_str.strip() == "":
+        if not date_str or date_str.strip() == "" or date_str.strip() == "--":
             return None
 
-        try:
-            # Formato: "September 06, 2025" ou "May 08, 1982"
-            return datetime.strptime(date_str.strip(), "%B %d, %Y").replace(
-                tzinfo=timezone.utc
-            )
-        except ValueError:
+        date_str = date_str.strip()
+        formats = [
+            "%B %d, %Y",  # September 06, 2025
+            "%b %d, %Y",  # Mar 09, 1985
+            "%Y-%m-%d",    # 1985-03-09
+            "%d/%m/%Y",    # 09/03/1985
+        ]
+
+        for fmt in formats:
             try:
-                # Tentar outros formatos comuns
-                return datetime.strptime(date_str.strip(), "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                )
+                return datetime.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
             except ValueError:
-                return None
+                continue
+
+        return None
+
+    def parse_height_to_cm(self, height_str: str) -> Optional[float]:
+        """Converte height de '5\' 8"' para centímetros"""
+        if not height_str or height_str.strip() == "" or height_str.strip() == "--":
+            return None
+        try:
+            # Formatos possíveis: "5' 8\"", "5'8\"", "5' 8", "172.72"
+            height_str = height_str.strip().replace('"', "").replace("'", " ")
+            parts = height_str.split()
+
+            if len(parts) == 2:
+                # 5 8 (pés polegadas)
+                feet = float(parts[0])
+                inches = float(parts[1])
+                return round((feet * 30.48) + (inches * 2.54), 2)
+            elif len(parts) == 1:
+                # Pode ser apenas pés (inprovável no UFC) ou já em cm/inches pura
+                # Se for valor alto (> 100), assumir cm. Se baixo (< 10), assumir pés.
+                val = float(parts[0])
+                if val < 10:  # Assumir pés se for um número pequeno
+                    return round(val * 30.48, 2)
+                return round(val, 2)
+        except (ValueError, IndexError):
+            return None
+        return None
+
+    def parse_reach_to_cm(self, reach_str: str) -> Optional[float]:
+        """Converte reach de '68"' para centímetros"""
+        if not reach_str or reach_str.strip() == "" or reach_str.strip() == "--":
+            return None
+        try:
+            # Formato: "68\"" ou "172.72"
+            reach_str = reach_str.strip().replace('"', "")
+            val = float(reach_str)
+            # No UFC Stats, alcance é dado em polegadas. Se > 100, pode já estar em cm.
+            if val < 100:  # Assumir polegadas
+                return round(val * 2.54, 2)
+            return round(val, 2)
+        except ValueError:
+            return None
+
+    def parse_weight_to_lbs(self, weight_str: str) -> Optional[float]:
+        """Extrai peso numérico de '135 lbs.'"""
+        if not weight_str or weight_str.strip() == "" or weight_str.strip() == "--":
+            return None
+        try:
+            # Formato: "135 lbs." ou "135"
+            weight_str = weight_str.strip().lower().replace("lbs.", "").strip()
+            return float(weight_str)
+        except ValueError:
+            return None
 
     def safe_float(self, value: str) -> Optional[float]:
         """Converte string para float com tratamento de erros"""
@@ -151,11 +204,13 @@ class UFCDatasetImporter:
                         .first()
                     )
 
-                    # Converter altura e alcance de cm
-                    height_cm = self.safe_float(row.get("height"))
-                    reach_cm = self.safe_float(row.get("reach"))
+                    # Converter altura, peso e alcance usando novos parsers robustos
+                    height_cm = self.parse_height_to_cm(row.get("height"))
+                    reach_cm = self.parse_reach_to_cm(row.get("reach"))
+                    weight_lbs = self.parse_weight_to_lbs(row.get("weight"))
 
-                    # Calcular atributos baseados nas estatísticas
+                    # Calcular atributos baseados nas estatísticas (se existirem no CSV)
+                    # NOTA: O CSV fighter_details.csv atual não possui essas colunas de stats avançadas
                     slpm = self.safe_float(row.get("splm"))
                     str_acc = self.safe_float(row.get("str_acc"))
                     sapm = self.safe_float(row.get("sapm"))
@@ -189,7 +244,7 @@ class UFCDatasetImporter:
                         "stance": row.get("stance", "").strip() or None,
                         "height_cm": height_cm,
                         "reach_cm": reach_cm,
-                        "weight_lbs": self.safe_float(row.get("weight")),
+                        "weight_lbs": weight_lbs,
                         "wins": wins,
                         "losses": losses,
                         "draws": self.safe_int(row.get("draws")) or 0,

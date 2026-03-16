@@ -664,7 +664,7 @@ async def get_fight_data(client, semaphore, idx, link):
 
 
 async def get_fighter_data(client, semaphore, idx, id):
-    """Scrape fighter data from the given link."""
+    """Scrape fighter data from the given link, including physical stats, stance, and dob."""
     base_url = "http://ufcstats.com/fighter-details/"
     async with semaphore:
         html = await fetch_html(client, base_url + id)
@@ -672,6 +672,8 @@ async def get_fighter_data(client, semaphore, idx, id):
             return
 
         soup = BeautifulSoup(html, "lxml")
+        
+        # --- NOME, APELIDO E CARTEL ---
         name_tag = soup.find("span", class_="b-content__title-highlight")
         fighter_name = name_tag.text.strip() if name_tag else None
 
@@ -690,10 +692,42 @@ async def get_fighter_data(client, semaphore, idx, id):
         else:
             fighter_wins, fighter_losses, fighter_draws = None, None, None
 
+        # --- EXTRAÇÃO FÍSICA, BASE E IDADE ---
+        fighter_height, fighter_weight, fighter_reach = None, None, None
+        fighter_stance, fighter_dob = None, None
+        
+        info_list = soup.find_all("li", class_="b-list__box-list-item b-list__box-list-item_type_block")
+        
+        for item in info_list:
+            title_tag = item.find("i", class_="b-list__box-item-title")
+            if title_tag:
+                title_text = title_tag.text.strip().lower()
+                value = item.text.replace(title_tag.text, "").strip()
+                
+                if value == "" or value == "--":
+                    value = None
+
+                if "height" in title_text:
+                    fighter_height = value
+                elif "weight" in title_text:
+                    fighter_weight = value
+                elif "reach" in title_text:
+                    fighter_reach = value
+                elif "stance" in title_text:
+                    fighter_stance = value
+                elif "dob" in title_text:
+                    fighter_dob = value
+
+        # --- ADICIONA TUDO NO DICIONÁRIO ---
         data_dic = {
             "id": id,
             "name": fighter_name,
             "nick_name": fighter_nick_name,
+            "height": fighter_height,
+            "weight": fighter_weight,
+            "reach": fighter_reach,
+            "stance": fighter_stance, # Ex: Orthodox, Southpaw, Switch
+            "dob": fighter_dob,       # Ex: Oct 17, 1989
             "wins": fighter_wins,
             "losses": fighter_losses,
             "draws": fighter_draws,

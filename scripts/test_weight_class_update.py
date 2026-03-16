@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database.models.schemas import Fighter
+from app.database.models.base import Fighter
 
 # Configurar conexão
 DATABASE_URL = "postgresql://myuser:mypassword@localhost:5432/fight_base"

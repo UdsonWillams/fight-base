@@ -24,7 +24,11 @@ async def _get_engine_and_factory():
             json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
         )
         _session_factory = sessionmaker(
-            autocommit=False, autoflush=False, bind=_engine, class_=AsyncSession
+            autocommit=False,
+            autoflush=False,
+            bind=_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
         )
     return _engine, _session_factory
 

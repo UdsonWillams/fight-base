@@ -54,8 +54,7 @@ async def test_ml_integration():
     print("🔌 Passo 2: Conectando ao banco de dados...")
 
     async with UnitOfWorkConnection() as uow:
-        session = await uow.get_session()
-        fighter_repo = FighterRepository(session)  # 3. Busca lutadores reais
+        fighter_repo = FighterRepository(uow)  # 3. Busca lutadores reais
         print("🔍 Passo 3: Buscando lutadores para teste...")
 
         # Busca Jon Jones e Thiago Santos (luta clássica UFC 239)
@@ -121,7 +120,7 @@ async def test_ml_integration():
         print("⚔️  Passo 6: Predição via FightSimulationService")
         print("-" * 80)
 
-        sim_repo = FightSimulationRepository(session)
+        sim_repo = FightSimulationRepository(uow)
         sim_service = FightSimulationService(fighter_repo, sim_repo)
 
         prediction = await sim_service.predict_fight(fighter1.id, fighter2.id)

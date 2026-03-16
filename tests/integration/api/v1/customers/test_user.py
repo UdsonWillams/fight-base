@@ -2,7 +2,7 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
-from app.database.models.base import Customer
+from app.database.models.base import User
 
 
 async def _get_token_for_customer(client, customer):
@@ -16,7 +16,7 @@ async def _get_token_for_customer(client, customer):
 
 
 @pytest.mark.asyncio
-async def test_create(client: AsyncClient, customer_admin: Customer):
+async def test_create(client: AsyncClient, customer_admin: User):
     payload = {
         "email": "user_integration@example.com",
         "password": "pass123",
@@ -31,7 +31,7 @@ async def test_create(client: AsyncClient, customer_admin: Customer):
 
 
 @pytest.mark.asyncio
-async def test_get_customer(client: AsyncClient, customer: Customer):
+async def test_get_customer(client: AsyncClient, customer: User):
     headers = await _get_token_for_customer(client, customer)
     resp = await client.get(f"api/v1/customers/{customer.id}", headers=headers)
     assert resp.status_code == status.HTTP_200_OK
@@ -42,7 +42,7 @@ async def test_get_customer(client: AsyncClient, customer: Customer):
 
 @pytest.mark.asyncio
 async def test_list_customers(
-    client: AsyncClient, customer_admin: Customer, some_customers: list[Customer]
+    client: AsyncClient, customer_admin: User, some_customers: list[User]
 ):
     headers = await _get_token_for_customer(client, customer_admin)
     resp = await client.get("api/v1/customers", headers=headers)
@@ -52,7 +52,7 @@ async def test_list_customers(
 
 
 @pytest.mark.asyncio
-async def test_update_customer(client: AsyncClient, customer: Customer):
+async def test_update_customer(client: AsyncClient, customer: User):
     headers = await _get_token_for_customer(client, customer)
     payload = {"name": "Updated Name", "email": "updated@mail.com"}
     resp = await client.put(
@@ -65,7 +65,7 @@ async def test_update_customer(client: AsyncClient, customer: Customer):
 
 @pytest.mark.asyncio
 async def test_delete_customer(
-    client: AsyncClient, customer: Customer, customer_admin: Customer
+    client: AsyncClient, customer: User, customer_admin: User
 ):
     headers = await _get_token_for_customer(client, customer_admin)
     resp = await client.delete(f"api/v1/customers/{customer.id}", headers=headers)
