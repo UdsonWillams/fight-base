@@ -54,9 +54,20 @@ class BettingQuantCalculator:
             "implied_prob": implied_prob
         }
 
-def get_fighter_by_name(session, name: str) -> Fighter:
-    """Busca o lutador no banco de dados de forma síncrona"""
-    return session.query(Fighter).filter(Fighter.name.ilike(f"%{name.strip()}%")).first()
+def get_fighter_by_name(session, identifier: str) -> Fighter:
+    """Busca o lutador por nome ou ufcstats_id de forma síncrona"""
+    # 1. Tenta busca exata por nome (case-insensitive)
+    fighter = session.query(Fighter).filter(Fighter.name.ilike(identifier.strip())).first()
+    if fighter:
+        return fighter
+    
+    # 2. Tenta busca por ufcstats_id
+    fighter = session.query(Fighter).filter(Fighter.ufcstats_id == identifier.strip()).first()
+    if fighter:
+        return fighter
+
+    # 3. Tenta busca parcial por nome (fallback)
+    return session.query(Fighter).filter(Fighter.name.ilike(f"%{identifier.strip()}%")).first()
 
 def main():    
     print(f"{CYAN}" + "=" * 80)

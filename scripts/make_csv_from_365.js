@@ -10,7 +10,7 @@
 
   for (let i = 0; i < fighterNames.length; i++) {
     // This regex splits concatenated names, assuming names start with a capital letter
-    const names = fighterNames[i].match(/[A-Z][a-z]+(?:\\s[A-Z][a-z]+)*/g); 
+    const names = fighterNames[i].match(/[A-Z][a-z]+(?:\s[A-Z][a-z]+)*/g); 
     if (names && names.length >= 2) {
       const fighter1 = names[0];
       const fighter2 = names[1];
@@ -40,12 +40,11 @@
     }
   }
 
-  let csvContent = "Fighter 1,Odds 1,Fighter 2,Odds 2\\n";
+  let csvContent = "Fighter 1,Odds 1,Fighter 2,Odds 2\n";
   fightData.forEach(row => {
-    csvContent += `\"${row.fighter1 || ''}\",\"${row.odds1 || ''}\",\"${row.fighter2 || ''}\",\"${row.odds2 || ''}\"\\n`;
+    csvContent += `"${row.fighter1 || ''}","${row.odds1 || ''}","${row.fighter2 || ''}","${row.odds2 || ''}"\n`;
   });
 
-  console.log("Aqui está o CSV dos dados dos lutadores e suas odds:");
   console.log(csvContent);
 
   // You can also automatically download it as a CSV file:

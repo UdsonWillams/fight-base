@@ -36,6 +36,34 @@ class FighterRepository(BaseRepository[Fighter]):
             logger.error(f"Error fetching Fighter by name: {e}")
             raise RepositoryError
 
+    async def get_by_ufcstats_id(self, ufcstats_id: str) -> Optional[Fighter]:
+        """Busca lutador por ID do UFC Stats"""
+        try:
+            session = await self.uow.get_session()
+            query = (
+                select(self.model)
+                .filter(self.model.ufcstats_id == ufcstats_id)
+                .filter(
+                    self.model.deleted_at.is_(None),
+                    self.model.deleted_by.is_(None),
+                )
+            )
+            result = await session.execute(query)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"Error fetching Fighter by ufcstats_id: {e}")
+            raise RepositoryError
+
+    async def get_by_name_or_id(self, identifier: str) -> Optional[Fighter]:
+        """Busca lutador por nome ou por ufcstats_id"""
+        # Tenta por nome primeiro
+        fighter = await self.get_by_name(identifier)
+        if fighter:
+            return fighter
+
+        # Se não encontrou, tenta por ufcstats_id
+        return await self.get_by_ufcstats_id(identifier)
+
     async def search_fighters(
         self,
         name: Optional[str] = None,
