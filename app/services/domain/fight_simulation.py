@@ -1,6 +1,7 @@
 """Serviço para simulação de lutas entre lutadores"""
 
 import random
+from dataclasses import dataclass, field
 from typing import Optional
 from uuid import UUID
 
@@ -10,6 +11,19 @@ from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
 from app.exceptions.exceptions import ForbiddenError, NotFoundError
 from app.services.ml.prediction_service import ml_prediction_service
+
+
+@dataclass
+class FightSimulationResult:
+    """Resultado puro da simulação de luta, sem vínculo com banco de dados."""
+
+    winner_id: UUID
+    result_type: str
+    finish_round: Optional[int]
+    rounds: int
+    fighter1_total_points: float
+    fighter2_total_points: float
+    round_details: list[dict] = field(default_factory=list)
 
 
 class FightSimulationService:
@@ -32,15 +46,12 @@ class FightSimulationService:
             aspect: 'striking', 'grappling' ou 'overall'
         """
         if aspect == "striking":
-            # Striking considera: striking, speed, defense
             return fighter.striking * 0.5 + fighter.speed * 0.3 + fighter.defense * 0.2
         elif aspect == "grappling":
-            # Grappling considera: grappling, stamina, strategy
             return (
                 fighter.grappling * 0.5 + fighter.stamina * 0.3 + fighter.strategy * 0.2
             )
         else:  # overall
-            # Overall é a média de todos os atributos
             return (
                 fighter.striking
                 + fighter.grappling
@@ -50,7 +61,7 @@ class FightSimulationService:
                 + fighter.strategy
             ) / 6
 
-    def calculate_win_probability(
+    async def calculate_win_probability(
         self, fighter1: Fighter, fighter2: Fighter
     ) -> tuple[float, float]:
         """
@@ -60,11 +71,11 @@ class FightSimulationService:
         Returns:
             (probabilidade_fighter1, probabilidade_fighter2)
         """
-        # Tenta usar modelo ML
-        ml_prob = ml_prediction_service.predict_winner_from_model(fighter1, fighter2)
+        ml_prob = await ml_prediction_service.predict_winner_from_model(
+            fighter1, fighter2
+        )
 
         if ml_prob is not None:
-            # Converte para porcentagem
             prob1 = ml_prob * 100
             prob2 = (1 - ml_prob) * 100
             logger.info(
@@ -72,36 +83,30 @@ class FightSimulationService:
             )
             return round(prob1, 2), round(prob2, 2)
 
-        # Fallback: método legado (DEPRECATED)
         logger.warning(
             "⚠️  ML não disponível, usando cálculo legado com atributos mágicos"
         )
 
-        # Calcula poder geral de cada lutador
         power1 = self._calculate_fighter_power(fighter1, "overall")
         power2 = self._calculate_fighter_power(fighter2, "overall")
 
-        # Calcula diferença de poder
         total_power = power1 + power2
-
-        # Probabilidade base
         prob1 = (power1 / total_power) * 100
         prob2 = (power2 / total_power) * 100
 
-        # Ajusta com base no histórico (se existir)
-        if fighter1.wins and fighter1.losses:
-            fighter1_record_bonus = (
-                fighter1.wins / (fighter1.wins + fighter1.losses)
-            ) * 5
-            prob1 += fighter1_record_bonus
+        total_fights1 = (
+            (fighter1.wins or 0) + (fighter1.losses or 0) + (fighter1.draws or 0)
+        )
+        total_fights2 = (
+            (fighter2.wins or 0) + (fighter2.losses or 0) + (fighter2.draws or 0)
+        )
 
-        if fighter2.wins and fighter2.losses:
-            fighter2_record_bonus = (
-                fighter2.wins / (fighter2.wins + fighter2.losses)
-            ) * 5
-            prob2 += fighter2_record_bonus
+        if fighter1.wins and total_fights1 > 0:
+            prob1 += (fighter1.wins / total_fights1) * 5
 
-        # Normaliza para somar 100%
+        if fighter2.wins and total_fights2 > 0:
+            prob2 += (fighter2.wins / total_fights2) * 5
+
         total_prob = prob1 + prob2
         prob1 = (prob1 / total_prob) * 100
         prob2 = (prob2 / total_prob) * 100
@@ -239,6 +244,73 @@ class FightSimulationService:
             "events": events,
         }
 
+    def _run_fight_simulation(
+        self, fighter1: Fighter, fighter2: Fighter, rounds: int
+    ) -> FightSimulationResult:
+        """
+        Método core de simulação: determina resultado, simula rounds e escolhe vencedor.
+
+        Regras:
+          - KO/Submission: vencedor = dominante do último round (o round do finish)
+          - Decision: vencedor = maior pontuação total acumulada
+          - Empate nos pontos totais em Decision: sorteio aleatório entre os dois
+        """
+        fighter1_id = fighter1.id
+        fighter2_id = fighter2.id
+
+        result_types = self.predict_result_type(fighter1, fighter2)
+
+        rand = random.random() * 100  # nosec B311
+        if rand < result_types["ko"]:
+            result_type = "KO"
+            finish_round = (
+                random.randint(1, rounds - 1) if rounds > 1 else 1  # nosec B311
+            )
+        elif rand < result_types["ko"] + result_types["submission"]:
+            result_type = "Submission"
+            finish_round = (
+                random.randint(1, rounds - 1) if rounds > 1 else 1  # nosec B311
+            )
+        else:
+            result_type = "Decision"
+            finish_round = None
+
+        rounds_to_simulate = finish_round if finish_round else rounds
+
+        round_details = []
+        f1_total = 0.0
+        f2_total = 0.0
+
+        for round_num in range(1, rounds_to_simulate + 1):
+            round_result = self._simulate_round(fighter1, fighter2, round_num)
+            round_details.append(round_result)
+            f1_total += round_result["fighter1_points"]
+            f2_total += round_result["fighter2_points"]
+
+        if result_type in ("KO", "Submission"):
+            last_round = round_details[-1]
+            winner_id = (
+                fighter1_id
+                if last_round["dominant_fighter"] == fighter1.name
+                else fighter2_id
+            )
+        elif f1_total > f2_total:
+            winner_id = fighter1_id
+        elif f2_total > f1_total:
+            winner_id = fighter2_id
+        else:
+            winner_id = random.choice([fighter1_id, fighter2_id])  # nosec B311
+
+        return FightSimulationResult(
+            winner_id=winner_id,
+            result_type=result_type,
+            finish_round=finish_round,
+            rounds=rounds,
+            fighter1_total_points=f1_total,
+            fighter2_total_points=f2_total,
+            round_details=round_details,
+        )
+
     async def simulate_fight(
         self,
         fighter1_id: UUID,
@@ -260,7 +332,6 @@ class FightSimulationService:
         Returns:
             FightSimulation com o resultado
         """
-        # Busca os lutadores
         fighter1 = await self.fighter_repo.get_by_id(fighter1_id)
         fighter2 = await self.fighter_repo.get_by_id(fighter2_id)
 
@@ -272,65 +343,30 @@ class FightSimulationService:
         if fighter1_id == fighter2_id:
             raise ForbiddenError("Cannot simulate fight between same fighter")
 
-        # Calcula probabilidades
-        prob1, prob2 = self.calculate_win_probability(fighter1, fighter2)
+        prob1, prob2 = await self.calculate_win_probability(fighter1, fighter2)
 
-        # Determina o tipo de resultado antecipadamente
-        result_types = self.predict_result_type(fighter1, fighter2)
+        result = self._run_fight_simulation(fighter1, fighter2, rounds)
 
-        # Seleciona tipo baseado nas probabilidades
-        rand = random.random() * 100  # nosec B311
-        if rand < result_types["ko"]:
-            result_type = "KO"
-            finish_round = random.randint(1, rounds)  # nosec B311
-        elif rand < result_types["ko"] + result_types["submission"]:
-            result_type = "Submission"
-            finish_round = random.randint(1, rounds)  # nosec B311
-        else:
-            result_type = "Decision"
-            finish_round = None
-
-        # Simula rounds até o finish_round ou até o final se for decisão
-        round_details = []
-        fighter1_total_points = 0
-        fighter2_total_points = 0
-        rounds_to_simulate = finish_round if finish_round else rounds
-
-        for round_num in range(1, rounds_to_simulate + 1):
-            round_result = self._simulate_round(fighter1, fighter2, round_num)
-            round_details.append(round_result)
-            fighter1_total_points += round_result["fighter1_points"]
-            fighter2_total_points += round_result["fighter2_points"]
-
-        # Determina o vencedor com base nos pontos totais
-        winner_id = (
-            fighter1_id
-            if fighter1_total_points > fighter2_total_points
-            else fighter2_id
-        )
-
-        # Cria a simulação
         simulation = FightSimulation(
             fighter1_id=fighter1_id,
             fighter2_id=fighter2_id,
-            winner_id=winner_id,
-            result_type=result_type,
+            winner_id=result.winner_id,
+            result_type=result.result_type,
             rounds=rounds,
-            finish_round=finish_round,
+            finish_round=result.finish_round,
             fighter1_probability=prob1,
             fighter2_probability=prob2,
             simulation_details={
-                "rounds": round_details,
+                "rounds": result.round_details,
                 "total_points": {
-                    "fighter1": round(fighter1_total_points, 2),
-                    "fighter2": round(fighter2_total_points, 2),
+                    "fighter1": round(result.fighter1_total_points, 2),
+                    "fighter2": round(result.fighter2_total_points, 2),
                 },
             },
             notes=notes,
             created_by=created_by,
         )
 
-        # Salva no banco
         return await self.simulation_repo.create(simulation)
 
     async def predict_fight(self, fighter1_id: UUID, fighter2_id: UUID) -> dict:
@@ -350,7 +386,7 @@ class FightSimulationService:
             raise NotFoundError("Fighter 2 not found")
 
         # Calcula probabilidades
-        prob1, prob2 = self.calculate_win_probability(fighter1, fighter2)
+        prob1, prob2 = await self.calculate_win_probability(fighter1, fighter2)
         result_probs = self.predict_result_type(fighter1, fighter2)
 
         # Análise de vantagens
@@ -518,15 +554,13 @@ class FightSimulationService:
     async def get_simulation_with_details(self, simulation: FightSimulation) -> dict:
         """
         Retorna uma simulação com todos os detalhes formatados incluindo nomes dos lutadores.
-
-        Args:
-            simulation: Objeto FightSimulation
-
-        Returns:
-            Dict com simulação formatada
         """
-        fighter1 = await self.fighter_repo.get_by_id(simulation.fighter1_id)
-        fighter2 = await self.fighter_repo.get_by_id(simulation.fighter2_id)
+        fighter1 = simulation.fighter1 or await self.fighter_repo.get_by_id(
+            simulation.fighter1_id
+        )
+        fighter2 = simulation.fighter2 or await self.fighter_repo.get_by_id(
+            simulation.fighter2_id
+        )
         winner = fighter1 if simulation.winner_id == fighter1.id else fighter2
 
         return {
@@ -552,27 +586,17 @@ class FightSimulationService:
     ) -> dict:
         """
         Retorna o histórico de simulações de um lutador com estatísticas.
-
-        Args:
-            fighter_id: ID do lutador
-            limit: Limite de resultados
-            offset: Offset para paginação
-
-        Returns:
-            Dict com histórico e estatísticas formatados
         """
-        # Busca dados
         history = await self.simulation_repo.get_fighter_history(
             fighter_id=fighter_id, limit=limit, offset=offset
         )
         stats = await self.simulation_repo.get_fighter_stats(fighter_id)
         fighter = await self.fighter_repo.get_by_id(fighter_id)
 
-        # Formata lutas
         fights = []
         for sim in history:
-            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
-            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
+            f1 = sim.fighter1
+            f2 = sim.fighter2
             winner = f1 if sim.winner_id == f1.id else f2
 
             fights.append(
@@ -601,13 +625,6 @@ class FightSimulationService:
     ) -> list[dict]:
         """
         Retorna o histórico de confrontos diretos entre dois lutadores formatado.
-
-        Args:
-            fighter1_id: ID do primeiro lutador
-            fighter2_id: ID do segundo lutador
-
-        Returns:
-            Lista de confrontos formatados
         """
         history = await self.simulation_repo.get_matchup_history(
             fighter1_id, fighter2_id
@@ -615,8 +632,8 @@ class FightSimulationService:
 
         results = []
         for sim in history:
-            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
-            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
+            f1 = sim.fighter1
+            f2 = sim.fighter2
             winner = f1 if sim.winner_id == f1.id else f2
 
             results.append(
@@ -639,19 +656,13 @@ class FightSimulationService:
     async def get_recent_simulations_formatted(self, limit: int = 50) -> list[dict]:
         """
         Retorna as simulações recentes formatadas com nomes dos lutadores.
-
-        Args:
-            limit: Número máximo de simulações
-
-        Returns:
-            Lista de simulações formatadas
         """
         simulations = await self.simulation_repo.get_recent_simulations(limit)
 
         results = []
         for sim in simulations:
-            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
-            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
+            f1 = sim.fighter1
+            f2 = sim.fighter2
             winner = f1 if sim.winner_id == f1.id else f2
 
             results.append(

@@ -4,9 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
+from app.api.v1.auth.dependencies import get_current_user
 from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
+from app.schemas.auth import AuthenticatedUser
 from app.schemas.domain.simulations import FightSimulationInput
 from app.services.domain.fight_simulation import FightSimulationService
 
@@ -30,7 +32,7 @@ def get_simulation_service(
 )
 async def simulate_fight(
     data: FightSimulationInput,
-    # current_user: User = Depends(get_current_user),
+    current_user: AuthenticatedUser = Depends(get_current_user),
     service: FightSimulationService = Depends(get_simulation_service),
 ):
     """
@@ -48,7 +50,7 @@ async def simulate_fight(
         fighter2_id=data.fighter2_id,
         rounds=data.rounds,
         notes=data.notes,
-        created_by="testeer",  # current_user.email,
+        created_by=current_user.email,
     )
 
     return await service.get_simulation_with_details(simulation)

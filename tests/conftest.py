@@ -1,3 +1,7 @@
+import os
+
+os.environ["APP_ENVIRONMENT"] = "local"
+
 import sys
 
 from httpx import ASGITransport, AsyncClient

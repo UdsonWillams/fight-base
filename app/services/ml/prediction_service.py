@@ -96,7 +96,7 @@ class MLPredictionService:
         }
 
     @staticmethod
-    def predict_winner_from_model(
+    async def predict_winner_from_model(
         fighter1: Fighter, fighter2: Fighter, event_date: Optional[datetime] = None
     ) -> Optional[float]:
         """
@@ -110,7 +110,7 @@ class MLPredictionService:
         Returns:
             Probabilidade de fighter1 vencer (0.0 a 1.0) ou None se falhar.
         """
-        model = ml_model_loader.get_model()
+        model = await ml_model_loader.get_model()
         if model is None:
             logger.warning("⚠️  Modelo ML não disponível, retornando None")
             return None

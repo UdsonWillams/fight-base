@@ -2,15 +2,11 @@ from datetime import datetime, timezone
 from typing import List
 from uuid import UUID
 
-from sqlalchemy import select, func, cast as sa_cast, Integer
 from app.core.logger import logger
 from app.database.models.base import (
     Prediction,
     Fight,
     UserStats,
-    EventLeaderboard,
-    UserAchievement,
-    Achievement,
 )
 from app.database.repositories.prediction import PredictionRepository
 from app.database.repositories.achievement import AchievementRepository
@@ -32,8 +28,6 @@ class PredictionService:
     async def create_prediction(
         self, user_id: UUID, payload: CreatePrediction
     ) -> Prediction:
-        """Cria um novo palpite para uma luta"""
-        # Validar se já existe
         existing = await self.prediction_repo.get_prediction_by_user_and_fight(
             user_id, payload.fight_id
         )
@@ -56,7 +50,6 @@ class PredictionService:
     async def update_prediction(
         self, user_id: UUID, prediction_id: UUID, payload: UpdatePrediction
     ) -> Prediction:
-        """Atualiza um palpite existente"""
         prediction = await self.prediction_repo.get_by_id(prediction_id)
         if not prediction or prediction.user_id != user_id:
             raise ValueError("Palpite não encontrado.")
@@ -72,69 +65,49 @@ class PredictionService:
     async def process_fight_results(self, fight_id: UUID):
         """
         Background Task: Processa todos os palpites de uma luta após o resultado ser definido.
+        Cria sua própria sessão de banco, independente da request HTTP.
         """
-        try:
-            session = await self.uow.get_session()
+        async with UnitOfWorkConnection() as bg_uow:
+            bg_prediction_repo = PredictionRepository(bg_uow)
+            bg_achievement_repo = AchievementRepository(bg_uow)
 
-            # Buscar a luta e o método de finalização real
-            # Precisamos de um repository de fight ou usar o session direto
-            from sqlalchemy import select
-
-            fight_query = select(Fight).filter(Fight.id == fight_id)
-            fight_result = await session.execute(fight_query)
-            fight = fight_result.scalar_one_or_none()
-
+            fight = await bg_prediction_repo.get_fight_by_id(fight_id)
             if not fight or fight.status != "completed":
                 logger.warning(f"Fight {fight_id} not found or not completed.")
                 return
 
-            # Buscar todos os palpites para esta luta que ainda não foram processados
-            predictions_query = select(Prediction).filter(
-                Prediction.fight_id == fight_id, Prediction.processed_at.is_(None)
+            predictions = (
+                await bg_prediction_repo.get_unprocessed_predictions_for_fight(fight_id)
             )
-            predictions_result = await session.execute(predictions_query)
-            predictions = predictions_result.scalars().all()
 
             for pred in predictions:
-                await self._calculate_and_update_prediction(pred, fight)
+                self._calculate_and_update_prediction(pred, fight)
 
-            await session.commit()
+            await bg_uow.commit()
 
-            # Após processar palpites, atualizar rankings e conquistas (pode disparar outras tasks)
-            # Para evitar loops complexos, chamamos as atualizações aqui mesmo
             for pred in predictions:
-                await self._update_user_stats_and_achievements(pred.user_id)
-                await self._update_event_leaderboard(pred.user_id, fight.event_id)
+                await self._update_user_stats_and_achievements(
+                    bg_uow, bg_prediction_repo, bg_achievement_repo, pred.user_id
+                )
+                await self._update_event_leaderboard(
+                    bg_uow, bg_prediction_repo, pred.user_id, fight.event_id
+                )
 
-        except Exception as e:
-            logger.error(f"Error processing fight results for fight {fight_id}: {e}")
-            raise
+        logger.info(f"Processed {len(predictions)} predictions for fight {fight_id}")
 
-    async def _calculate_and_update_prediction(self, pred: Prediction, fight: Fight):
-        """Calcula pontos de um palpite específico"""
+    def _calculate_and_update_prediction(self, pred: Prediction, fight: Fight):
         points = 0
         is_winner_correct = False
         is_method_correct = False
         is_round_correct = False
 
-        # 1. Vencedor (3 pontos)
-        # Se fight.winner_id é NULL, foi DRAW/NC. O palpite correta seria predicted_winner_id NULL.
         if pred.predicted_winner_id == fight.winner_id:
             is_winner_correct = True
             points += 3
 
-            # Bônus Underdog (baseado em probabilidade ML interna)
             points += self._calculate_underdog_bonus(fight, pred)
 
-        # 2. Método (2 pontos bônus - apenas se acertou o vencedor)
-        # Nota: dependendo da regra, pode dar pontos de método mesmo errando vencedor?
-        # Geralmente em fantasy MMA, método só conta se acertar vencedor.
         if is_winner_correct:
-            # Aqui precisaríamos comparar pred.predicted_method_id com o método real da luta
-            # O sistema atual de Fight usa result_type (string).
-            # Precisamos garantir que o admin preencheu o method_id corretamente no model Fight (ou similar)
-            # Como adicionei finish_methods agora, a luta concluída deve ter um method_id vinculado.
-            # Se não tiver (lutas antigas), pulamos.
             if (
                 hasattr(fight, "method_id")
                 and pred.predicted_method_id == fight.method_id
@@ -142,12 +115,10 @@ class PredictionService:
                 is_method_correct = True
                 points += 2
 
-            # 3. Round (1 ponto bônus)
             if pred.predicted_round == fight.finish_round:
                 is_round_correct = True
                 points += 1
 
-        # Atualizar Prediction
         pred.is_winner_correct = is_winner_correct
         pred.is_method_correct = is_method_correct
         pred.is_round_correct = is_round_correct
@@ -155,12 +126,9 @@ class PredictionService:
         pred.processed_at = datetime.now(timezone.utc)
 
     def _calculate_underdog_bonus(self, fight: Fight, pred: Prediction) -> int:
-        """Calcula bônus se acertou um azarão (probabilidade < 50%)"""
-        # Se foi empate, não tem underdog bonus
         if fight.winner_id is None:
             return 0
 
-        prob = 0
         if fight.winner_id == fight.fighter1_id:
             prob = fight.fighter1_probability or 0.5
         else:
@@ -174,109 +142,140 @@ class PredictionService:
             return 1
         return 0
 
-    async def _update_user_stats_and_achievements(self, user_id: UUID):
-        """Atualiza estatísticas globais e verifica achievements"""
-        session = await self.uow.get_session()
+    async def _update_user_stats_and_achievements(
+        self,
+        uow: UnitOfWorkConnection,
+        prediction_repo: PredictionRepository,
+        achievement_repo: AchievementRepository,
+        user_id: UUID,
+    ):
+        stats = await prediction_repo.get_or_create_user_stats(user_id)
 
-        # Buscar ou criar UserStats
-        stats_query = select(UserStats).filter(UserStats.user_id == user_id)
-        stats_result = await session.execute(stats_query)
-        stats = stats_result.scalar_one_or_none()
+        all_preds = await prediction_repo.get_all_processed_for_user(user_id)
 
-        if not stats:
-            stats = UserStats(user_id=user_id, created_by="system", updated_by="system")
-            session.add(stats)
-
-        # Agregar todos os palpites processados do usuário
-        select(
-            func.sum(Prediction.points_earned).label("total_points"),
-            func.count(Prediction.id).label("total_preds"),
-            func.sum(sa_cast(Prediction.is_winner_correct, Integer)).label(
-                "correct_winners"
-            ),
-        ).filter(Prediction.user_id == user_id, Prediction.processed_at.is_not(None))
-        # Obs: cast depende do banco, SQLAlchemy or_ / func.sum(cast(bool, int))
-        # Para simplificar aqui, vamos assumir que atualizamos incrementalmente ou recalculamos
-
-        # Recalcular (mais robusto)
-        all_preds_query = select(Prediction).filter(
-            Prediction.user_id == user_id, Prediction.processed_at.is_not(None)
-        )
-        all_preds_result = await session.execute(all_preds_query)
-        all_preds = all_preds_result.scalars().all()
-
-        stats.total_points = sum(p.points_earned for p in all_preds)
+        stats.total_points = sum(p.points_earned or 0 for p in all_preds)
         stats.total_predictions = len(all_preds)
         stats.correct_winners = sum(1 for p in all_preds if p.is_winner_correct)
         stats.correct_methods = sum(1 for p in all_preds if p.is_method_correct)
         stats.correct_rounds = sum(1 for p in all_preds if p.is_round_correct)
 
-        # Streak (lógica simples: últimos N palpites)
-        # ... logic for streaks ...
+        underdog_total = 0
+        for p in all_preds:
+            if p.points_earned and p.is_winner_correct and p.points_earned > 3:
+                underdog_total += p.points_earned - 3
+        stats.underdog_bonus_points = underdog_total
 
-        await self._check_achievements(user_id, stats, all_preds)
+        current_streak = 0
+        best_streak = 0
+        for p in all_preds:
+            if p.is_winner_correct:
+                current_streak += 1
+                if current_streak > best_streak:
+                    best_streak = current_streak
+            else:
+                current_streak = 0
+        stats.current_streak = current_streak
+        stats.best_streak = max(stats.best_streak or 0, best_streak)
 
-    async def _update_event_leaderboard(self, user_id: UUID, event_id: UUID):
-        """Atualiza o ranking específico do evento para o usuário"""
-        session = await self.uow.get_session()
+        event_ids = set(p.event_id for p in all_preds if p.event_id)
+        stats.events_participated = len(event_ids)
 
-        lb_query = select(EventLeaderboard).filter(
-            EventLeaderboard.user_id == user_id, EventLeaderboard.event_id == event_id
+        now = datetime.now(timezone.utc)
+        stats.points_this_month = sum(
+            (p.points_earned or 0)
+            for p in all_preds
+            if p.processed_at
+            and p.processed_at.month == now.month
+            and p.processed_at.year == now.year
         )
-        lb_result = await session.execute(lb_query)
-        lb = lb_result.scalar_one_or_none()
-
-        if not lb:
-            lb = EventLeaderboard(
-                user_id=user_id,
-                event_id=event_id,
-                created_by="system",
-                updated_by="system",
-            )
-            session.add(lb)
-
-        event_preds_query = select(Prediction).filter(
-            Prediction.user_id == user_id,
-            Prediction.event_id == event_id,
-            Prediction.processed_at.is_not(None),
+        stats.points_this_year = sum(
+            (p.points_earned or 0)
+            for p in all_preds
+            if p.processed_at and p.processed_at.year == now.year
         )
-        event_preds_result = await session.execute(event_preds_query)
-        event_preds = event_preds_result.scalars().all()
 
-        lb.total_points = sum(p.points_earned for p in event_preds)
-        lb.correct_winners = sum(1 for p in event_preds if p.is_winner_correct)
-        lb.total_predictions = len(event_preds)
+        await uow.commit()
+
+        await self._check_achievements(achievement_repo, user_id, stats, all_preds)
+
+    async def _update_event_leaderboard(
+        self,
+        uow: UnitOfWorkConnection,
+        prediction_repo: PredictionRepository,
+        user_id: UUID,
+        event_id: UUID,
+    ):
+        lb = await prediction_repo.get_or_create_event_leaderboard(user_id, event_id)
+
+        event_preds = await prediction_repo.get_user_predictions_for_event(
+            user_id, event_id
+        )
+        processed = [p for p in event_preds if p.processed_at is not None]
+
+        lb.total_points = sum(p.points_earned or 0 for p in processed)
+        lb.correct_winners = sum(1 for p in processed if p.is_winner_correct)
+        lb.correct_methods = sum(1 for p in processed if p.is_method_correct)
+        lb.correct_rounds = sum(1 for p in processed if p.is_round_correct)
+        lb.total_predictions = len(processed)
+
+        await uow.commit()
 
     async def _check_achievements(
-        self, user_id: UUID, stats: UserStats, all_preds: List[Prediction]
+        self,
+        achievement_repo: AchievementRepository,
+        user_id: UUID,
+        stats: UserStats,
+        all_preds: List[Prediction],
     ):
-        """Verifica se o usuário desbloqueou novas conquistas"""
-        session = await self.uow.get_session()
+        available = await achievement_repo.get_available_for_user(user_id)
 
-        # Listar achievements que o usuário ainda não tem
-        subquery = select(UserAchievement.achievement_id).filter(
-            UserAchievement.user_id == user_id
-        )
-        new_ach_query = select(Achievement).filter(
-            Achievement.id.notin_(subquery), Achievement.is_active.is_(True)
-        )
-        new_ach_result = await session.execute(new_ach_query)
-        available_achievements = new_ach_result.scalars().all()
+        streak_wins = 0
+        for p in all_preds:
+            if p.is_winner_correct:
+                streak_wins += 1
+            else:
+                break
 
-        for ach in available_achievements:
+        perfect_events = {}
+        for p in all_preds:
+            if p.event_id:
+                if p.event_id not in perfect_events:
+                    perfect_events[p.event_id] = {"correct": 0, "total": 0}
+                perfect_events[p.event_id]["total"] += 1
+                if p.is_winner_correct:
+                    perfect_events[p.event_id]["correct"] += 1
+
+        has_perfect_event = any(
+            ev["total"] >= 3 and ev["correct"] == ev["total"]
+            for ev in perfect_events.values()
+        )
+
+        for ach in available:
             unlocked = False
+
             if ach.code == "FIRST_PREDICTION" and stats.total_predictions >= 1:
                 unlocked = True
             elif ach.code == "PREDICTIONS_10" and stats.total_predictions >= 10:
                 unlocked = True
-            # ... and so on for others ...
+            elif ach.code == "PREDICTIONS_50" and stats.total_predictions >= 50:
+                unlocked = True
+            elif ach.code == "PREDICTIONS_100" and stats.total_predictions >= 100:
+                unlocked = True
+            elif ach.code == "STREAK_3" and streak_wins >= 3:
+                unlocked = True
+            elif ach.code == "STREAK_5" and streak_wins >= 5:
+                unlocked = True
+            elif ach.code == "STREAK_10" and streak_wins >= 10:
+                unlocked = True
+            elif ach.code == "PERFECT_EVENT" and has_perfect_event:
+                unlocked = True
+            elif ach.code == "UNDERDOG_KING" and stats.underdog_bonus_points >= 10:
+                unlocked = True
+            elif ach.code == "POINTS_100" and stats.total_points >= 100:
+                unlocked = True
+            elif ach.code == "POINTS_500" and stats.total_points >= 500:
+                unlocked = True
 
             if unlocked:
-                ua = UserAchievement(
-                    user_id=user_id,
-                    achievement_id=ach.id,
-                    created_by="system",
-                    updated_by="system",
-                )
-                session.add(ua)
+                await achievement_repo.unlock_achievement(user_id, ach.id)
                 logger.info(f"User {user_id} unlocked achievement: {ach.name}")

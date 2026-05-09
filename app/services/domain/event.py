@@ -1,5 +1,6 @@
 """Service for Event operations"""
 
+import random
 from datetime import datetime, timezone
 from typing import List, Optional, TYPE_CHECKING
 from uuid import UUID
@@ -27,21 +28,16 @@ class EventService:
         self,
         uow: UnitOfWorkConnection,
         simulation_service: FightSimulationService,
+        event_repo: EventRepository,
+        fight_repo: FightRepository,
+        fighter_repo: FighterRepository,
         user_email: str = "system",
     ):
-        """
-        Inicializa o EventService com injeção de dependência.
-
-        Args:
-            uow: Unit of Work para gerenciamento de transações
-            simulation_service: Serviço de simulação de lutas (injetado)
-            user_email: Email do usuário que executa as operações
-        """
         self.uow = uow
         self.user_email = user_email
-        self.event_repo = EventRepository(uow)
-        self.fight_repo = FightRepository(uow)
-        self.fighter_repo = FighterRepository(uow)
+        self.event_repo = event_repo
+        self.fight_repo = fight_repo
+        self.fighter_repo = fighter_repo
         self.simulation_service = simulation_service
 
     async def create_event(self, payload: CreateEvent, creator_id: UUID) -> Event:
@@ -131,7 +127,6 @@ class EventService:
 
     async def simulate_event(self, event_id: UUID) -> SimulationResult:
         """Simula todas as lutas de um evento"""
-        # Busca o evento com lutas
         event = await self.get_event(event_id)
 
         if event.status == "completed":
@@ -140,83 +135,42 @@ class EventService:
         if not event.fights:
             raise ForbiddenError("Event has no fights to simulate")
 
-        # Mantém a sessão ativa durante toda a simulação
         session = await self.uow.get_session()
 
-        # Ordena lutas por fight_order
         fights = sorted(event.fights, key=lambda f: f.fight_order)
 
         simulated_fights = []
 
-        # Simula cada luta
         for fight in fights:
             if fight.status == "simulated":
-                # Luta já simulada, apenas carrega os dados
                 simulated_fights.append(fight)
                 continue
 
-            # Garante que os fighters estão carregados na sessão
             await session.refresh(fight, ["fighter1", "fighter2"])
 
-            # Calcula probabilidades
-            prob1, prob2 = self.simulation_service.calculate_win_probability(
+            prob1, prob2 = await self.simulation_service.calculate_win_probability(
                 fight.fighter1, fight.fighter2
             )
 
-            # Simula a luta (reusa a lógica do FightSimulationService)
-            import random
-
-            # Simula rounds
-            round_details = []
-            fighter1_total_points = 0
-            fighter2_total_points = 0
-
-            for round_num in range(1, fight.rounds + 1):
-                round_result = self.simulation_service._simulate_round(
-                    fight.fighter1, fight.fighter2, round_num
-                )
-                round_details.append(round_result)
-                fighter1_total_points += round_result["fighter1_points"]
-                fighter2_total_points += round_result["fighter2_points"]
-
-            # Determina o vencedor
-            winner_id = (
-                fight.fighter1_id
-                if fighter1_total_points > fighter2_total_points
-                else fight.fighter2_id
+            result = self.simulation_service._run_fight_simulation(
+                fight.fighter1, fight.fighter2, fight.rounds
             )
 
-            # Determina o tipo de resultado
-            result_types = self.simulation_service.predict_result_type(
-                fight.fighter1, fight.fighter2
+            fight.winner_id = result.winner_id
+            fight.result_type = result.result_type
+            fight.finish_round = result.finish_round
+            fight.finish_time = (
+                f"{random.randint(0, 4)}:{random.randint(10, 59):02d}"  # nosec B311
+                if result.finish_round
+                else None
             )
-
-            rand = random.random() * 100  # nosec B311
-            if rand < result_types["ko"]:
-                result_type = "KO"
-                finish_round = random.randint(1, fight.rounds)  # nosec B311
-                finish_time = f"{random.randint(0, 4)}:{random.randint(10, 59):02d}"  # nosec B311
-            elif rand < result_types["ko"] + result_types["submission"]:
-                result_type = "Submission"
-                finish_round = random.randint(1, fight.rounds)  # nosec B311
-                finish_time = f"{random.randint(0, 4)}:{random.randint(10, 59):02d}"  # nosec B311
-            else:
-                result_type = "Decision"
-                finish_round = None
-                finish_time = None
-
-            # Atualiza a luta com o resultado
-            fight.winner_id = winner_id
-            fight.result_type = result_type
-            fight.finish_round = finish_round
-            fight.finish_time = finish_time
             fight.fighter1_probability = prob1
             fight.fighter2_probability = prob2
             fight.simulation_details = {
-                "rounds": round_details,
+                "rounds": result.round_details,
                 "total_points": {
-                    "fighter1": round(fighter1_total_points, 2),
-                    "fighter2": round(fighter2_total_points, 2),
+                    "fighter1": round(result.fighter1_total_points, 2),
+                    "fighter2": round(result.fighter2_total_points, 2),
                 },
             }
             fight.status = "simulated"
@@ -225,22 +179,18 @@ class EventService:
 
             simulated_fights.append(fight)
 
-        # Converte fights para response ANTES do commit (enquanto ainda estão na sessão)
         import asyncio
 
         fight_responses = await asyncio.gather(
             *[self._fight_to_response(f) for f in simulated_fights]
         )
 
-        # Atualiza o status do evento
         event.status = "completed"
         event.updated_at = datetime.now(timezone.utc)
         event.updated_by = self.user_email
 
-        # Commit das alterações (sessão já obtida no início do método)
         await session.commit()
 
-        # Gera estatísticas do evento
         ko_count = sum(1 for f in simulated_fights if f.result_type == "KO")
         sub_count = sum(1 for f in simulated_fights if f.result_type == "Submission")
         dec_count = sum(1 for f in simulated_fights if f.result_type == "Decision")

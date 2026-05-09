@@ -38,7 +38,7 @@ async def lifespan(app: Starlette) -> AsyncIterator:
 
     # Carregar modelo ML
     logger.info("🤖 Inicializando modelo ML...")
-    ml_model_loader.load_model()
+    await ml_model_loader.load_model()
 
     # Carregar system-admin
     logger.info("🤖 Inicializando system-admin...")
@@ -104,8 +104,8 @@ async def general_exception_handler(request, exc):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.APP_CORS == "*" else settings.APP_CORS_LIST,
-    allow_credentials=False if settings.APP_CORS == "*" else True,
+    allow_origins=settings.APP_CORS_LIST if settings.APP_CORS != "*" else ["*"],
+    allow_credentials=True if settings.APP_CORS != "*" else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

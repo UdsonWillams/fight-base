@@ -63,6 +63,17 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if (
+            self.APP_ENVIRONMENT != "local"
+            and self.SECRET_KEY
+            == "sua-chave-secreta-super-segura-aqui-mude-em-producao"
+        ):
+            raise ValueError(
+                "SECRET_KEY must be set via environment variable for non-local environments"
+            )
+
     @property
     def ACCESS_TOKEN_EXPIRE_DELTA(self) -> timedelta:
         return timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)

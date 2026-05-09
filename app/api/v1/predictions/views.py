@@ -68,11 +68,10 @@ async def get_event_leaderboard(
     service: PredictionService = Depends(get_prediction_service),
 ):
     """Retorna o ranking de usuários para um evento"""
-    # Aqui precisaríamos de um join com User para pegar o username
-    # Simplificando no repository ou service
-    await service.prediction_repo.get_event_leaderboard(event_id, limit)
-    # Mapping logic needed here for usernames
-    return []  # Placeholder - will implement full mapping in service/repo if needed
+    leaderboard = await service.prediction_repo.get_event_leaderboard_with_users(
+        event_id, limit
+    )
+    return [LeaderboardEntry(**entry) for entry in leaderboard]
 
 
 @router.get("/my/stats", response_model=UserStatsResponse)

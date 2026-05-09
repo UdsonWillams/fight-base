@@ -9,6 +9,8 @@ from app.api.v1.auth.dependencies import get_current_user
 from app.api.v1.predictions.views import get_prediction_service
 from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
+from app.database.repositories.event import EventRepository
+from app.database.repositories.fight import FightRepository
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
 from app.schemas.auth import AuthenticatedUser
 from app.schemas.domain.events.input import AddFightToEvent, CreateEvent
@@ -36,20 +38,23 @@ def get_event_service(
 
     Cria FightSimulationService e injeta no EventService.
     """
-    # Cria repositórios necessários
     fighter_repo = FighterRepository(uow)
     simulation_repo = FightSimulationRepository(uow)
 
-    # Cria o serviço de simulação
     simulation_service = FightSimulationService(
         fighter_repo=fighter_repo,
         simulation_repo=simulation_repo,
     )
 
-    # Retorna EventService com dependência injetada
+    event_repo = EventRepository(uow)
+    fight_repo = FightRepository(uow)
+
     return EventService(
         uow=uow,
         simulation_service=simulation_service,
+        event_repo=event_repo,
+        fight_repo=fight_repo,
+        fighter_repo=fighter_repo,
         user_email=current_user.email,
     )
 
