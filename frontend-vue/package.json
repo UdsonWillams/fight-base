@@ -1,0 +1,29 @@
+{
+  "name": "fightbase-vue",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@primeuix/themes": "^2.0.3",
+    "@vueuse/core": "^13.1.0",
+    "canvas-confetti": "^1.9.3",
+    "pinia": "^3.0.2",
+    "primevue": "^4.3.4",
+    "vue": "^3.5.16",
+    "vue-i18n": "^11.1.9",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.6",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "tailwindcss": "^4.1.6",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.10"
+  }
+}

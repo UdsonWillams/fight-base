@@ -1,4 +1,5 @@
 import contextlib
+import os
 from typing import AsyncIterator
 
 from alembic.command import upgrade
@@ -112,4 +113,7 @@ app.add_middleware(
 app.add_middleware(CreateTraceIdMiddleware)
 app.add_middleware(ResponseTimeMiddleware)
 app.include_router(router=api_router)
-app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
+
+# Serve Vue.js build if available, fallback to vanilla frontend
+frontend_dir = "frontend-vue/dist" if os.path.isdir("frontend-vue/dist") else "frontend"
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="static")

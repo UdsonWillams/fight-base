@@ -18,7 +18,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Fighters
-    op.create_index("ix_fighters_name", "fighters", ["name"])
     op.create_index(
         "ix_fighters_actual_weight_class", "fighters", ["actual_weight_class"]
     )
@@ -62,4 +61,3 @@ def downgrade() -> None:
     op.drop_index("ix_fight_simulations_fighter1", table_name="fight_simulations")
     op.drop_index("ix_fighters_org_weight", table_name="fighters")
     op.drop_index("ix_fighters_actual_weight_class", table_name="fighters")
-    op.drop_index("ix_fighters_name", table_name="fighters")

@@ -166,3 +166,8 @@ cython_debug/
 # ML Models (trained locally)
 models/
 *.joblib
+
+# Node / Vue.js
+node_modules/
+frontend-vue/dist/
+*.tsbuildinfo

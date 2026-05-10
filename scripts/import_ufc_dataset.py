@@ -379,6 +379,16 @@ class UFCDatasetImporter:
         print(f"\n📥 Importando {total_rows:,} lutas de {csv_path}...")
         start = time.time()
 
+        # Primeiro passo: contar quantas lutas cada evento tem
+        event_fight_counts = {}
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                eid = row["event_id"].strip()
+                if eid and eid in self.event_id_map:
+                    event_fight_counts[eid] = event_fight_counts.get(eid, 0) + 1
+
+        # Segundo passo: importar lutas com fight_order decrescente
         with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
 
@@ -418,11 +428,13 @@ class UFCDatasetImporter:
                     fighter2_uuid = self.fighter_id_map[b_id]
                     event_uuid = self.event_id_map[event_id]
 
-                    # Determinar ordem da luta no evento
+                    # Determinar ordem da luta no evento (decrescente: main event primeiro no CSV = maior numero)
                     if event_uuid not in fight_order:
-                        fight_order[event_uuid] = 1
+                        # Comeca do total de lutas do evento e decrementa
+                        total = event_fight_counts.get(event_id, 1)
+                        fight_order[event_uuid] = total
                     else:
-                        fight_order[event_uuid] += 1
+                        fight_order[event_uuid] -= 1
 
                     # Obter método da luta
                     method = row.get("method", "").strip()

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     def APP_CORS_LIST(self):
         return self.APP_CORS.split(";")
 
-    APP_ENVIRONMENT: str = "production"
+    APP_ENVIRONMENT: str = "local"
     LOG_ENVIROMENT: str = "INFO"
     HOST: str = "localhost"
     PORT: str = "8000"
