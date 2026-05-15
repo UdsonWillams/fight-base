@@ -12,6 +12,7 @@ import asyncio
 import csv
 import sys
 from pathlib import Path
+from typing import Optional
 from uuid import uuid4
 
 # Adiciona o diretório raiz ao path
@@ -33,12 +34,12 @@ def parse_height(height_str: str) -> float:
         return None
 
 
-def parse_weight(weight_str: str) -> float:
-    """Converte peso de libras para quilos (opcional)."""
+def parse_weight_lbs(weight_str: str) -> Optional[float]:
+    """Extrai o valor numérico do peso em libras (ex: '135 lbs.' -> 135.0)."""
     if not weight_str or weight_str == "nan":
         return None
     try:
-        return round(float(weight_str) * 0.453592, 2)  # Libras para kg
+        return float(weight_str.replace(" lbs.", "").strip())
     except Exception:
         return None
 
@@ -213,6 +214,9 @@ async def import_fighters(csv_path: str, creator_email: str = "system"):
             cartel = []
             # Poderia adicionar lutas individuais aqui se tiver dados históricos
 
+            stance = (row.get("Stance", "") or "").strip() or None
+            weight_lbs = parse_weight_lbs(row.get("Wt.", ""))
+
             fighter = Fighter(
                 id=uuid4(),
                 name=row.get("Full Name", "Unknown").strip(),
@@ -234,20 +238,20 @@ async def import_fighters(csv_path: str, creator_email: str = "system"):
                 ko_wins=ko_wins,
                 submission_wins=submission_wins,
                 cartel=cartel,
-                age=None,  # Não temos no CSV
+                stance=stance,
                 height_cm=parse_height(row.get("Ht.", "")),
-                reach_cm=None,  # Não temos no CSV (poderia calcular estimativa baseado em altura)
+                weight_lbs=weight_lbs,
+                reach_cm=None,
+                last_fight_date=None,
                 bio=(
-                    f"Stance: {row.get('Stance', 'Unknown')}. "
                     f"Belt: {row.get('Belt', 'False')}. "
-                    f"Weight: {row.get('Wt.', 'N/A')} lbs. "  # ✅ AGORA USANDO PESO NA BIO!
                     f"Strike Distribution - Head: {float(row.get('Head_%', 0) or 0):.0%}, "
                     f"Body: {float(row.get('Body_%', 0) or 0):.0%}, "
                     f"Leg: {float(row.get('Leg_%', 0) or 0):.0%}"
                 ),
                 image_url=None,
                 is_real=True,
-                creator_id=uuid4(),  # ID temporário do sistema
+                creator_id=uuid4(),
                 created_by=creator_email,
             )
 
@@ -291,6 +295,7 @@ async def import_fighters(csv_path: str, creator_email: str = "system"):
     print("\n📊 Exemplos de lutadores importados:")
     for fighter in fighters[:5]:
         print(f"  - {fighter.name} ({fighter.nickname})")
+        print(f"    Stance: {fighter.stance}, Weight: {fighter.weight_lbs} lbs")
         print(f"    Cartel: {fighter.wins}-{fighter.losses}-{fighter.draws}")
         print(
             f"    Overall: {(fighter.striking + fighter.grappling + fighter.defense + fighter.stamina + fighter.speed + fighter.strategy) / 6:.1f}"

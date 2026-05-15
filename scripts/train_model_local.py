@@ -84,6 +84,11 @@ TARGET_FEATURES = [
     "td_avg_diff",
     "sub_avg_diff",
     "str_acc_diff",
+    "td_acc_diff",
+    "win_rate_diff",
+    "experience_diff",
+    "finish_rate_diff",
+    "kd_avg_diff",
     "wins_diff",
     "losses_diff",
     "age_diff",
@@ -97,6 +102,8 @@ REQUIRED_CSV_COLUMNS = [
     "r_td_landed", "b_td_landed",
     "r_td_atmpted", "b_td_atmpted",
     "r_sub_att", "b_sub_att",
+    "r_kd", "b_kd",
+    "method",
     "match_time_sec", "finish_round",
 ]
 
@@ -307,8 +314,10 @@ def build_time_series_features(df: pd.DataFrame, min_fighter_fights: int = 1) ->
             "fights": 0, "wins": 0, "losses": 0,
             "total_time_min": 0.0,
             "sig_str_landed": 0.0, "sig_str_atmpted": 0.0, "sig_str_absorbed": 0.0,
-            "td_landed": 0.0, "sub_att": 0.0,
+            "td_landed": 0.0, "td_atmpted": 0.0, "sub_att": 0.0,
             "opp_td_landed": 0.0, "opp_td_atmpted": 0.0,
+            "kd_landed": 0.0,
+            "ko_wins": 0, "submission_wins": 0,
         }
 
     def _calc_stats(st: dict) -> dict:
@@ -316,11 +325,14 @@ def build_time_series_features(df: pd.DataFrame, min_fighter_fights: int = 1) ->
         fights = max(st["fights"], 1.0)
         str_att = max(st["sig_str_atmpted"], 1.0)
         opp_td_att = max(st["opp_td_atmpted"], 1.0)
+        td_att = max(st["td_atmpted"], 1.0)
         td_def = (
             (1.0 - (st["opp_td_landed"] / opp_td_att)) * 100.0
             if st["opp_td_atmpted"] > 0
             else 50.0
         )
+        total_wins = max(st["wins"], 0)
+        total_decisions = total_wins - st["ko_wins"] - st["submission_wins"]
         return {
             "splm": st["sig_str_landed"] / mins,
             "sapm": st["sig_str_absorbed"] / mins,
@@ -328,6 +340,11 @@ def build_time_series_features(df: pd.DataFrame, min_fighter_fights: int = 1) ->
             "td_avg": st["td_landed"] / fights,
             "sub_avg": st["sub_att"] / fights,
             "td_def": td_def,
+            "td_acc": (st["td_landed"] / td_att) * 100.0 if st["td_atmpted"] > 0 else 50.0,
+            "win_rate": (total_wins / fights) * 100.0,
+            "experience": float(st["fights"]),
+            "finish_rate": ((st["ko_wins"] + st["submission_wins"]) / max(total_wins, 1)) * 100.0,
+            "kd_avg": st["kd_landed"] / fights,
         }
 
     rows: List[dict] = []
@@ -376,6 +393,11 @@ def build_time_series_features(df: pd.DataFrame, min_fighter_fights: int = 1) ->
             "td_avg_diff": r_stats["td_avg"] - b_stats["td_avg"],
             "sub_avg_diff": r_stats["sub_avg"] - b_stats["sub_avg"],
             "str_acc_diff": r_stats["str_acc"] - b_stats["str_acc"],
+            "td_acc_diff": r_stats["td_acc"] - b_stats["td_acc"],
+            "win_rate_diff": r_stats["win_rate"] - b_stats["win_rate"],
+            "experience_diff": r_stats["experience"] - b_stats["experience"],
+            "finish_rate_diff": r_stats["finish_rate"] - b_stats["finish_rate"],
+            "kd_avg_diff": r_stats["kd_avg"] - b_stats["kd_avg"],
             "wins_diff": float(r["wins"]) - float(b["wins"]),
             "losses_diff": float(r["losses"]) - float(b["losses"]),
             "target": target,
@@ -393,6 +415,9 @@ def build_time_series_features(df: pd.DataFrame, min_fighter_fights: int = 1) ->
         b_td_landed = safe_val(getattr(row, "b_td_landed"))
         r_td_att = safe_val(getattr(row, "r_td_atmpted"))
         b_td_att = safe_val(getattr(row, "b_td_atmpted"))
+        r_kd = safe_val(getattr(row, "r_kd"))
+        b_kd = safe_val(getattr(row, "b_kd"))
+        method = str(getattr(row, "method", "") or "").lower()
 
         # Red
         r["fights"] += 1
@@ -400,12 +425,19 @@ def build_time_series_features(df: pd.DataFrame, min_fighter_fights: int = 1) ->
         r["sig_str_landed"] += r_str_landed
         r["sig_str_atmpted"] += safe_val(getattr(row, "r_sig_str_atmpted"))
         r["sig_str_absorbed"] += b_str_landed
+        r["sig_str_absorbed_att"] = r.get("sig_str_absorbed_att", 0.0) + safe_val(getattr(row, "b_sig_str_atmpted"))
         r["td_landed"] += r_td_landed
+        r["td_atmpted"] += r_td_att
         r["sub_att"] += safe_val(getattr(row, "r_sub_att"))
         r["opp_td_landed"] += b_td_landed
         r["opp_td_atmpted"] += b_td_att
+        r["kd_landed"] += r_kd
         if target == 1:
             r["wins"] += 1
+            if "ko" in method or "tko" in method:
+                r["ko_wins"] += 1
+            elif "submission" in method:
+                r["submission_wins"] += 1
         else:
             r["losses"] += 1
 
@@ -415,12 +447,19 @@ def build_time_series_features(df: pd.DataFrame, min_fighter_fights: int = 1) ->
         b["sig_str_landed"] += b_str_landed
         b["sig_str_atmpted"] += safe_val(getattr(row, "b_sig_str_atmpted"))
         b["sig_str_absorbed"] += r_str_landed
+        b["sig_str_absorbed_att"] = b.get("sig_str_absorbed_att", 0.0) + safe_val(getattr(row, "r_sig_str_atmpted"))
         b["td_landed"] += b_td_landed
+        b["td_atmpted"] += b_td_att
         b["sub_att"] += safe_val(getattr(row, "b_sub_att"))
         b["opp_td_landed"] += r_td_landed
         b["opp_td_atmpted"] += r_td_att
+        b["kd_landed"] += b_kd
         if target == 0:
             b["wins"] += 1
+            if "ko" in method or "tko" in method:
+                b["ko_wins"] += 1
+            elif "submission" in method:
+                b["submission_wins"] += 1
         else:
             b["losses"] += 1
 

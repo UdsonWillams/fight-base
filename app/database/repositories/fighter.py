@@ -123,19 +123,18 @@ class FighterRepository(BaseRepository[Fighter]):
                     >= min_overall
                 )
 
-            # Ordenar por overall rating (decrescente)
+            # Ordenar por overall rating (decrescente), depois por data da última luta
+            overall_expr = (
+                self.model.striking
+                + self.model.grappling
+                + self.model.defense
+                + self.model.stamina
+                + self.model.speed
+                + self.model.strategy
+            ) / 6
             query = query.order_by(
-                (
-                    (
-                        self.model.striking
-                        + self.model.grappling
-                        + self.model.defense
-                        + self.model.stamina
-                        + self.model.speed
-                        + self.model.strategy
-                    )
-                    / 6
-                ).desc()
+                overall_expr.desc(),
+                self.model.last_fight_date.desc().nulls_last(),
             )
 
             # Paginação
@@ -257,19 +256,18 @@ class FighterRepository(BaseRepository[Fighter]):
                     self.model.actual_weight_class == actual_weight_class
                 )
 
-            # Ordenar por overall rating
+            # Ordenar por overall rating (decrescente), depois por data da última luta
+            overall_expr = (
+                self.model.striking
+                + self.model.grappling
+                + self.model.defense
+                + self.model.stamina
+                + self.model.speed
+                + self.model.strategy
+            ) / 6
             query = query.order_by(
-                (
-                    (
-                        self.model.striking
-                        + self.model.grappling
-                        + self.model.defense
-                        + self.model.stamina
-                        + self.model.speed
-                        + self.model.strategy
-                    )
-                    / 6
-                ).desc()
+                overall_expr.desc(),
+                self.model.last_fight_date.desc().nulls_last(),
             ).limit(limit)
 
             result = await session.execute(query)

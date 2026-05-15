@@ -20,8 +20,9 @@ O dataset contém informações de **ufcstats.com**:
 - Armazena dados biográficos (data de nascimento, stance, altura, alcance)
 
 **Campos importados:**
+<div style="font-family: monospace;">
 
-```python
+```
 - ufcstats_id: ID único do ufcstats.com
 - name, nickname
 - date_of_birth, stance
@@ -29,8 +30,12 @@ O dataset contém informações de **ufcstats.com**:
 - wins, losses, draws
 - slpm, str_acc, sapm, str_def
 - td_avg, td_acc, td_def, sub_avg
+- kd_avg
+- ko_wins, submission_wins
+- fighting_style
 - striking, grappling, defense, stamina, speed, strategy (calculados)
 ```
+</div>
 
 ### 2. **Importa Eventos** (`event_details.csv`)
 
@@ -69,12 +74,37 @@ O dataset contém informações de **ufcstats.com**:
   - sub_att, ctrl_seconds
 ```
 
-### 4. **Atualiza Cartéis**
+### 4. **Agrega ML Stats dos Lutadores**
+- Agrega estatísticas por luta da tabela `Fight` para cada lutador
+- Calcula SLPM, Str Acc, SAPM, Str Def, TD Avg, TD Acc, TD Def, Sub Avg
+- Calcula KD Avg (knockdowns por luta)
+- Conta KO Wins e Submission Wins a partir dos métodos de vitória
+- Infere `fighting_style` (Striker / Grappler / MMA)
+
+**Campos populados:**
+
+```python
+- slpm: Σ sig_str_landed / Σ (match_time / 60)
+- str_acc: Σ sig_str_landed / Σ sig_str_attempted * 100
+- sapm: Σ opponent_sig_str_landed / Σ (match_time / 60)
+- str_def: 100 - (Σ opp_sig_str_landed / Σ opp_sig_str_attempted * 100)
+- td_avg: Σ td_landed / Σ (match_time / 900)   # por 15 min
+- td_acc: Σ td_landed / Σ td_attempted * 100
+- td_def: 100 - (Σ opp_td_landed / Σ opp_td_attempted * 100)
+- sub_avg: Σ sub_att / Σ (match_time / 900)     # por 15 min
+- kd_avg: Σ kd_landed / total_fights
+- ko_wins: contagem de vitórias por KO/TKO
+- submission_wins: contagem de vitórias por Submission
+- fighting_style: Striker | Grappler | MMA
+```
+
+### 5. **Atualiza Cartéis**
 
 - Constrói o histórico de lutas (cartel) de cada lutador
 - Formato: Lista de dicionários com opponent, result, method, round, org
+- Popula `last_fight_date` com a data da luta mais recente
 
-### 5. **Atualiza Nomes dos Eventos**
+### 6. **Atualiza Nomes dos Eventos**
 
 - Extrai nomes reais dos eventos do fight_details.csv
 - Ex: "UFC Fight Night: Imavov vs. Borralho"
@@ -126,6 +156,11 @@ python scripts/import_ufc_dataset.py
   ⏳ Processadas 200 lutas...
   ...
 ✓ Lutas importadas: 8234
+
+📊 Agregando ML stats para 4523 lutadores...
+  ⏳ ML Stats: 200/4523 (4.4%) — ...
+  ...
+✓ ML stats atualizados para 4523 lutadores em XmXXs
 
 📝 Atualizando nomes dos eventos...
 ✓ Nomes atualizados para 752 eventos
@@ -202,5 +237,6 @@ Após importação bem-sucedida:
 
 1. ✅ Validar dados importados via API
 2. ✅ Usar estatísticas reais no algoritmo de simulação
-3. ✅ Criar endpoints para estatísticas históricas
-4. ✅ Implementar análise de matchups baseada em dados reais
+3. ✅ Retreinar modelo ML com 18 features: `python scripts/train_model_local.py`
+4. ✅ Criar endpoints para estatísticas históricas
+5. ✅ Implementar análise de matchups baseada em dados reais

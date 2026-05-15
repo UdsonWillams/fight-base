@@ -43,6 +43,9 @@ class FighterOutput(BaseModel):
     # Cartel de lutas
     cartel: Optional[list[dict]] = []
 
+    # Data da última luta
+    last_fight_date: Optional[datetime] = None
+
     # Informações adicionais
     age: Optional[int] = None
     stance: Optional[str] = None  # Orthodox, Southpaw, Switch

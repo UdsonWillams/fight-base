@@ -169,18 +169,18 @@ class UFCDatasetImporter:
             return None
 
     def parse_time_to_seconds(self, time_str: str) -> Optional[int]:
-        """Converte tempo MM:SS para segundos totais"""
+        """Converte tempo MM:SS ou numérico para segundos totais"""
         if not time_str or time_str.strip() == "":
             return None
+        s = time_str.strip()
         try:
-            parts = time_str.split(":")
-            if len(parts) == 2:
-                minutes = int(parts[0])
-                seconds = int(parts[1])
-                return minutes * 60 + seconds
+            if ":" in s:
+                parts = s.split(":")
+                if len(parts) == 2:
+                    return int(parts[0]) * 60 + int(parts[1])
+            return int(float(s))
         except Exception:
             return None
-        return None
 
     def import_fighters(self, csv_path: str, system_user: User):
         """Importa lutadores do fighter_details.csv"""
@@ -652,6 +652,10 @@ class UFCDatasetImporter:
 
                 fighter.cartel = cartel
 
+                # Extrai a data da luta mais recente do cartel
+                if fights:
+                    fighter.last_fight_date = fights[0][1].date
+
                 if i % 200 == 0:
                     _progress_log("Cartéis", i, total, start)
                     self.session.commit()
@@ -665,6 +669,166 @@ class UFCDatasetImporter:
         self.session.commit()
         elapsed = time.time() - start
         print(f"✓ Cartéis atualizados para {total:,} lutadores em {int(elapsed//60)}m{int(elapsed%60):02d}s")
+
+    def update_fighter_ml_stats(self):
+        """Agrega stats por luta do Fight table para preencher ML stats, KO/Sub wins e fighting_style"""
+        fighters = (
+            self.session.query(Fighter).filter(Fighter.ufcstats_id.isnot(None)).all()
+        )
+        total = len(fighters)
+        print(f"\n📊 Agregando ML stats para {total:,} lutadores...")
+        start = time.time()
+        updated = 0
+
+        for i, fighter in enumerate(fighters, 1):
+            try:
+                fights = (
+                    self.session.query(Fight)
+                    .filter(
+                        (Fight.fighter1_id == fighter.id)
+                        | (Fight.fighter2_id == fighter.id),
+                        Fight.status == "completed",
+                    )
+                    .all()
+                )
+
+                if not fights:
+                    continue
+
+                total_sig_str_landed = 0
+                total_sig_str_attempted = 0
+                total_opp_sig_str_landed = 0
+                total_opp_sig_str_attempted = 0
+                total_td_landed = 0
+                total_td_attempted = 0
+                total_opp_td_landed = 0
+                total_opp_td_attempted = 0
+                total_sub_att = 0
+                total_match_seconds = 0
+                total_ctrl_seconds = 0
+                total_kd_landed = 0
+                ko_wins = 0
+                submission_wins = 0
+
+                for fight in fights:
+                    is_f1 = fight.fighter1_id == fighter.id
+
+                    sig_str_landed = fight.r_sig_str_landed if is_f1 else fight.b_sig_str_landed
+                    sig_str_attempted = fight.r_sig_str_attempted if is_f1 else fight.b_sig_str_attempted
+                    td_landed = fight.r_td_landed if is_f1 else fight.b_td_landed
+                    td_attempted = fight.r_td_attempted if is_f1 else fight.b_td_attempted
+                    sub_att = fight.r_sub_att if is_f1 else fight.b_sub_att
+
+                    opp_sig_str_landed = fight.b_sig_str_landed if is_f1 else fight.r_sig_str_landed
+                    opp_sig_str_attempted = fight.b_sig_str_attempted if is_f1 else fight.r_sig_str_attempted
+                    opp_td_landed = fight.b_td_landed if is_f1 else fight.r_td_landed
+                    opp_td_attempted = fight.b_td_attempted if is_f1 else fight.r_td_attempted
+
+                    ctrl_sec = fight.r_ctrl_seconds if is_f1 else fight.b_ctrl_seconds
+                    kd_val = fight.r_kd if is_f1 else fight.b_kd
+
+                    if sig_str_landed is not None:
+                        total_sig_str_landed += sig_str_landed
+                    if sig_str_attempted is not None:
+                        total_sig_str_attempted += sig_str_attempted
+                    if opp_sig_str_landed is not None:
+                        total_opp_sig_str_landed += opp_sig_str_landed
+                    if opp_sig_str_attempted is not None:
+                        total_opp_sig_str_attempted += opp_sig_str_attempted
+                    if td_landed is not None:
+                        total_td_landed += td_landed
+                    if td_attempted is not None:
+                        total_td_attempted += td_attempted
+                    if opp_td_landed is not None:
+                        total_opp_td_landed += opp_td_landed
+                    if opp_td_attempted is not None:
+                        total_opp_td_attempted += opp_td_attempted
+                    if sub_att is not None:
+                        total_sub_att += sub_att
+                    if fight.match_time_seconds is not None:
+                        total_match_seconds += fight.match_time_seconds
+                    if ctrl_sec is not None:
+                        total_ctrl_seconds += ctrl_sec
+                    if kd_val is not None:
+                        total_kd_landed += kd_val
+
+                    method = (fight.method_details or "").lower()
+                    if fight.winner_id == fighter.id:
+                        if "ko" in method or "tko" in method:
+                            ko_wins += 1
+                        elif "submission" in method:
+                            submission_wins += 1
+
+                # Calcular ML stats
+                total_match_minutes = total_match_seconds / 60 if total_match_seconds > 0 else 0
+
+                slpm = round(total_sig_str_landed / total_match_minutes, 2) if total_match_minutes > 0 else None
+                str_acc = (
+                    round(total_sig_str_landed / total_sig_str_attempted * 100, 1)
+                    if total_sig_str_attempted > 0
+                    else None
+                )
+                sapm = round(total_opp_sig_str_landed / total_match_minutes, 2) if total_match_minutes > 0 else None
+                str_def = (
+                    round(100 - (total_opp_sig_str_landed / total_opp_sig_str_attempted * 100), 1)
+                    if total_opp_sig_str_attempted > 0
+                    else None
+                )
+                td_avg = round(total_td_landed / (total_match_seconds / 900), 2) if total_match_seconds > 0 else None
+                td_acc = (
+                    round(total_td_landed / total_td_attempted * 100, 1)
+                    if total_td_attempted > 0
+                    else None
+                )
+                td_def = (
+                    round(100 - (total_opp_td_landed / total_opp_td_attempted * 100), 1)
+                    if total_opp_td_attempted > 0
+                    else None
+                )
+                sub_avg = round(total_sub_att / (total_match_seconds / 900), 2) if total_match_seconds > 0 else None
+
+                kd_avg = round(total_kd_landed / len(fights), 2) if fights else None
+
+                ctrl_avg = round(total_ctrl_seconds / (total_match_seconds / 900), 2) if total_match_seconds > 0 else None
+                if slpm is not None and td_avg is not None:
+                    if slpm > 4.5 and td_avg < 1.5:
+                        fighting_style = "Striker"
+                    elif td_avg > 2.5 and slpm < 3.5:
+                        fighting_style = "Grappler"
+                    else:
+                        fighting_style = "MMA"
+                else:
+                    fighting_style = "MMA"
+
+                # Atualizar lutador
+                fighter.slpm = slpm
+                fighter.str_acc = str_acc
+                fighter.sapm = sapm
+                fighter.str_def = str_def
+                fighter.td_avg = td_avg
+                fighter.td_acc = td_acc
+                fighter.td_def = td_def
+                fighter.sub_avg = sub_avg
+                fighter.kd_avg = kd_avg
+                fighter.ctrl_avg = ctrl_avg
+                fighter.ko_wins = ko_wins or None
+                fighter.submission_wins = submission_wins or None
+                fighter.fighting_style = fighting_style
+                updated += 1
+
+                if i % 200 == 0:
+                    _progress_log("ML Stats", i, total, start)
+                    self.session.commit()
+
+            except Exception as e:
+                error_msg = f"Erro ao agregar ML stats de {fighter.name}: {str(e)}"
+                self.stats["errors"].append(error_msg)
+                print(f"  ⚠️  {error_msg}")
+                continue
+
+        self.session.commit()
+        elapsed = time.time() - start
+        print(f"✓ ML stats atualizados para {updated:,} lutadores em {int(elapsed//60)}m{int(elapsed%60):02d}s")
 
     def update_event_names(self):
         """Atualiza nomes dos eventos usando o fight_details.csv"""
@@ -812,13 +976,16 @@ def main():
         # 4. Popular vencedores das lutas (requer lutas já importadas)
         importer.populate_fight_winners("datasets/UFC.csv")
 
-        # 5. Atualizar nomes dos eventos
+        # 5. Agregar ML stats, KO/Sub wins e fighting_style dos lutadores
+        importer.update_fighter_ml_stats()
+
+        # 6. Atualizar nomes dos eventos
         importer.update_event_names()
 
-        # 6. Atualizar cartel dos lutadores (requer vencedores já populados)
+        # 7. Atualizar cartel dos lutadores (requer vencedores já populados)
         importer.update_fighter_cartels()
 
-        # 7. Atualizar categorias de peso dos lutadores
+        # 8. Atualizar categorias de peso dos lutadores
         importer.update_weight_classes()
 
         # Estatísticas finais

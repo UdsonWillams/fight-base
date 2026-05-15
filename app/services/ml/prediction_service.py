@@ -13,21 +13,51 @@ from app.services.ml.model_loader import ml_model_loader
 class MLPredictionService:
     """Serviço de predição usando modelo ML"""
 
-    # 🎯 Features atualizadas (13 features - ordem EXATA do modelo treinado V2)
+    # 🎯 Features V1 (18 features - modelo treinado V1)
     FEATURES = [
-        "height_diff",  # 1. Diferença de altura (em polegadas)
-        "weight_diff",  # 2. Diferença de peso (em libras)
-        "reach_diff",  # 3. Diferença de envergadura (em polegadas)
-        "splm_diff",  # 4. Diferença de golpes significativos por minuto
-        "sapm_diff",  # 5. Diferença de golpes absorvidos por minuto
-        "td_def_diff",  # 6. Diferença de defesa de quedas
-        "td_avg_diff",  # 7. Diferença de quedas por luta
-        "sub_avg_diff",  # 8. Diferença de finalizações por luta
-        "str_acc_diff",  # 9. Diferença de precisão de golpes
-        "wins_diff",  # 10. Diferença de vitórias
-        "losses_diff",  # 11. Diferença de derrotas
-        "age_diff",  # 12. Diferença de Idade (Fighter1 - Fighter2)
-        "is_opposite_stance",  # 13. Confronto de bases (0 = Iguais, 1 = Opostas)
+        "height_diff",  # 1.  Diferença de altura (em polegadas)
+        "weight_diff",  # 2.  Diferença de peso (em libras)
+        "reach_diff",  # 3.  Diferença de envergadura (em polegadas)
+        "splm_diff",  # 4.  Diferença de golpes significativos por minuto
+        "sapm_diff",  # 5.  Diferença de golpes absorvidos por minuto
+        "td_def_diff",  # 6.  Diferença de defesa de quedas
+        "td_avg_diff",  # 7.  Diferença de quedas por luta
+        "sub_avg_diff",  # 8.  Diferença de finalizações por luta
+        "str_acc_diff",  # 9.  Diferença de precisão de golpes
+        "td_acc_diff",  # 10. Diferença de precisão de quedas (%)
+        "win_rate_diff",  # 11. Diferença de aproveitamento de vitórias (%)
+        "experience_diff",  # 12. Diferença de lutas na carreira (total_fights)
+        "finish_rate_diff",  # 13. Diferença de taxa de finalização (%)
+        "kd_avg_diff",  # 14. Diferença de knockdowns por luta
+        "wins_diff",  # 15. Diferença de vitórias
+        "losses_diff",  # 16. Diferença de derrotas
+        "age_diff",  # 17. Diferença de idade (Fighter1 - Fighter2)
+        "is_opposite_stance",  # 18. Confronto de bases (0 = Iguais, 1 = Opostas)
+    ]
+
+    # 🎯 Features V2 (21 features - Stacking Ensemble V2)
+    FEATURES_V2 = [
+        "height_diff",
+        "weight_diff",
+        "reach_diff",
+        "splm_diff",
+        "sapm_diff",
+        "td_def_diff",
+        "td_avg_diff",
+        "sub_avg_diff",
+        "str_acc_diff",
+        "td_acc_diff",
+        "win_rate_diff",
+        "experience_diff",
+        "finish_rate_diff",
+        "kd_avg_diff",
+        "ctrl_time_diff",  # 15. Diferença de controle por minuto (grappling)
+        "reach_td_def",  # 16. Interação envergadura × defesa de queda
+        "age_experience",  # 17. Interação idade × experiência
+        "wins_diff",
+        "losses_diff",
+        "age_diff",
+        "is_opposite_stance",
     ]
 
     @staticmethod
@@ -74,8 +104,7 @@ class MLPredictionService:
         f2_age = calculate_age(fighter2.date_of_birth, ref_date)
 
         # Retorna o dicionário na ordem estrita do modelo
-        # ATENÇÃO: Usando as properties height_inches e reach_inches que você criou!
-        return {
+        features = {
             "height_diff": safe_subtract(
                 fighter1.height_inches, fighter2.height_inches
             ),
@@ -87,6 +116,30 @@ class MLPredictionService:
             "td_avg_diff": safe_subtract(fighter1.td_avg, fighter2.td_avg),
             "sub_avg_diff": safe_subtract(fighter1.sub_avg, fighter2.sub_avg),
             "str_acc_diff": safe_subtract(fighter1.str_acc, fighter2.str_acc),
+            "td_acc_diff": safe_subtract(fighter1.td_acc, fighter2.td_acc),
+            "win_rate_diff": safe_subtract(
+                fighter1.wins / max(fighter1.wins + fighter1.losses, 1) * 100,
+                fighter2.wins / max(fighter2.wins + fighter2.losses, 1) * 100,
+            ),
+            "experience_diff": safe_subtract(
+                (fighter1.wins or 0) + (fighter1.losses or 0) + (fighter1.draws or 0),
+                (fighter2.wins or 0) + (fighter2.losses or 0) + (fighter2.draws or 0),
+            ),
+            "finish_rate_diff": safe_subtract(
+                ((fighter1.ko_wins or 0) + (fighter1.submission_wins or 0))
+                / max(fighter1.wins or 1, 1)
+                * 100,
+                ((fighter2.ko_wins or 0) + (fighter2.submission_wins or 0))
+                / max(fighter2.wins or 1, 1)
+                * 100,
+            ),
+            "kd_avg_diff": safe_subtract(fighter1.kd_avg, fighter2.kd_avg),
+            "ctrl_time_diff": safe_subtract(fighter1.ctrl_avg, fighter2.ctrl_avg),
+            "reach_td_def": safe_subtract(
+                fighter1.reach_inches or 0, fighter2.reach_inches or 0
+            )
+            * safe_subtract(fighter1.td_def, fighter2.td_def)
+            / 100.0,
             "wins_diff": safe_subtract(fighter1.wins, fighter2.wins),
             "losses_diff": safe_subtract(fighter1.losses, fighter2.losses),
             "age_diff": safe_subtract(f1_age, f2_age),
@@ -95,20 +148,20 @@ class MLPredictionService:
             ),
         }
 
+        # Interação idade × experiência
+        features["age_experience"] = (
+            features["age_diff"] * features["experience_diff"] / 100.0
+        )
+        return features
+
     @staticmethod
     async def predict_winner_from_model(
         fighter1: Fighter, fighter2: Fighter, event_date: Optional[datetime] = None
     ) -> Optional[float]:
         """
-        Prediz a probabilidade de fighter1 vencer usando o modelo ML.
+        Prediz a probabilidade de fighter1 vencer usando o modelo ML (V1 ou V2).
 
-        Args:
-            fighter1: Primeiro lutador (Red Corner)
-            fighter2: Segundo lutador (Blue Corner)
-            event_date: Data do evento para calcular idade exata (opcional)
-
-        Returns:
-            Probabilidade de fighter1 vencer (0.0 a 1.0) ou None se falhar.
+        Auto-detecta se o modelo carregado é V1 (18 features) ou V2 (21 features).
         """
         model = await ml_model_loader.get_model()
         if model is None:
@@ -116,27 +169,30 @@ class MLPredictionService:
             return None
 
         try:
-            # Calcular diferenças injetando a data do evento
             features_dict = MLPredictionService._calculate_feature_differences(
                 fighter1, fighter2, event_date
             )
 
-            # DataFrame na ordem estrita do TARGET_FEATURES
-            X = pd.DataFrame([features_dict], columns=MLPredictionService.FEATURES)
+            n_feat = model.n_features_in_ if hasattr(model, "n_features_in_") else 18
 
-            logger.info(f"📊 Features enviadas ({len(X.columns)}): {list(X.columns)}")
+            if n_feat == 21:
+                features_list = MLPredictionService.FEATURES_V2
+                logger.info("🚀 Usando modelo V2 (Stacking Ensemble, 21 features)")
+            else:
+                features_list = MLPredictionService.FEATURES
+                logger.info("📊 Usando modelo V1 (18 features)")
 
-            # Validação preventiva
+            X = pd.DataFrame([features_dict], columns=features_list)
+
             if hasattr(model, "n_features_in_") and model.n_features_in_ != len(
                 X.columns
             ):
                 logger.error(
-                    f"❌ Incompatibilidade: O modelo espera {model.n_features_in_} features, "
+                    f"❌ Incompatibilidade: modelo espera {model.n_features_in_} features, "
                     f"mas o serviço enviou {len(X.columns)}."
                 )
                 return None
 
-            # Predição
             probabilities = model.predict_proba(X)[0]
             fighter1_win_prob = probabilities[1]
 

@@ -73,6 +73,16 @@ def _estimate_ml_stats_from_attributes(
     }
 
 
+def _extract_last_fight_date(cartel: list[dict]) -> Optional[str]:
+    """Extrai a data mais recente do cartel de lutas"""
+    dates = []
+    for entry in cartel or []:
+        date_str = entry.get("date")
+        if date_str:
+            dates.append(date_str)
+    return max(dates) if dates else None
+
+
 class FighterService:
     """Serviço para gerenciar lutadores"""
 
@@ -139,6 +149,7 @@ class FighterService:
             bio=data.bio,
             image_url=data.image_url,
             is_real=data.is_real,
+            last_fight_date=_extract_last_fight_date(getattr(data, "cartel", [])),
             # Estatísticas ML (usa fornecidas ou estimadas)
             slpm=data.slpm if data.slpm is not None else ml_stats["slpm"],
             str_acc=data.str_acc if data.str_acc is not None else ml_stats["str_acc"],
@@ -238,6 +249,11 @@ class FighterService:
 
             # Adicionar ML stats recalculados ao update
             update_data.update(ml_stats)
+
+        if "cartel" in update_data:
+            update_data["last_fight_date"] = _extract_last_fight_date(
+                update_data["cartel"]
+            )
 
         # Atualiza
         updated = await self.fighter_repo.update(fighter_id, update_data, updated_by)

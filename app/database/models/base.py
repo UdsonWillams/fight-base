@@ -112,6 +112,12 @@ class Fighter(BaseModel):
     td_def = Column(Float, nullable=True)  # Takedown Defense %
     sub_avg = Column(Float, nullable=True)  # Average Submissions per 15 min
 
+    # Knockdowns médios por luta
+    kd_avg = Column(Float, nullable=True)
+
+    # Controle médio por 15 minutos
+    ctrl_avg = Column(Float, nullable=True)
+
     # Estatísticas reais (deprecated - usar cartel)
     wins = Column(Integer, nullable=True, default=0)
     losses = Column(Integer, nullable=True, default=0)
@@ -124,6 +130,9 @@ class Fighter(BaseModel):
         MutableList.as_mutable(JSONB), nullable=False, default=list
     )  # Lista com histórico de lutas reais
     # Formato: [{"opponent": "Name", "result": "W/L/D", "method": "KO/Sub/Dec", "round": 1, "date": "2024-01-01", "organization": "UFC"}]
+
+    # Data da última luta (extraída do cartel)
+    last_fight_date = Column(TIMESTAMP(timezone=True), nullable=True)
 
     # Informações adicionais
     bio = Column(Text, nullable=True)
