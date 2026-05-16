@@ -16,14 +16,14 @@ async def _get_token_for_customer(client, customer):
 
 
 @pytest.mark.asyncio
-async def test_create(client: AsyncClient, customer_admin: User):
+async def test_create(client: AsyncClient):
     payload = {
         "email": "user_integration@example.com",
         "password": "pass123",
         "name": "User Integration",
+        "username": "integration_test_user",
     }
-    headers = await _get_token_for_customer(client, customer_admin)
-    resp = await client.post("api/v1/customers", json=payload, headers=headers)
+    resp = await client.post("api/v1/users", json=payload)
     assert resp.status_code == status.HTTP_201_CREATED
     data = resp.json()
     assert data["email"] == payload["email"]
@@ -31,32 +31,32 @@ async def test_create(client: AsyncClient, customer_admin: User):
 
 
 @pytest.mark.asyncio
-async def test_get_customer(client: AsyncClient, customer: User):
-    headers = await _get_token_for_customer(client, customer)
-    resp = await client.get(f"api/v1/customers/{customer.id}", headers=headers)
+async def test_get_customer(client: AsyncClient, user: User):
+    headers = await _get_token_for_customer(client, user)
+    resp = await client.get(f"api/v1/users/{user.id}", headers=headers)
     assert resp.status_code == status.HTTP_200_OK
     data = resp.json()
-    assert data["id"] == str(customer.id)
-    assert data["email"] == customer.email
+    assert data["id"] == str(user.id)
+    assert data["email"] == user.email
 
 
 @pytest.mark.asyncio
 async def test_list_customers(
-    client: AsyncClient, customer_admin: User, some_customers: list[User]
+    client: AsyncClient, user_admin: User, some_users: list[User]
 ):
-    headers = await _get_token_for_customer(client, customer_admin)
-    resp = await client.get("api/v1/customers", headers=headers)
+    headers = await _get_token_for_customer(client, user_admin)
+    resp = await client.get("api/v1/users", headers=headers)
     assert resp.status_code == status.HTTP_200_OK
     data = resp.json()
     assert "items" in data
 
 
 @pytest.mark.asyncio
-async def test_update_customer(client: AsyncClient, customer: User):
-    headers = await _get_token_for_customer(client, customer)
-    payload = {"name": "Updated Name", "email": "updated@mail.com"}
+async def test_update_customer(client: AsyncClient, user: User):
+    headers = await _get_token_for_customer(client, user)
+    payload = {"name": "Updated Name"}
     resp = await client.put(
-        f"api/v1/customers/{customer.id}", json=payload, headers=headers
+        f"api/v1/users/{user.id}", json=payload, headers=headers
     )
     assert resp.status_code == status.HTTP_200_OK
     data = resp.json()
@@ -65,12 +65,12 @@ async def test_update_customer(client: AsyncClient, customer: User):
 
 @pytest.mark.asyncio
 async def test_delete_customer(
-    client: AsyncClient, customer: User, customer_admin: User
+    client: AsyncClient, user: User, user_admin: User
 ):
-    headers = await _get_token_for_customer(client, customer_admin)
-    resp = await client.delete(f"api/v1/customers/{customer.id}", headers=headers)
+    headers = await _get_token_for_customer(client, user_admin)
+    resp = await client.delete(f"api/v1/users/{user.id}", headers=headers)
     assert resp.status_code == status.HTTP_204_NO_CONTENT
 
     # Verify deletion
-    get_resp = await client.get(f"api/v1/customers/{customer.id}", headers=headers)
+    get_resp = await client.get(f"api/v1/users/{user.id}", headers=headers)
     assert get_resp.status_code == status.HTTP_404_NOT_FOUND

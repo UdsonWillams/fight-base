@@ -130,23 +130,42 @@ class EventService:
         event = await self.get_event(event_id)
 
         if event.status == "completed":
+            logger.warning(
+                f"Tentativa de simular evento já finalizado: {event_id} ({event.name})"
+            )
             raise ForbiddenError("Event already simulated")
 
         if not event.fights:
+            logger.warning(
+                f"Tentativa de simular evento sem lutas: {event_id} ({event.name})"
+            )
             raise ForbiddenError("Event has no fights to simulate")
 
         session = await self.uow.get_session()
 
         fights = sorted(event.fights, key=lambda f: f.fight_order)
 
+        logger.info(
+            f"Iniciando simulação do evento '{event.name}' (id={event_id}) — "
+            f"{len(fights)} lutas"
+        )
+
         simulated_fights = []
 
-        for fight in fights:
+        for idx, fight in enumerate(fights, 1):
             if fight.status == "simulated":
+                logger.debug(
+                    f"Luta {idx}/{len(fights)} já simulada, pulando: {fight.id}"
+                )
                 simulated_fights.append(fight)
                 continue
 
             await session.refresh(fight, ["fighter1", "fighter2"])
+
+            logger.info(
+                f"Simulando luta {idx}/{len(fights)}: "
+                f"{fight.fighter1.name} vs {fight.fighter2.name}"
+            )
 
             prob1, prob2 = await self.simulation_service.calculate_win_probability(
                 fight.fighter1, fight.fighter2
@@ -204,6 +223,12 @@ class EventService:
                 (ko_count + sub_count) / len(simulated_fights) * 100, 2
             ),
         }
+
+        logger.info(
+            f"Simulação do evento '{event.name}' concluída: {ko_count} KO, "
+            f"{sub_count} Sub, {dec_count} Dec "
+            f"(finish rate: {summary['finish_rate']}%)"
+        )
 
         return SimulationResult(
             event_id=event.id,

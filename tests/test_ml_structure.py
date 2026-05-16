@@ -7,13 +7,16 @@ Testa apenas a estrutura de integração sem depender do modelo GCS
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database.models.base import Fighter
 from app.services.ml.prediction_service import MLPredictionService
 
 
-def test_ml_structure():
+@pytest.mark.asyncio
+async def test_ml_structure():
     """Testa estrutura sem modelo carregado"""
 
     print("\n" + "=" * 80)
@@ -124,10 +127,10 @@ def test_ml_structure():
     from app.services.ml.model_loader import ml_model_loader
 
     ml_model_loader._model = None  # Limpa cache
-    ml_model_loader.load_model()
+    await ml_model_loader.load_model()
 
     ml_service = MLPredictionService()
-    prob = ml_service.predict_winner_from_model(fighter1, fighter2)
+    prob = await ml_service.predict_winner_from_model(fighter1, fighter2)
 
     if prob is None:
         print("   ❌ Predição falhou (modelo não conseguiu predizer)")

@@ -23,6 +23,11 @@ class LeagueService:
     ) -> League:
         """Cria uma nova liga e adiciona o criador como membro"""
         invite_code = self._generate_invite_code()
+        for _ in range(10):
+            existing = await self.league_repo.get_by_invite_code(invite_code)
+            if not existing:
+                break
+            invite_code = self._generate_invite_code()
 
         league = League(
             name=name,
@@ -47,6 +52,8 @@ class LeagueService:
         session = await self.uow.get_session()
         session.add(member)
         await session.commit()
+
+        await session.refresh(created_league, ["members"])
 
         return created_league
 
@@ -82,6 +89,8 @@ class LeagueService:
         )
         session.add(member)
         await session.commit()
+
+        await session.refresh(league, ["members"])
 
         return league
 

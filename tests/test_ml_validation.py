@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database.models.base import Fighter
@@ -19,7 +21,8 @@ from app.services.ml.model_loader import ml_model_loader
 from app.services.ml.prediction_service import ml_prediction_service
 
 
-def test_ml_is_being_used():
+@pytest.mark.asyncio
+async def test_ml_is_being_used():
     """Testa se o modelo ML está realmente sendo usado"""
 
     print("\n" + "=" * 80)
@@ -81,7 +84,7 @@ def test_ml_is_being_used():
     # TESTE 1: Verificar se modelo ML está carregado
     # ========================================================================
     print("📦 Teste 1: Modelo ML está carregado?")
-    model = ml_model_loader.get_model()
+    model = await ml_model_loader.get_model()
 
     if model is None:
         print("   ❌ FALHA: Modelo ML não foi carregado!")
@@ -96,7 +99,7 @@ def test_ml_is_being_used():
     # TESTE 2: Predição ML direta retorna valor?
     # ========================================================================
     print("🤖 Teste 2: Predição ML direta funciona?")
-    ml_prob = ml_prediction_service.predict_winner_from_model(fighter1, fighter2)
+    ml_prob = await ml_prediction_service.predict_winner_from_model(fighter1, fighter2)
 
     if ml_prob is None:
         print("   ❌ FALHA: Predição ML retornou None")
@@ -118,7 +121,7 @@ def test_ml_is_being_used():
     sim_service = FightSimulationService(fighter_repo_mock, sim_repo_mock)
 
     # Calcular probabilidade usando o serviço
-    prob1, prob2 = sim_service.calculate_win_probability(fighter1, fighter2)
+    prob1, prob2 = await sim_service.calculate_win_probability(fighter1, fighter2)
 
     print("   Probabilidades calculadas:")
     print(f"     {fighter1.name}: {prob1:.2f}%")
@@ -173,7 +176,7 @@ def test_ml_is_being_used():
     with patch.object(
         ml_prediction_service, "predict_winner_from_model", return_value=None
     ):
-        prob_fallback1, prob_fallback2 = sim_service.calculate_win_probability(
+        prob_fallback1, prob_fallback2 = await sim_service.calculate_win_probability(
             fighter1, fighter2
         )
 

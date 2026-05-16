@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, conint
+from pydantic import BaseModel, Field, conint
 
 
 class PredictionInput(BaseModel):
@@ -22,10 +22,10 @@ class UpdatePrediction(BaseModel):
 
 
 class LeagueCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     is_public: bool = False
-    max_members: int = 50
+    max_members: int = Field(default=50, ge=2)
 
 
 class UpdateFightResult(BaseModel):

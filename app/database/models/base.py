@@ -445,6 +445,10 @@ class League(BaseModel):
 
     members = relationship("LeagueMember", back_populates="league")
 
+    @property
+    def members_count(self) -> int:
+        return len(self.members) if self.members else 0
+
 
 class LeagueMember(BaseModel):
     """Membros de uma liga com ranking interno"""

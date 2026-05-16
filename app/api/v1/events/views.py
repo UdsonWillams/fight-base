@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Background
 
 from app.api.v1.auth.dependencies import get_current_user
 from app.api.v1.predictions.views import get_prediction_service
+from app.core.logger import logger
 from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
 from app.database.repositories.event import EventRepository
@@ -242,6 +243,7 @@ async def simulate_event(
     Retorna os resultados de todas as simulações.
     """
     try:
+        logger.info(f"Usuário solicitou simulação do evento {event_id}")
         result = await service.simulate_event(event_id)
         return result
     except Exception as e:

@@ -5,7 +5,8 @@ Admin endpoints para operações administrativas como importação de dados e tr
 import csv
 import subprocess
 import sys
-from datetime import datetime
+import threading
+from datetime import datetime, timezone
 from typing import Any, Dict
 from uuid import uuid4
 
@@ -38,105 +39,178 @@ def get_sync_session() -> Session:
         pass  # Session será fechada manualmente após uso
 
 
+def _cleanup_old_tasks(status_dict: Dict[str, Dict[str, Any]], max_age_hours: int = 24):
+    """Remove tasks concluídas/erro/timeout com mais de max_age_hours."""
+    now = datetime.now(timezone.utc)
+    to_remove = []
+    for tid, info in list(status_dict.items()):
+        if info.get("status") in ("completed", "error", "timeout", "cancelled"):
+            created = info.get("created_at")
+            if created:
+                age = (now - created).total_seconds() / 3600
+                if age > max_age_hours:
+                    to_remove.append(tid)
+    for tid in to_remove:
+        del status_dict[tid]
+    if to_remove:
+        logger.info(f"Cleaned up {len(to_remove)} old task entries")
+
+
 def run_ufc_import(task_id: str, user_id: str):
     """
-    Função que roda a importação em background
+    Função que roda a importação em background com timeout de 3 horas.
+    Suporta cancelamento via POST /admin/import/cancel/{task_id}.
     """
-    session = get_sync_session()
-    try:
-        import_tasks_status[task_id] = {
-            "status": "running",
-            "message": "Importação iniciada",
-            "progress": 0,
-        }
+    _cleanup_old_tasks(import_tasks_status)
 
-        from scripts.import_ufc_dataset import UFCDatasetImporter
+    import_tasks_status[task_id] = {
+        "status": "running",
+        "message": "Importação iniciada",
+        "progress": 0,
+        "created_at": datetime.now(timezone.utc),
+    }
 
-        # Buscar usuário
-        user = session.query(User).filter(User.id == user_id).first()
-        if not user:
+    timeout_seconds = get_settings().IMPORT_TIMEOUT_SECONDS
+    result_container = {"error": None, "completed": False}
+    importer_ref = {"importer": None}
+
+    def _do_import():
+        session = get_sync_session()
+        try:
+            from scripts.import_ufc_dataset import UFCDatasetImporter
+
+            user = session.query(User).filter(User.id == user_id).first()
+            if not user:
+                import_tasks_status[task_id] = {
+                    "status": "error",
+                    "message": "Usuário não encontrado",
+                    "created_at": import_tasks_status[task_id].get("created_at"),
+                }
+                return
+
+            importer = UFCDatasetImporter(session)
+            importer_ref["importer"] = importer
+            import_tasks_status[task_id]["_importer"] = importer
+
+            for step_num, (step_fn, step_args, step_label, progress_pct) in enumerate(
+                [
+                    (
+                        importer.import_fighters,
+                        ("datasets/fighter_details.csv", user),
+                        "Importando lutadores",
+                        10,
+                    ),
+                    (
+                        importer.import_events,
+                        ("datasets/event_details.csv", user),
+                        "Importando eventos",
+                        30,
+                    ),
+                    (
+                        importer.import_fights,
+                        ("datasets/fight_details.csv",),
+                        "Importando lutas",
+                        50,
+                    ),
+                    (
+                        importer.populate_fight_winners,
+                        ("datasets/UFC.csv",),
+                        "Populando vencedores",
+                        55,
+                    ),
+                    (
+                        importer.update_fighter_ml_stats,
+                        (),
+                        "Agregando estatisticas ML",
+                        65,
+                    ),
+                    (
+                        importer.update_event_names,
+                        (),
+                        "Atualizando nomes dos eventos",
+                        75,
+                    ),
+                    (
+                        importer.update_fighter_cartels,
+                        (),
+                        "Atualizando cartel dos lutadores",
+                        85,
+                    ),
+                    (
+                        importer.update_weight_classes,
+                        (),
+                        "Atualizando categorias de peso",
+                        92,
+                    ),
+                    (
+                        importer.recalculate_fighter_attributes,
+                        (),
+                        "Recalculando atributos",
+                        98,
+                    ),
+                ],
+                1,
+            ):
+                if importer._cancelled.is_set():
+                    import_tasks_status[task_id] = {
+                        "status": "cancelled",
+                        "message": "Importação cancelada pelo usuário",
+                        "progress": import_tasks_status[task_id].get("progress", 0),
+                        "created_at": import_tasks_status[task_id].get("created_at"),
+                    }
+                    logger.info(
+                        f"[{task_id}] Importação cancelada após step {step_num}"
+                    )
+                    return
+
+                logger.info(f"[{task_id}] Step {step_num}/9: {step_label}")
+                import_tasks_status[task_id]["progress"] = progress_pct
+                import_tasks_status[task_id]["message"] = step_label
+
+                if step_args:
+                    step_fn(*step_args)
+                else:
+                    step_fn()
+
+            import_tasks_status[task_id] = {
+                "status": "completed",
+                "message": "Importação concluída com sucesso",
+                "progress": 100,
+                "stats": importer.stats,
+                "created_at": import_tasks_status[task_id].get("created_at"),
+            }
+            logger.info(f"[{task_id}] Importação concluída!")
+            result_container["completed"] = True
+
+        except Exception as e:
+            logger.error(f"[{task_id}] Erro na importação: {str(e)}")
             import_tasks_status[task_id] = {
                 "status": "error",
-                "message": "Usuário não encontrado",
+                "message": f"Erro ao importar dataset: {str(e)}",
+                "progress": 0,
+                "created_at": import_tasks_status[task_id].get("created_at"),
             }
-            return
+            result_container["error"] = str(e)
+        finally:
+            session.close()
 
-        importer = UFCDatasetImporter(session)
+    thread = threading.Thread(target=_do_import, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout_seconds)
 
-        # 1. Importar lutadores
-        logger.info(f"[{task_id}] Importando lutadores...")
-        import_tasks_status[task_id]["progress"] = 10
-        import_tasks_status[task_id]["message"] = "Importando lutadores..."
-        importer.import_fighters("datasets/fighter_details.csv", user)
-
-        # 2. Importar eventos
-        logger.info(f"[{task_id}] Importando eventos...")
-        import_tasks_status[task_id]["progress"] = 30
-        import_tasks_status[task_id]["message"] = "Importando eventos..."
-        importer.import_events("datasets/event_details.csv", user)
-
-        # 3. Importar lutas
-        logger.info(f"[{task_id}] Importando lutas...")
-        import_tasks_status[task_id]["progress"] = 50
-        import_tasks_status[task_id]["message"] = "Importando lutas..."
-        importer.import_fights("datasets/fight_details.csv")
-
-        # 4. Popular vencedores
-        logger.info(f"[{task_id}] Populando vencedores...")
-        import_tasks_status[task_id]["progress"] = 55
-        import_tasks_status[task_id]["message"] = "Populando vencedores..."
-        importer.populate_fight_winners("datasets/UFC.csv")
-
-        # 5. Agregar ML stats (SLpM, TD avg, KO/sub wins)
-        logger.info(f"[{task_id}] Agregando ML stats...")
-        import_tasks_status[task_id]["progress"] = 65
-        import_tasks_status[task_id]["message"] = "Agregando estatisticas ML..."
-        importer.update_fighter_ml_stats()
-
-        # 6. Atualizar nomes dos eventos
-        logger.info(f"[{task_id}] Atualizando nomes dos eventos...")
-        import_tasks_status[task_id]["progress"] = 75
-        import_tasks_status[task_id]["message"] = "Atualizando nomes dos eventos..."
-        importer.update_event_names()
-
-        # 7. Atualizar cartel dos lutadores
-        logger.info(f"[{task_id}] Atualizando cartel dos lutadores...")
-        import_tasks_status[task_id]["progress"] = 85
-        import_tasks_status[task_id]["message"] = "Atualizando cartel dos lutadores..."
-        importer.update_fighter_cartels()
-
-        # 8. Atualizar categorias de peso
-        logger.info(f"[{task_id}] Atualizando categorias de peso...")
-        import_tasks_status[task_id]["progress"] = 92
-        import_tasks_status[task_id]["message"] = "Atualizando categorias de peso..."
-        importer.update_weight_classes()
-
-        # 9. Recalcular atributos de jogo (ML stats + win rate)
-        logger.info(f"[{task_id}] Recalculando atributos...")
-        import_tasks_status[task_id]["progress"] = 98
-        import_tasks_status[task_id]["message"] = (
-            "Recalculando atributos dos lutadores..."
+    if thread.is_alive():
+        importer = importer_ref["importer"]
+        if importer:
+            importer.cancel()
+        import_tasks_status[task_id] = {
+            "status": "timeout",
+            "message": f"Timeout: importação excedeu {timeout_seconds // 3600} horas",
+            "progress": import_tasks_status[task_id].get("progress", 0),
+            "created_at": import_tasks_status[task_id].get("created_at"),
+        }
+        logger.warning(
+            f"[{task_id}] Importação cancelada por timeout ({timeout_seconds}s)"
         )
-        importer.recalculate_fighter_attributes()
-
-        # Concluído
-        import_tasks_status[task_id] = {
-            "status": "completed",
-            "message": "Importação concluída com sucesso",
-            "progress": 100,
-            "stats": importer.stats,
-        }
-        logger.info(f"[{task_id}] Importação concluída!")
-
-    except Exception as e:
-        logger.error(f"[{task_id}] Erro na importação: {str(e)}")
-        import_tasks_status[task_id] = {
-            "status": "error",
-            "message": f"Erro ao importar dataset: {str(e)}",
-            "progress": 0,
-        }
-    finally:
-        session.close()
 
 
 @router.post("/import/ufc-dataset", status_code=status.HTTP_202_ACCEPTED)
@@ -174,10 +248,51 @@ async def get_import_status(
     if task_id not in import_tasks_status:
         return {
             "status": "not_found",
-            "message": "Task não encontrada",
+            "message": "Task não encontrada. Pode ter expirado ou nunca ter existido.",
         }
 
     return import_tasks_status[task_id]
+
+
+@router.post("/import/cancel/{task_id}", status_code=status.HTTP_200_OK)
+async def cancel_import(
+    task_id: str,
+    current_user: User = Depends(require_admin),
+) -> Dict[str, Any]:
+    """
+    Cancela uma importação em andamento.
+    A task será interrompida no próximo step da pipeline.
+    """
+    if task_id not in import_tasks_status:
+        return {
+            "status": "not_found",
+            "message": "Task não encontrada.",
+        }
+
+    task_info = import_tasks_status[task_id]
+    if task_info.get("status") != "running":
+        return {
+            "status": "error",
+            "message": f"Task não está em execução (status atual: {task_info.get('status')})",
+        }
+
+    task_info["status"] = "cancelled"
+    task_info["message"] = (
+        "Cancelamento solicitado — aguardando step atual finalizar..."
+    )
+    logger.info(
+        f"[{task_id}] Cancelamento solicitado pelo usuário {current_user.email}"
+    )
+
+    importer = task_info.pop("_importer", None)
+    if importer is not None:
+        importer.cancel()
+
+    return {
+        "status": "accepted",
+        "message": "Solicitação de cancelamento registrada. A importação será interrompida no próximo step.",
+        "task_id": task_id,
+    }
 
 
 @router.post("/import/update-weight-classes", status_code=status.HTTP_200_OK)

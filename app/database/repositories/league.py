@@ -1,6 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy import select, desc
+from sqlalchemy.orm import selectinload
 from app.database.models.base import League, LeagueMember
 from app.database.repositories.base import BaseRepository
 from app.database.unit_of_work import UnitOfWorkConnection
@@ -16,7 +17,9 @@ class LeagueRepository(BaseRepository[League]):
         try:
             session = await self.uow.get_session()
             query = select(self.model).filter(
-                self.model.invite_code == invite_code, self.model.deleted_at.is_(None)
+                self.model.invite_code == invite_code,
+                self.model.deleted_at.is_(None),
+                self.model.deleted_by.is_(None),
             )
             result = await session.execute(query)
             return result.scalar_one_or_none()
@@ -65,13 +68,14 @@ class LeagueRepository(BaseRepository[League]):
             session = await self.uow.get_session()
             query = (
                 select(self.model)
+                .options(selectinload(self.model.members))
                 .join(LeagueMember, self.model.id == LeagueMember.league_id)
                 .filter(
                     LeagueMember.user_id == user_id, self.model.deleted_at.is_(None)
                 )
             )
             result = await session.execute(query)
-            return list(result.scalars().all())
+            return list(result.unique().scalars().all())
         except Exception as e:
             logger.error(f"Error fetching user leagues: {e}")
             raise RepositoryError

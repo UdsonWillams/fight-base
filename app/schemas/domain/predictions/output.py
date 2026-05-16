@@ -60,7 +60,7 @@ class LeagueResponse(BaseModel):
     description: Optional[str] = None
     invite_code: str
     owner_id: UUID
-    members_count: int
+    members_count: int = 0
 
     class Config:
         from_attributes = True

@@ -21,6 +21,7 @@ lutas e lutadores já existentes são atualizados em vez de duplicados.
 
 import csv
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -109,6 +110,13 @@ class UFCDatasetImporter:
             "fights_created": 0,
             "errors": [],
         }
+
+        # Flag de cancelamento para interrupção entre steps
+        self._cancelled = threading.Event()
+
+    def cancel(self):
+        """Sinaliza cancelamento da importação. Verificado entre steps da pipeline."""
+        self._cancelled.set()
 
     def get_or_create_system_user(self) -> User:
         """
@@ -1198,8 +1206,13 @@ class UFCDatasetImporter:
         Os eventos são criados inicialmente com nome temporário (ex.: "UFC Event abc12345").
         Este método varre fight_details.csv para extrair o nome real de cada evento
         e atualiza o registro correspondente no banco.
+
+        Fallback: Para eventos que permanecem com nome temporário (sem event_name no CSV),
+        constrói um nome a partir dos lutadores da luta principal (fight_order=1).
         """
         print("\n📝 Atualizando nomes dos eventos...")
+
+        temp_name_events = set()
 
         # Ler nomes de eventos do fight_details.csv
         with open("datasets/fight_details.csv", "r", encoding="utf-8") as f:
@@ -1222,6 +1235,36 @@ class UFCDatasetImporter:
                     event.name = name
 
         self.session.commit()
+
+        # Fallback: para eventos que ainda têm nome temporário, construir a partir das lutas
+        from sqlalchemy.orm import joinedload
+
+        for ufcstats_id, event_uuid in self.event_id_map.items():
+            event = self.session.get(
+                Event,
+                event_uuid,
+                options=[joinedload(Event.fights).joinedload(Fight.fighter1), joinedload(Event.fights).joinedload(Fight.fighter2)],
+            )
+            if event and event.name.startswith("UFC Event "):
+                main_fight = next(
+                    (f for f in event.fights if f.fight_order == 1), None
+                )
+                if main_fight and main_fight.fighter1 and main_fight.fighter2:
+                    event.name = (
+                        f"{main_fight.fighter1.name} vs {main_fight.fighter2.name}"
+                    )
+                    print(f"  📝 Fallback: {ufcstats_id[:8]} -> {event.name}")
+                else:
+                    temp_name_events.add(event.ufcstats_id or str(event.id)[:8])
+
+        self.session.commit()
+
+        if temp_name_events:
+            print(
+                f"  ⚠️  {len(temp_name_events)} eventos permanecem com nome temporário (sem lutas principais): "
+                f"{', '.join(sorted(temp_name_events))}"
+            )
+
         print(f"✓ Nomes atualizados para {len(event_names)} eventos")
 
     def update_weight_classes(self):

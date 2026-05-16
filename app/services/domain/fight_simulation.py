@@ -76,6 +76,13 @@ class FightSimulationService:
             fighter1, fighter2
         )
 
+        logger.debug(
+            f"Calculando prob: {fighter1.name} (stk={fighter1.striking}, grp={fighter1.grappling}, "
+            f"slpm={fighter1.slpm}, td_avg={fighter1.td_avg}) vs "
+            f"{fighter2.name} (stk={fighter2.striking}, grp={fighter2.grappling}, "
+            f"slpm={fighter2.slpm}, td_avg={fighter2.td_avg})"
+        )
+
         if ml_prob is not None:
             prob1 = ml_prob * 100
 
@@ -151,6 +158,11 @@ class FightSimulationService:
 
         # Resto vai para decisão
         decision_prob = 100 - ko_prob - submission_prob
+
+        logger.debug(
+            f"Tipo resultado: KO={ko_prob:.1f}%, Sub={submission_prob:.1f}%, "
+            f"Dec={decision_prob:.1f}% ({fighter1.name} vs {fighter2.name})"
+        )
 
         return {
             "ko": round(ko_prob, 2),
@@ -374,6 +386,11 @@ class FightSimulationService:
         # Reordena para que "dominou" fique primeiro se existir
         events.sort(key=lambda e: (0 if "dominou" in e else 1))
 
+        logger.debug(
+            f"Round {round_number}: {fighter1.name} {points1:.1f} vs "
+            f"{fighter2.name} {points2:.1f} — dominante: {dominant}"
+        )
+
         return {
             "round_number": round_number,
             "fighter1_points": round(points1, 2),
@@ -439,6 +456,12 @@ class FightSimulationService:
         else:
             winner_id = random.choice([fighter1_id, fighter2_id])  # nosec B311
 
+        logger.debug(
+            f"Resultado core: winner={winner_id}, type={result_type}, "
+            f"finish_round={finish_round}, points=({f1_total:.1f}, {f2_total:.1f}) "
+            f"({fighter1.name} vs {fighter2.name})"
+        )
+
         return FightSimulationResult(
             winner_id=winner_id,
             result_type=result_type,
@@ -474,12 +497,23 @@ class FightSimulationService:
         fighter2 = await self.fighter_repo.get_by_id(fighter2_id)
 
         if not fighter1:
+            logger.warning(
+                f"Simulação rejeitada: Fighter 1 not found (id={fighter1_id})"
+            )
             raise NotFoundError("Fighter 1 not found")
         if not fighter2:
+            logger.warning(
+                f"Simulação rejeitada: Fighter 2 not found (id={fighter2_id})"
+            )
             raise NotFoundError("Fighter 2 not found")
 
         if fighter1_id == fighter2_id:
+            logger.warning(f"Simulação rejeitada: mesmo lutador (id={fighter1_id})")
             raise ForbiddenError("Cannot simulate fight between same fighter")
+
+        logger.info(
+            f"Iniciando simulação: {fighter1.name} vs {fighter2.name}, {rounds} rounds"
+        )
 
         prob1, prob2 = await self.calculate_win_probability(fighter1, fighter2)
 
@@ -503,6 +537,15 @@ class FightSimulationService:
             },
             notes=notes,
             created_by=created_by,
+        )
+
+        winner_name = (
+            fighter1.name if result.winner_id == fighter1.id else fighter2.name
+        )
+        loser_name = fighter2.name if result.winner_id == fighter1.id else fighter1.name
+        logger.info(
+            f"Simulação concluída: {winner_name} venceu {loser_name} por "
+            f"{result.result_type} (R{result.finish_round}/{rounds})"
         )
 
         return await self.simulation_repo.create(simulation)
@@ -578,6 +621,11 @@ class FightSimulationService:
             )
             key_factors.append(f"QI de luta de {smart_fighter} pode fazer a diferença")
 
+        logger.info(
+            f"Previsão: {fighter1.name} {prob1:.1f}% vs {fighter2.name} {prob2:.1f}% "
+            f"(KO:{result_probs['ko']:.0f}% Sub:{result_probs['submission']:.0f}% Dec:{result_probs['decision']:.0f}%)"
+        )
+
         return {
             "fighter1_id": str(fighter1_id),
             "fighter2_id": str(fighter2_id),
@@ -611,6 +659,8 @@ class FightSimulationService:
             raise NotFoundError("Fighter 1 not found")
         if not fighter2:
             raise NotFoundError("Fighter 2 not found")
+
+        logger.debug(f"Comparando: {fighter1.name} vs {fighter2.name}")
 
         # Compara cada atributo
         comparisons = {

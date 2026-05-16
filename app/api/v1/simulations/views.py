@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from app.api.v1.auth.dependencies import get_current_user
+from app.core.logger import logger
 from app.database.repositories.fight_simulation import FightSimulationRepository
 from app.database.repositories.fighter import FighterRepository
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
@@ -45,6 +46,10 @@ async def simulate_fight(
 
     Retorna o resultado completo com vencedor, tipo de vitória, probabilidades e detalhes round a round.
     """
+    logger.info(
+        f"Usuário {current_user.email} solicitou simulação: "
+        f"{data.fighter1_id} vs {data.fighter2_id}"
+    )
     simulation = await service.simulate_fight(
         fighter1_id=data.fighter1_id,
         fighter2_id=data.fighter2_id,

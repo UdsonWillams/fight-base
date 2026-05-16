@@ -16,12 +16,12 @@ import pytest_asyncio
 # This will automatically include the fixtures from the specified modules
 # Need to update this list as you add more fixture files
 pytest_plugins = [
-    "tests.fixtures.database",
+    "tests.fixtures.database_sqlite",
     "tests.fixtures.base",
 ]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def app(uow):
     from app.main import app
 
@@ -44,11 +44,26 @@ async def client(async_session, uow):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def admin_headers(client, customer_admin):
+async def admin_headers(client, user_admin):
     resp = await client.post(
         "/auth/token",
-        json={"email": customer_admin.email, "password": customer_admin.plain_password},
+        json={"email": user_admin.email, "password": user_admin.plain_password},
     )
     assert resp.status_code == 200
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def customer_admin(user_admin):
+    return user_admin
+
+
+@pytest.fixture
+def customer(user):
+    return user
+
+
+@pytest.fixture
+def some_customers(some_users):
+    return some_users

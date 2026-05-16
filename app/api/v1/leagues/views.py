@@ -29,15 +29,7 @@ async def create_league(
     league = await service.create_league(
         current_user.id, data.name, data.description, data.is_public, data.max_members
     )
-    # Precisamos de um schema que suporte count de membros
-    return LeagueResponse(
-        id=league.id,
-        name=league.name,
-        description=league.description,
-        invite_code=league.invite_code,
-        owner_id=league.owner_id,
-        members_count=1,
-    )
+    return LeagueResponse.model_validate(league)
 
 
 @router.post("/join/{invite_code}", response_model=LeagueResponse)

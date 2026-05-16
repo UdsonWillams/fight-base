@@ -245,6 +245,9 @@ async def get_fight_data(client, semaphore, idx, link):
 
         event_link_tag = soup.find("a", class_="b-link")
         if not event_link_tag:
+            event_link_tag = soup.find("a", class_="b-link_style_black")
+        if not event_link_tag:
+            print(f"  ⚠️  Event link not found on fight page {link[-16:]}, skipping")
             return
         event_name = event_link_tag.text.strip()
         event_id = event_link_tag["href"][-16:]
@@ -284,6 +287,7 @@ async def get_fight_data(client, semaphore, idx, link):
                 "method": method, "finish_round": finish_round,
                 "match_time_sec": match_time_sec, "total_rounds": total_rounds,
                 "referee": referee,
+                "scrape_order": idx,
                 "r_kd": None, "r_sig_str_landed": None, "r_sig_str_atmpted": None,
                 "r_sig_str_acc": None, "r_total_str_landed": None, "r_total_str_atmpted": None,
                 "r_total_str_acc": None, "r_td_landed": None, "r_td_atmpted": None,
@@ -834,6 +838,7 @@ async def get_fight_data(client, semaphore, idx, link):
             "b_landed_dist_per": b_landed_dist_per,
             "b_landed_clinch_per": b_landed_clinch_per,
             "b_landed_ground_per": b_landed_ground_per,
+            "scrape_order": idx,
         }
         fight_details.append(data_dic)
 
@@ -1010,6 +1015,7 @@ async def main():
                         print(f"Fights scraped: {completed}/{len(new_fight_links_all)}")
 
                 if fight_details:
+                    fight_details.sort(key=lambda x: x.get("scrape_order", 0))
                     df_fight = pd.DataFrame(data=fight_details)
                     append_csv_safe(FIGHT_CSV, df_fight, re_scraped_ids)
                     print(f"Appended {len(df_fight)} row(s) to fight_details.csv")
@@ -1084,6 +1090,7 @@ async def main():
                 if completed % 500 == 0 or completed == total_fights:
                     print(f"Fights scraped: {completed}/{total_fights}")
 
+            fight_details.sort(key=lambda x: x.get("scrape_order", 0))
             df_fight = pd.DataFrame(data=fight_details)
             df_fight.to_csv(FIGHT_CSV, index=False)
             print(f"Saved {len(df_fight)} row(s) to fight_details.csv")

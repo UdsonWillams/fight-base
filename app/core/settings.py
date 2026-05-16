@@ -92,6 +92,10 @@ class Settings(BaseSettings):
         "https://accounts.google.com/.well-known/openid-configuration"
     )
 
+    # Background task timeouts (seconds)
+    IMPORT_TIMEOUT_SECONDS: int = 10800  # 3 horas
+    MODEL_TRAIN_TIMEOUT_SECONDS: int = 3600  # 1 hora
+
 
 @lru_cache
 def get_settings() -> Settings:
