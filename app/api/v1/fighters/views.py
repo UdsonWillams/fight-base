@@ -107,8 +107,15 @@ async def search_fighters(
     fighting_style: str = Query(None, description="Filtrar por estilo"),
     is_real: bool = Query(None, description="Filtrar por real/fictício"),
     min_overall: int = Query(None, ge=0, le=100, description="Rating mínimo"),
+    sort_by: str = Query(
+        "overall", description="Ordenar por: overall, name, last_fight_date"
+    ),
+    sort_order: str = Query("desc", description="Ordem: asc, desc"),
     limit: int = Query(10, ge=1, le=100, description="Limite de resultados"),
     offset: int = Query(0, ge=0, description="Offset para paginação"),
+    recent_activity: bool = Query(
+        False, description="Apenas lutadores ativos nos ultimos 6 meses"
+    ),
     service: FighterService = Depends(get_fighter_service),
 ):
     """
@@ -125,6 +132,7 @@ async def search_fighters(
         min_overall=min_overall,
         limit=limit,
         offset=offset,
+        recent_activity=recent_activity,
     )
 
     fighters = await service.search_fighters(search_params)

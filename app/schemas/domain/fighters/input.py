@@ -153,5 +153,12 @@ class FighterSearchInput(BaseModel):
     min_overall: Optional[int] = Field(
         None, ge=0, le=100, description="Nota mínima geral"
     )
+    sort_by: Optional[str] = Field(
+        "overall", description="Ordenar por: overall, name, last_fight_date"
+    )
+    sort_order: Optional[str] = Field("desc", description="Ordem: asc, desc")
     limit: int = Field(10, ge=1, le=100, description="Limite de resultados")
     offset: int = Field(0, ge=0, description="Offset para paginação")
+    recent_activity: bool = Field(
+        False, description="Apenas lutadores ativos nos ultimos 6 meses"
+    )

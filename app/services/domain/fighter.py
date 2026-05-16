@@ -281,8 +281,11 @@ class FighterService:
             fighting_style=search_params.fighting_style,
             is_real=search_params.is_real,
             min_overall=search_params.min_overall,
+            sort_by=search_params.sort_by,
+            sort_order=search_params.sort_order,
             limit=search_params.limit,
             offset=search_params.offset,
+            recent_activity=search_params.recent_activity,
         )
 
     async def get_total_fighters(self, search_params: FighterSearchInput) -> int:
@@ -294,6 +297,7 @@ class FighterService:
             fighting_style=search_params.fighting_style,
             is_real=search_params.is_real,
             min_overall=search_params.min_overall,
+            recent_activity=search_params.recent_activity,
         )
 
     async def get_top_fighters(

@@ -2,8 +2,15 @@
   <div class="vs-display">
     <div class="fighter-side glass-card">
       <div v-if="fighter1" class="fighter-info">
-        <h3 class="fighter-name">{{ fighter1.name }}</h3>
-        <p v-if="fighter1.nickname" class="fighter-nickname">"{{ fighter1.nickname }}"</p>
+        <h3 class="fighter-name">
+          <span v-if="fighter1.nickname && fighter1.name">
+            <template v-for="(part, i) in formatNameWithNickname(fighter1.name, fighter1.nickname)" :key="i">
+              <span v-if="part.type === 'nickname'" class="fighter-nickname-inline">"{{ part.text }}"</span>
+              <span v-else>{{ part.text }}</span>
+            </template>
+          </span>
+          <span v-else>{{ fighter1.name }}</span>
+        </h3>
         <div class="fighter-meta">
           <span v-if="fighter1.last_organization_fight" class="meta-badge org-badge">
             {{ fighter1.last_organization_fight }}
@@ -36,8 +43,15 @@
 
     <div class="fighter-side glass-card">
       <div v-if="fighter2" class="fighter-info">
-        <h3 class="fighter-name">{{ fighter2.name }}</h3>
-        <p v-if="fighter2.nickname" class="fighter-nickname">"{{ fighter2.nickname }}"</p>
+        <h3 class="fighter-name">
+          <span v-if="fighter2.nickname && fighter2.name">
+            <template v-for="(part, i) in formatNameWithNickname(fighter2.name, fighter2.nickname)" :key="i">
+              <span v-if="part.type === 'nickname'" class="fighter-nickname-inline">"{{ part.text }}"</span>
+              <span v-else>{{ part.text }}</span>
+            </template>
+          </span>
+          <span v-else>{{ fighter2.name }}</span>
+        </h3>
         <div class="fighter-meta">
           <span v-if="fighter2.last_organization_fight" class="meta-badge org-badge">
             {{ fighter2.last_organization_fight }}
@@ -80,6 +94,23 @@ function getOverallColor(overall: number): string {
   if (overall >= 65) return 'var(--accent)'
   return 'var(--text-muted)'
 }
+
+function formatNameWithNickname(name: string, nickname: string) {
+  const parts = name.trim().split(' ')
+  if (parts.length >= 2) {
+    const firstName = parts[0]
+    const lastNames = parts.slice(1).join(' ')
+    return [
+      { text: firstName + ' ', type: 'name' },
+      { text: nickname, type: 'nickname' },
+      { text: ' ' + lastNames, type: 'name' },
+    ]
+  }
+  return [
+    { text: name + ' ', type: 'name' },
+    { text: nickname, type: 'nickname' },
+  ]
+}
 </script>
 
 <style scoped>
@@ -120,7 +151,15 @@ function getOverallColor(overall: number): string {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 2px;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.fighter-nickname-inline {
+  color: var(--accent-light);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 0.95rem;
 }
 
 .fighter-nickname {

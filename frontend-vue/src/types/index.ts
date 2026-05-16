@@ -92,6 +92,8 @@ export interface FighterSummary {
   nickname: string | null
   actual_weight_class: string | null
   image_url: string | null
+  overall_rating: number | null
+  record: string | null
 }
 
 export interface Event {
@@ -171,6 +173,10 @@ export interface SimulationResult {
   result_type: string
   winner_id: string
   winner_name: string
+  fighter1_id?: string
+  fighter1_name?: string
+  fighter2_id?: string
+  fighter2_name?: string
   finish_round: number | null
   finish_time: string | null
   method_details: string | null

@@ -1,6 +1,54 @@
+"""
+UFC Stats Dataset Scraper
+=========================
+
+Scrapeia eventos, lutas e lutadores do ufcstats.com.
+Gera CSVs em datasets/ e reconstrói UFC.csv automaticamente.
+
+USAGE
+  python scripts/scrape_dataset.py [--mode MODE] [--last-events N] [--include-upcoming]
+
+OPTIONS
+  --mode {incremental, full}
+      incremental (default): baixa apenas eventos novos (últimos N completed + upcoming)
+      full                : baixa TODOS os eventos completed (~773, muito pesado)
+
+  --last-events N
+      Quantos eventos completed recentes a checar no modo incremental.
+      Default: 10. Use 0 para pular completed e trazer só upcoming.
+
+  --include-upcoming
+      Flag. Se presente, também scrapeia eventos upcoming (ainda não aconteceram).
+      Lutas upcoming vêm sem stats/winner — campos ficam vazios.
+      Default: desativado.
+
+EXAMPLES
+  # Uso diário recomendado: últimos 10 completed + todos upcoming
+  python scripts/scrape_dataset.py --include-upcoming
+
+  # Só upcoming (checar card de eventos futuros)
+  python scripts/scrape_dataset.py --last-events 0 --include-upcoming
+
+  # Últimos 50 completed, sem upcoming
+  python scripts/scrape_dataset.py --last-events 50
+
+  # Força download completo de tudo (use com moderação)
+  python scripts/scrape_dataset.py --mode full
+
+FLUXO PÓS-SCRAPE
+  python scripts/import_ufc_dataset.py   # importa CSVs pro banco
+
+MIGRAÇÃO UPCOMING → COMPLETED
+  Quando um evento upcoming acontece, ele aparece nos últimos N completed.
+  O scraper detecta isso, re-scrapeia com dados completos (stats, winner) e
+  substitui as linhas antigas no CSV automaticamente.
+"""
+
+import argparse
 import os
 import asyncio
 import warnings
+from pathlib import Path
 
 import httpx
 import pandas as pd
@@ -28,6 +76,87 @@ chrome = getattr(
 
 HEADER = {"User-Agent": chrome}
 
+BASE_URL = "http://ufcstats.com"
+COMPLETED_URL = f"{BASE_URL}/statistics/events/completed?page=all"
+UPCOMING_URL = f"{BASE_URL}/statistics/events/upcoming"
+
+DATASETS_DIR = Path("datasets")
+EVENT_CSV = DATASETS_DIR / "event_details.csv"
+FIGHT_CSV = DATASETS_DIR / "fight_details.csv"
+FIGHTER_CSV = DATASETS_DIR / "fighter_details.csv"
+UFC_CSV = DATASETS_DIR / "UFC.csv"
+
+
+def load_existing_ids():
+    """Read existing CSVs and return sets of already-collected IDs, plus event status map."""
+    existing_events = set()
+    existing_fights = set()
+    existing_fighters = set()
+    existing_event_status = {}
+
+    if EVENT_CSV.exists():
+        df = pd.read_csv(EVENT_CSV)
+        if "event_id" in df.columns:
+            existing_events = set(df["event_id"].dropna().astype(str).str.strip())
+        if "fight_id" in df.columns:
+            existing_fights = set(df["fight_id"].dropna().astype(str).str.strip())
+        if "event_id" in df.columns and "event_status" in df.columns:
+            for _, row in df.iterrows():
+                eid = str(row["event_id"]).strip()
+                existing_event_status[eid] = str(row["event_status"]).strip()
+
+    if FIGHT_CSV.exists():
+        df = pd.read_csv(FIGHT_CSV)
+        if "fight_id" in df.columns:
+            existing_fights |= set(df["fight_id"].dropna().astype(str).str.strip())
+
+    if FIGHTER_CSV.exists():
+        df = pd.read_csv(FIGHTER_CSV)
+        if "id" in df.columns:
+            existing_fighters = set(df["id"].dropna().astype(str).str.strip())
+
+    return existing_events, existing_fights, existing_fighters, existing_event_status
+
+
+def append_csv_safe(filepath: Path, new_df: pd.DataFrame, replace_event_ids: set = None):
+    """Append new rows to an existing CSV, or create it if it doesn't exist.
+    If replace_event_ids is provided, rows with those event_ids are removed from
+    the existing CSV before appending (used when re-scraping upcoming→completed)."""
+    if filepath.exists() and filepath.stat().st_size > 0:
+        existing_df = pd.read_csv(filepath)
+        if replace_event_ids and "event_id" in existing_df.columns:
+            before = len(existing_df)
+            existing_df = existing_df[
+                ~existing_df["event_id"].astype(str).str.strip().isin(replace_event_ids)
+            ]
+            removed = before - len(existing_df)
+            if removed:
+                print(f"  Replaced {removed} old row(s) (upcoming→completed)")
+        merged = pd.concat([existing_df, new_df], ignore_index=True)
+        merged.to_csv(filepath, index=False)
+    else:
+        new_df.to_csv(filepath, index=False)
+
+
+def filter_new_only(event_links, existing_event_ids, existing_event_status=None):
+    """Given a list of (event_status, url) tuples, keep only genuinely new ones.
+    Allows re-scrape when a previously upcoming event now appears as completed."""
+    new_links = []
+    skipped = 0
+    if existing_event_status is None:
+        existing_event_status = {}
+    for status, url in event_links:
+        event_id = url.strip()[-16:]
+        prev_status = existing_event_status.get(event_id)
+        if event_id not in existing_event_ids:
+            new_links.append((status, url))
+        elif prev_status == "upcoming" and status == "completed":
+            new_links.append((status, url))
+            print(f"  ⟳ {event_id}: upcoming → completed, re-scraping for full data")
+        else:
+            skipped += 1
+    return new_links, skipped
+
 
 async def fetch_html(client, url):
     """Fetch HTML from a URL with async retry logic."""
@@ -43,8 +172,8 @@ async def fetch_html(client, url):
             await asyncio.sleep(2**attempt)  # Exponential backoff
 
 
-async def get_event_data(client, semaphore, idx, link):
-    """Scrape event data from the given link."""
+async def get_event_data(client, semaphore, idx, link, event_status="completed"):
+    """Scrape event data from the given link. event_status: 'completed' or 'upcoming'."""
     link = link.strip()
     async with semaphore:
         html = await fetch_html(client, link)
@@ -68,25 +197,28 @@ async def get_event_data(client, semaphore, idx, link):
         for i in fight_links:
             winner_name = None
             winner_id = None
-            w_l_d_tag = i.find("i", class_="b-flag__text")
-            w_l_d = w_l_d_tag.text if w_l_d_tag else None
 
             data_link = i.get("data-link")
             if not data_link:
                 continue
 
             fight_id = data_link[-16:]
-            if w_l_d == "win":
-                players = i.find(
-                    "td", class_="b-fight-details__table-col l-page_align_left"
-                )
-                if players:
-                    players_list = players.find_all(
-                        "a", class_="b-link b-link_style_black"
+
+            if event_status == "completed":
+                w_l_d_tag = i.find("i", class_="b-flag__text")
+                w_l_d = w_l_d_tag.text if w_l_d_tag else None
+
+                if w_l_d == "win":
+                    players = i.find(
+                        "td", class_="b-fight-details__table-col l-page_align_left"
                     )
-                    if players_list:
-                        winner_name = players_list[0].text.strip()
-                        winner_id = players_list[0]["href"][-16:]
+                    if players:
+                        players_list = players.find_all(
+                            "a", class_="b-link b-link_style_black"
+                        )
+                        if players_list:
+                            winner_name = players_list[0].text.strip()
+                            winner_id = players_list[0]["href"][-16:]
 
             data_dic = {
                 "event_id": event_id,
@@ -95,13 +227,14 @@ async def get_event_data(client, semaphore, idx, link):
                 "location": location,
                 "winner": winner_name,
                 "winner_id": winner_id,
+                "event_status": event_status,
             }
             new_fight_links_all.append(data_link)
             winner_names.append(data_dic)
 
 
 async def get_fight_data(client, semaphore, idx, link):
-    """Scrape fight data from the given link."""
+    """Scrape fight data from the given link. Works for both completed and upcoming."""
     link = link.strip()
     async with semaphore:
         html = await fetch_html(client, link)
@@ -138,6 +271,48 @@ async def get_fight_data(client, semaphore, idx, link):
 
         method_tag = soup.find("i", style="font-style: normal")
         method = method_tag.text.strip() if method_tag else None
+
+        # If no method found, this is an upcoming fight — skip stats parsing
+        if method is None:
+            finish_round, match_time_sec, total_rounds, referee = None, None, None, None
+
+            # Build basic data dict with None for all stats
+            data_dic = {
+                "event_name": event_name, "event_id": event_id, "fight_id": fight_id,
+                "r_name": r_name, "r_id": r_id, "b_name": b_name, "b_id": b_id,
+                "division": division_info, "title_fight": is_title_fight,
+                "method": method, "finish_round": finish_round,
+                "match_time_sec": match_time_sec, "total_rounds": total_rounds,
+                "referee": referee,
+                "r_kd": None, "r_sig_str_landed": None, "r_sig_str_atmpted": None,
+                "r_sig_str_acc": None, "r_total_str_landed": None, "r_total_str_atmpted": None,
+                "r_total_str_acc": None, "r_td_landed": None, "r_td_atmpted": None,
+                "r_td_acc": None, "r_sub_att": None, "r_ctrl": None,
+                "r_head_landed": None, "r_head_atmpted": None, "r_head_acc": None,
+                "r_body_landed": None, "r_body_atmpted": None, "r_body_acc": None,
+                "r_leg_landed": None, "r_leg_atmpted": None, "r_leg_acc": None,
+                "r_dist_landed": None, "r_dist_atmpted": None, "r_dist_acc": None,
+                "r_clinch_landed": None, "r_clinch_atmpted": None, "r_clinch_acc": None,
+                "r_ground_landed": None, "r_ground_atmpted": None, "r_ground_acc": None,
+                "r_landed_head_per": None, "r_landed_body_per": None, "r_landed_leg_per": None,
+                "r_landed_dist_per": None, "r_landed_clinch_per": None, "r_landed_ground_per": None,
+                "b_kd": None, "b_sig_str_landed": None, "b_sig_str_atmpted": None,
+                "b_sig_str_acc": None, "b_total_str_landed": None, "b_total_str_atmpted": None,
+                "b_total_str_acc": None, "b_td_landed": None, "b_td_atmpted": None,
+                "b_td_acc": None, "b_sub_att": None, "b_ctrl": None,
+                "b_head_landed": None, "b_head_atmpted": None, "b_head_acc": None,
+                "b_body_landed": None, "b_body_atmpted": None, "b_body_acc": None,
+                "b_leg_landed": None, "b_leg_atmpted": None, "b_leg_acc": None,
+                "b_dist_landed": None, "b_dist_atmpted": None, "b_dist_acc": None,
+                "b_clinch_landed": None, "b_clinch_atmpted": None, "b_clinch_acc": None,
+                "b_ground_landed": None, "b_ground_atmpted": None, "b_ground_acc": None,
+                "b_landed_head_per": None, "b_landed_body_per": None, "b_landed_leg_per": None,
+                "b_landed_dist_per": None, "b_landed_clinch_per": None, "b_landed_ground_per": None,
+            }
+            fight_details.append(data_dic)
+            return
+
+        # --- COMPLETED fight: parse full stats below (existing logic) ---
 
         p_tag_with_fight_detail = soup.find("p", class_="b-fight-details__text")
         if p_tag_with_fight_detail:
@@ -736,8 +911,22 @@ async def get_fighter_data(client, semaphore, idx, id):
 
 
 async def main():
-    print("Fetching event links...")
-    ufc_link = "http://ufcstats.com/statistics/events/completed?page=all"
+    parser = argparse.ArgumentParser(description="UFC Stats Dataset Scraper")
+    parser.add_argument(
+        "--mode", choices=["full", "incremental"], default="incremental",
+        help="Scraping mode: full (all events) or incremental (only new)"
+    )
+    parser.add_argument(
+        "--last-events", type=int, default=10,
+        help="Number of recent completed events to check (incremental mode)"
+    )
+    parser.add_argument(
+        "--include-upcoming", action="store_true", default=False,
+        help="Also scrape upcoming events"
+    )
+    args = parser.parse_args()
+
+    DATASETS_DIR.mkdir(parents=True, exist_ok=True)
 
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
@@ -748,105 +937,221 @@ async def main():
     )
 
     async with httpx.AsyncClient(transport=transport, limits=limits) as client:
-        html = await fetch_html(client, ufc_link)
-        if not html:
-            print("Failed to fetch initial events.")
-            return
+        if args.mode == "incremental":
+            print(f"Mode: INCREMENTAL (last {args.last_events} completed events)")
+            existing_events, existing_fights, existing_fighters, existing_event_status = load_existing_ids()
+            print(
+                f"Existing data: {len(existing_events)} events, "
+                f"{len(existing_fights)} fights, {len(existing_fighters)} fighters"
+            )
 
-        soup = BeautifulSoup(html, "lxml")
-        event_links_soup = soup.find_all("a", class_="b-link b-link_style_black")
-        event_links = [link["href"] for link in event_links_soup]
-        print(f"{len(event_links)} events found.")
+            event_links = []
 
-        # 1. Scrape Events
-        total_events = len(event_links)
-        print(f"Scraping {total_events} event details...")
-        tasks = [
-            get_event_data(client, semaphore, idx, link)
-            for idx, link in enumerate(event_links)
-        ]
-        completed = 0
-        for task in asyncio.as_completed(tasks):
-            await task
-            completed += 1
-            if completed % 50 == 0 or completed == total_events:
-                print(f"Events scraped: {completed}/{total_events}")
+            if args.include_upcoming:
+                print("Fetching upcoming event links...")
+                html_up = await fetch_html(client, UPCOMING_URL)
+                if html_up:
+                    soup_up = BeautifulSoup(html_up, "lxml")
+                    up_links = soup_up.find_all("a", class_="b-link b-link_style_black")
+                    for link in up_links:
+                        event_links.append(("upcoming", link["href"]))
+                    print(f"  {len(up_links)} upcoming events found.")
 
-        df_winner = pd.DataFrame(data=winner_names)
-        df_winner.to_csv("datasets/event_details.csv", index=False)
-        print(f"Successfully scraped {len(df_winner)} events.")
+            print("Fetching completed event links...")
+            html_comp = await fetch_html(client, COMPLETED_URL)
+            if not html_comp:
+                print("Failed to fetch completed events.")
+                return
 
-        # 2. Scrape Fights
-        total_fights = len(new_fight_links_all)
-        print(f"Scraping {total_fights} fight details...")
-        tasks = [
-            get_fight_data(client, semaphore, idx, link)
-            for idx, link in enumerate(new_fight_links_all)
-        ]
-        completed = 0
-        for task in asyncio.as_completed(tasks):
-            await task
-            completed += 1
-            if completed % 500 == 0 or completed == total_fights:
-                print(f"Fights scraped: {completed}/{total_fights}")
+            soup_comp = BeautifulSoup(html_comp, "lxml")
+            comp_links = soup_comp.find_all("a", class_="b-link b-link_style_black")
+            comp_links = comp_links[: args.last_events]
+            print(f"  {len(comp_links)} recent completed events (limit={args.last_events}).")
 
-        df_fight = pd.DataFrame(data=fight_details)
-        df_fight.to_csv("datasets/fight_details.csv", index=False)
-        print(f"Successfully scraped {len(df_fight)} fights.")
+            for link in comp_links:
+                event_links.append(("completed", link["href"]))
 
-        # 3. Scrape Fighters
-        print("Scraping fighter details...")
-        if (
-            not df_fight.empty
-            and "r_id" in df_fight.columns
-            and "b_id" in df_fight.columns
-        ):
-            r_fighter_id = df_fight["r_id"].unique()
-            b_fighter_id = df_fight["b_id"].unique()
-            all_ids = list(set(list(r_fighter_id) + list(b_fighter_id)))
-            total_fighters = len(all_ids)
-            print(f"Found {total_fighters} unique fighters to scrape.")
-            
+            new_links, skipped = filter_new_only(event_links, existing_events, existing_event_status)
+            print(f"After dedup: {len(new_links)} new events, {skipped} already in CSV.")
+
+            if not new_links:
+                print("Nothing new to scrape. Done.")
+                return
+
+            # Track which events are being re-scraped (upcoming → completed)
+            re_scraped_ids = {
+                url.strip()[-16:]
+                for status, url in new_links
+                if status == "completed" and existing_event_status.get(url.strip()[-16:]) == "upcoming"
+            }
+
+            event_tasks = [
+                get_event_data(client, semaphore, idx, url, status)
+                for idx, (status, url) in enumerate(new_links)
+            ]
+            for task in asyncio.as_completed(event_tasks):
+                await task
+
+            if winner_names:
+                df_winner = pd.DataFrame(data=winner_names)
+                append_csv_safe(EVENT_CSV, df_winner, re_scraped_ids)
+                print(f"Appended {len(df_winner)} row(s) to event_details.csv")
+
+            if new_fight_links_all:
+                fight_tasks = [
+                    get_fight_data(client, semaphore, idx, link)
+                    for idx, link in enumerate(new_fight_links_all)
+                ]
+                completed = 0
+                for task in asyncio.as_completed(fight_tasks):
+                    await task
+                    completed += 1
+                    if completed % 500 == 0:
+                        print(f"Fights scraped: {completed}/{len(new_fight_links_all)}")
+
+                if fight_details:
+                    df_fight = pd.DataFrame(data=fight_details)
+                    append_csv_safe(FIGHT_CSV, df_fight, re_scraped_ids)
+                    print(f"Appended {len(df_fight)} row(s) to fight_details.csv")
+
+            if fight_details:
+                df_fight = pd.DataFrame(data=fight_details)
+                if not df_fight.empty and "r_id" in df_fight.columns and "b_id" in df_fight.columns:
+                    r_ids = {str(x).strip() for x in df_fight["r_id"].dropna()}
+                    b_ids = {str(x).strip() for x in df_fight["b_id"].dropna()}
+                    all_ids = list(r_ids | b_ids)
+                    new_fighter_ids = [fid for fid in all_ids if fid not in existing_fighters]
+
+                    if new_fighter_ids:
+                        print(f"Scraping {len(new_fighter_ids)} new fighters...")
+                        ftasks = [
+                            get_fighter_data(client, semaphore, idx, fid)
+                            for idx, fid in enumerate(new_fighter_ids)
+                        ]
+                        for task in asyncio.as_completed(ftasks):
+                            await task
+
+                        if fighter_detail_data:
+                            df_fighter = pd.DataFrame(data=fighter_detail_data)
+                            append_csv_safe(FIGHTER_CSV, df_fighter)
+                            print(f"Appended {len(df_fighter)} row(s) to fighter_details.csv")
+                    else:
+                        print("No new fighters to scrape.")
+
+            print("Rebuilding UFC.csv from all CSVs...")
+            _rebuild_ufc_csv()
+            print("Done.")
+
+        else:
+            print("Mode: FULL (all completed events)")
+            html = await fetch_html(client, COMPLETED_URL)
+            if not html:
+                print("Failed to fetch completed events.")
+                return
+
+            soup = BeautifulSoup(html, "lxml")
+            event_links_soup = soup.find_all("a", class_="b-link b-link_style_black")
+            event_links = [("completed", link["href"]) for link in event_links_soup]
+            print(f"{len(event_links)} events found.")
+
+            total_events = len(event_links)
+            print(f"Scraping {total_events} event details...")
             tasks = [
-                get_fighter_data(client, semaphore, idx, id)
-                for idx, id in enumerate(all_ids)
+                get_event_data(client, semaphore, idx, url, status)
+                for idx, (status, url) in enumerate(event_links)
             ]
             completed = 0
             for task in asyncio.as_completed(tasks):
                 await task
                 completed += 1
-                if completed % 200 == 0 or completed == total_fighters:
-                    print(f"Fighters scraped: {completed}/{total_fighters}")
+                if completed % 50 == 0 or completed == total_events:
+                    print(f"Events scraped: {completed}/{total_events}")
 
-            df_fighter = pd.DataFrame(data=fighter_detail_data)
-            df_fighter.to_csv("datasets/fighter_details.csv", index=False)
-            print(f"Successfully scraped {len(df_fighter)} fighters.")
+            df_winner = pd.DataFrame(data=winner_names)
+            df_winner.to_csv(EVENT_CSV, index=False)
+            print(f"Saved {len(df_winner)} row(s) to event_details.csv")
 
-            # 4. Merge Data
-            print("Merging datasets into UFC.csv...")
-            df_merger_winners = df_winner.drop(columns=["event_id"]).copy()
-            df_fight_final = df_fight.merge(right=df_merger_winners, on="fight_id")
+            total_fights = len(new_fight_links_all)
+            print(f"Scraping {total_fights} fight details...")
+            tasks = [
+                get_fight_data(client, semaphore, idx, link)
+                for idx, link in enumerate(new_fight_links_all)
+            ]
+            completed = 0
+            for task in asyncio.as_completed(tasks):
+                await task
+                completed += 1
+                if completed % 500 == 0 or completed == total_fights:
+                    print(f"Fights scraped: {completed}/{total_fights}")
 
-            df_fighter_renamed__r = df_fighter.add_prefix("r_").drop(
-                columns=["r_name"], errors="ignore"
-            )
-            df_fighter_renamed__b = df_fighter.add_prefix("b_").drop(
-                columns=["b_name"], errors="ignore"
-            )
+            df_fight = pd.DataFrame(data=fight_details)
+            df_fight.to_csv(FIGHT_CSV, index=False)
+            print(f"Saved {len(df_fight)} row(s) to fight_details.csv")
 
-            df_fight_final = df_fight_final.merge(
-                right=df_fighter_renamed__r, left_on="r_id", right_on="r_id", how="left"
-            )
-            df_fight_final = df_fight_final.merge(
-                right=df_fighter_renamed__b, left_on="b_id", right_on="b_id", how="left"
-            )
+            print("Scraping fighter details...")
+            if not df_fight.empty and "r_id" in df_fight.columns and "b_id" in df_fight.columns:
+                r_ids = df_fight["r_id"].dropna().astype(str).str.strip().unique()
+                b_ids = df_fight["b_id"].dropna().astype(str).str.strip().unique()
+                all_ids = list(set(list(r_ids) + list(b_ids)))
+                total_fighters = len(all_ids)
+                print(f"Found {total_fighters} unique fighters to scrape.")
 
-            df_fight_final.to_csv("datasets/UFC.csv", index=False)
-            print(
-                "Scraping and merging complete. All data saved to datasets/ directory."
-            )
-        else:
-            print("No fights found or missing columns. Skipping merge step.")
+                tasks = [
+                    get_fighter_data(client, semaphore, idx, fid)
+                    for idx, fid in enumerate(all_ids)
+                ]
+                completed = 0
+                for task in asyncio.as_completed(tasks):
+                    await task
+                    completed += 1
+                    if completed % 200 == 0 or completed == total_fighters:
+                        print(f"Fighters scraped: {completed}/{total_fighters}")
+
+                df_fighter = pd.DataFrame(data=fighter_detail_data)
+                df_fighter.to_csv(FIGHTER_CSV, index=False)
+                print(f"Saved {len(df_fighter)} row(s) to fighter_details.csv")
+
+                print("Building UFC.csv...")
+                _rebuild_ufc_csv()
+                print("Full scrape complete.")
+            else:
+                print("No fights found. Skipping merge step.")
+
+
+def _rebuild_ufc_csv():
+    """Reconstruct UFC.csv from event_details, fight_details, and fighter_details."""
+    if not EVENT_CSV.exists() or not FIGHT_CSV.exists():
+        print("Missing base CSVs, cannot rebuild UFC.csv.")
+        return
+
+    df_winner = pd.read_csv(EVENT_CSV)
+    df_fight = pd.read_csv(FIGHT_CSV)
+
+    df_merger_winners = df_winner.drop(columns=["event_id"], errors="ignore").copy()
+    # Prevent duplicate join columns
+    for col in ["r_name", "b_name", "winner", "date", "location", "event_status"]:
+        if col in df_fight.columns and col in df_merger_winners.columns:
+            df_merger_winners = df_merger_winners.drop(columns=[col], errors="ignore")
+
+    df_fight_final = df_fight.merge(df_merger_winners, on="fight_id", how="left")
+
+    if FIGHTER_CSV.exists():
+        df_fighter = pd.read_csv(FIGHTER_CSV)
+        df_fighter_renamed__r = df_fighter.add_prefix("r_").drop(
+            columns=["r_name"], errors="ignore"
+        )
+        df_fighter_renamed__b = df_fighter.add_prefix("b_").drop(
+            columns=["b_name"], errors="ignore"
+        )
+        df_fight_final = df_fight_final.merge(
+            df_fighter_renamed__r, left_on="r_id", right_on="r_id", how="left"
+        )
+        df_fight_final = df_fight_final.merge(
+            df_fighter_renamed__b, left_on="b_id", right_on="b_id", how="left"
+        )
+
+    df_fight_final.to_csv(UFC_CSV, index=False)
+    print(f"UFC.csv rebuilt with {len(df_fight_final)} rows.")
 
 
 if __name__ == "__main__":

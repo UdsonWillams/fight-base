@@ -1,5 +1,6 @@
 """Repository para gerenciar lutadores"""
 
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -72,8 +73,11 @@ class FighterRepository(BaseRepository[Fighter]):
         fighting_style: Optional[str] = None,
         is_real: Optional[bool] = None,
         min_overall: Optional[int] = None,
+        sort_by: Optional[str] = "overall",
+        sort_order: Optional[str] = "desc",
         limit: int = 10,
         offset: int = 0,
+        recent_activity: bool = False,
     ) -> list[Fighter]:
         """Busca avançada de lutadores"""
         try:
@@ -123,19 +127,35 @@ class FighterRepository(BaseRepository[Fighter]):
                     >= min_overall
                 )
 
-            # Ordenar por overall rating (decrescente), depois por data da última luta
-            overall_expr = (
-                self.model.striking
-                + self.model.grappling
-                + self.model.defense
-                + self.model.stamina
-                + self.model.speed
-                + self.model.strategy
-            ) / 6
-            query = query.order_by(
-                overall_expr.desc(),
-                self.model.last_fight_date.desc().nulls_last(),
-            )
+            # Filtrar apenas lutadores ativos (luta nos ultimos 6 meses)
+            if recent_activity:
+                six_months_ago = datetime.now(timezone.utc) - timedelta(days=180)
+                query = query.filter(
+                    or_(
+                        self.model.last_fight_date >= six_months_ago,
+                        self.model.last_fight_date.is_(None),
+                    )
+                )
+
+            # Ordenacao dinamica (search_fighters)
+            if sort_by == "name":
+                order_col = self.model.name
+            elif sort_by == "last_fight_date":
+                order_col = self.model.last_fight_date
+            else:  # default: overall
+                order_col = (
+                    self.model.striking
+                    + self.model.grappling
+                    + self.model.defense
+                    + self.model.stamina
+                    + self.model.speed
+                    + self.model.strategy
+                ) / 6
+
+            if sort_order == "asc":
+                query = query.order_by(order_col.asc().nulls_last())
+            else:
+                query = query.order_by(order_col.desc().nulls_last())
 
             # Paginação
             query = query.offset(offset).limit(limit)
@@ -154,6 +174,7 @@ class FighterRepository(BaseRepository[Fighter]):
         fighting_style: Optional[str] = None,
         is_real: Optional[bool] = None,
         min_overall: Optional[int] = None,
+        recent_activity: bool = False,
     ) -> int:
         """Conta lutadores que correspondem aos filtros"""
         try:
@@ -200,6 +221,15 @@ class FighterRepository(BaseRepository[Fighter]):
                     )
                     / 6
                     >= min_overall
+                )
+
+            if recent_activity:
+                six_months_ago = datetime.now(timezone.utc) - timedelta(days=180)
+                query = query.filter(
+                    or_(
+                        self.model.last_fight_date >= six_months_ago,
+                        self.model.last_fight_date.is_(None),
+                    )
                 )
 
             result = await session.execute(query)

@@ -101,6 +101,5 @@ function streakClass(val: number): string {
 
 onMounted(() => {
   predictionStore.fetchAchievements()
-  predictionStore.fetchLeaderboard('', 20)
 })
 </script>

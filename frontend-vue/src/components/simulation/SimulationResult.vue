@@ -1,45 +1,63 @@
 <template>
   <div class="simulation-result">
-    <div class="winner-section glass-card">
-      <div class="winner-crown">&#x1F451;</div>
-      <h2 class="winner-name">{{ result.winner_name || '???' }}</h2>
-      <div class="winner-details">
-        <span class="method-badge" :class="'method-' + result.method_details?.toLowerCase()">
-          {{ t(`simulation.${result.method_details?.toLowerCase()}`) || result.method_details }}
-        </span>
-        <span v-if="result.finish_round" class="round-info">Round {{ result.finish_round }}</span>
-        <span v-if="result.finish_time" class="time-info">{{ result.finish_time }}</span>
-      </div>
-    </div>
+    <!-- Live Fight Animation -->
+    <FightLiveAnimation
+      v-if="showAnimation"
+      :result="result"
+      :fighter1="fighter1"
+      :fighter2="fighter2"
+      @simulate-again="$emit('simulateAgain')"
+    />
 
-    <div class="probability-section glass-card">
-      <h3 class="section-title">{{ t('simulation.winProbability') }}</h3>
-      <div class="prob-bar-container">
-        <div class="prob-side left">
-          <span class="prob-name">{{ fighter1?.name || t('simulation.fighter1') }}</span>
-          <span class="prob-value" :class="{ 'prob-high': winProb1 >= 50 }">{{ winProb1 }}%</span>
-        </div>
-        <div class="prob-track">
-          <div class="prob-fill" :style="{ width: `${winProb1}%` }" />
-        </div>
-        <div class="prob-side right">
-          <span class="prob-name">{{ fighter2?.name || t('simulation.fighter2') }}</span>
-          <span class="prob-value" :class="{ 'prob-high': winProb2 >= 50 }">{{ winProb2 }}%</span>
+    <!-- Static Result (fallback se não houver rounds) -->
+    <template v-else>
+      <div class="winner-section glass-card">
+        <div class="winner-crown">👑</div>
+        <h2 class="winner-name">{{ result.winner_name || '???' }}</h2>
+        <div class="winner-details">
+          <span class="method-badge" :class="'method-' + (result.method_details || result.result_type || '').toLowerCase()">
+            {{ result.method_details || result.result_type || 'Desconhecido' }}
+          </span>
+          <span v-if="result.finish_round" class="round-info">Round {{ result.finish_round }}</span>
+          <span v-if="result.finish_time" class="time-info">{{ result.finish_time }}</span>
         </div>
       </div>
-    </div>
 
-    <div v-if="result.simulation_details && result.simulation_details.length > 0" class="rounds-section glass-card">
-      <h3 class="section-title">{{ t('simulation.roundDetails') }}</h3>
-      <RoundAnimation :roundDetails="result.simulation_details" />
-    </div>
+      <div class="probability-section glass-card">
+        <h3 class="section-title">{{ t('simulation.winProbability') }}</h3>
+        <div class="prob-bar-container">
+          <div class="prob-side left">
+            <span class="prob-name">{{ fighter1?.name || t('simulation.fighter1') }}</span>
+            <span class="prob-value" :class="{ 'prob-high': winProb1 >= 50 }">{{ winProb1 }}%</span>
+          </div>
+          <div class="prob-track">
+            <div class="prob-fill" :style="{ width: `${winProb1}%` }" />
+          </div>
+          <div class="prob-side right">
+            <span class="prob-name">{{ fighter2?.name || t('simulation.fighter2') }}</span>
+            <span class="prob-value" :class="{ 'prob-high': winProb2 >= 50 }">{{ winProb2 }}%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounds-section glass-card">
+        <h3 class="section-title">Detalhes da Luta</h3>
+        <div class="no-rounds-fallback">
+          <p class="fallback-text">
+            Luta finalizada por <strong>{{ result.method_details || result.result_type }}</strong>
+            <span v-if="result.finish_round"> no Round {{ result.finish_round }}</span>
+            <span v-if="result.finish_time"> ({{ result.finish_time }})</span>
+          </p>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import RoundAnimation from './RoundAnimation.vue'
+import FightLiveAnimation from './FightLiveAnimation.vue'
 import type { Fighter, SimulationResult } from '@/types'
 
 const { t } = useI18n()
@@ -50,11 +68,22 @@ const props = defineProps<{
   fighter2: Fighter | null
 }>()
 
+const emit = defineEmits<{
+  (e: 'simulateAgain'): void
+}>()
+
 const winProb1 = computed(() => {
-  return Math.round(props.result.fighter1_probability * 100)
+  return Math.round((props.result.fighter1_probability || 0) * 100)
 })
 
-const winProb2 = computed(() => Math.round(props.result.fighter2_probability * 100))
+const winProb2 = computed(() => Math.round((props.result.fighter2_probability || 0) * 100))
+
+const showAnimation = computed(() => {
+  const details = props.result.simulation_details
+  if (!details) return false
+  const rounds = Array.isArray(details) ? details : (details.rounds || [])
+  return rounds.length > 0
+})
 </script>
 
 <style scoped>
@@ -62,7 +91,7 @@ const winProb2 = computed(() => Math.round(props.result.fighter2_probability * 1
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 700px;
+  max-width: 800px;
   margin: 0 auto;
 }
 
@@ -99,17 +128,17 @@ const winProb2 = computed(() => Math.round(props.result.fighter2_probability * 1
   text-transform: uppercase;
 }
 
-.method-ko, .method-knockout {
+.method-ko, .method-knockout, .method-tko {
   background: rgba(239, 68, 68, 0.2);
   color: var(--danger);
 }
 
-.method-submission {
+.method-submission, .method-sub {
   background: rgba(16, 185, 129, 0.2);
   color: var(--success);
 }
 
-.method-decision {
+.method-decision, .method-dec {
   background: rgba(59, 130, 246, 0.2);
   color: var(--primary-light);
 }
@@ -166,7 +195,7 @@ const winProb2 = computed(() => Math.round(props.result.fighter2_probability * 1
 }
 
 .prob-value.prob-high {
-  color: var(--success);
+  color: #22c55e;
 }
 
 .prob-track {
@@ -186,5 +215,19 @@ const winProb2 = computed(() => Math.round(props.result.fighter2_probability * 1
 
 .rounds-section {
   padding: 1.25rem 1.5rem;
+}
+
+.no-rounds-fallback {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.fallback-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.fallback-text strong {
+  color: var(--text-primary);
 }
 </style>

@@ -46,11 +46,24 @@ class FighterOutput(BaseModel):
     # Data da última luta
     last_fight_date: Optional[datetime] = None
 
-    # Informações adicionais
-    age: Optional[int] = None
-    stance: Optional[str] = None  # Orthodox, Southpaw, Switch
+    # Peso e dimensões
+    weight_lbs: Optional[float] = None
     height_cm: Optional[float] = None
     reach_cm: Optional[float] = None
+
+    # Estatísticas avancadas (ML features)
+    slpm: Optional[float] = None
+    str_acc: Optional[float] = None
+    sapm: Optional[float] = None
+    str_def: Optional[float] = None
+    td_avg: Optional[float] = None
+    td_acc: Optional[float] = None
+    td_def: Optional[float] = None
+    sub_avg: Optional[float] = None
+
+    # Informacoes adicionais
+    age: Optional[int] = None
+    stance: Optional[str] = None  # Orthodox, Southpaw, Switch
     bio: Optional[str] = None
     image_url: Optional[str] = None
     is_real: bool
@@ -59,19 +72,38 @@ class FighterOutput(BaseModel):
     @computed_field
     @property
     def overall_rating(self) -> float:
-        """Calcula a nota geral do lutador (média dos atributos)"""
-        return round(
-            (
-                self.striking
-                + self.grappling
-                + self.defense
-                + self.stamina
-                + self.speed
-                + self.strategy
-            )
-            / 6,
-            1,
+        """Calcula a nota geral do lutador (ponderada: melhores atributos pesam mais)"""
+        attrs = sorted(
+            [
+                self.striking,
+                self.grappling,
+                self.defense,
+                self.stamina,
+                self.speed,
+                self.strategy,
+            ],
+            reverse=True,
         )
+        return min(
+            99.0,
+            round(
+                attrs[0] * 0.35
+                + attrs[1] * 0.25
+                + attrs[2] * 0.15
+                + attrs[3] * 0.10
+                + attrs[4] * 0.08
+                + attrs[5] * 0.07,
+                1,
+            ),
+        )
+
+    @computed_field
+    @property
+    def weight(self) -> Optional[float]:
+        """Converte peso de libras para kg (1 lb = 0.453592 kg)"""
+        if self.weight_lbs is None:
+            return None
+        return round(self.weight_lbs * 0.453592, 2)
 
     @computed_field
     @property

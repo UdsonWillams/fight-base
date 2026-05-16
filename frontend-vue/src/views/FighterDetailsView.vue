@@ -44,7 +44,7 @@
               <div class="glass-card !p-3 text-center"><div class="text-2xl font-bold text-white">{{ fighter.height_cm || '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.height') }} (cm)</div></div>
               <div class="glass-card !p-3 text-center"><div class="text-2xl font-bold text-white">{{ fighter.weight || '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.weight') }} (kg)</div></div>
               <div class="glass-card !p-3 text-center"><div class="text-2xl font-bold text-white">{{ fighter.reach_cm || '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.reach') }} (cm)</div></div>
-              <div class="glass-card !p-3 text-center"><div class="text-2xl font-bold text-white">{{ fighter.stance || '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.stance') }}</div></div>
+              <div class="glass-card !p-3 text-center"><div class="text-2xl font-bold text-white">{{ translateStance(fighter.stance) || '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.stance') }}</div></div>
             </div>
 
             <h3 class="text-lg font-semibold text-white/80 mb-4">{{ t('fighters.record') }}</h3>
@@ -69,22 +69,22 @@
 
         <TabPanel value="estatisticas" :header="t('fighters.statistics')">
           <div class="p-4">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div class="glass-card !p-3 text-center"><div class="text-xl font-bold text-purple-400">{{ fighter.slpm ?? '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.slpm') }}</div></div>
-              <div class="glass-card !p-3 text-center"><div class="text-xl font-bold text-purple-400">{{ fighter.str_acc != null ? fighter.str_acc + '%' : '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.strAcc') }}</div></div>
-              <div class="glass-card !p-3 text-center"><div class="text-xl font-bold text-purple-400">{{ fighter.sapm ?? '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.sapm') }}</div></div>
-              <div class="glass-card !p-3 text-center"><div class="text-xl font-bold text-purple-400">{{ fighter.str_def != null ? fighter.str_def + '%' : '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.strDef') }}</div></div>
-              <div class="glass-card !p-3 text-center"><div class="text-xl font-bold text-purple-400">{{ fighter.td_avg ?? '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.tdAvg') }}</div></div>
-              <div class="glass-card !p-3 text-center"><div class="text-xl font-bold text-purple-400">{{ fighter.td_acc != null ? fighter.td_acc + '%' : '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.tdAcc') }}</div></div>
-              <div class="glass-card !p-3 text-center"><div class="text-xl font-bold text-purple-400">{{ fighter.td_def != null ? fighter.td_def + '%' : '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.tdDef') }}</div></div>
-              <div class="glass-card !p-3 text-center"><div class="text-xl font-bold text-purple-400">{{ fighter.sub_avg ?? '-' }}</div><div class="text-xs text-white/40 mt-1">{{ t('fighters.subAvg') }}</div></div>
-            </div>
+            <FighterAdvancedStats
+              :slpm="fighter.slpm"
+              :str-acc="fighter.str_acc"
+              :sapm="fighter.sapm"
+              :str-def="fighter.str_def"
+              :td-avg="fighter.td_avg"
+              :td-acc="fighter.td_acc"
+              :td-def="fighter.td_def"
+              :sub-avg="fighter.sub_avg"
+            />
           </div>
         </TabPanel>
 
         <TabPanel value="cartel" :header="t('fighters.record')">
           <div class="p-4">
-            <div v-if="fighter.cartel" class="whitespace-pre-wrap text-sm text-white/60 glass-card !p-4">{{ fighter.cartel }}</div>
+            <FighterRecordTimeline v-if="fighter.cartel" :cartel="fighter.cartel" :fighter-name="fighter.name" />
             <div v-else class="empty-state !py-8"><p class="text-sm">Nenhum histórico de lutas registrado.</p></div>
           </div>
         </TabPanel>
@@ -110,8 +110,11 @@ import TabPanel from 'primevue/tabpanel'
 import Dialog from 'primevue/dialog'
 import AttributeBar from '@/components/ui/AttributeBar.vue'
 import FighterForm from '@/components/fighters/FighterForm.vue'
+import FighterRecordTimeline from '@/components/fighters/FighterRecordTimeline.vue'
+import FighterAdvancedStats from '@/components/fighters/FighterAdvancedStats.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useFighterStore } from '@/stores/fighters'
+import { translateStance } from '@/utils/translations'
 import type { FighterCreate } from '@/types'
 
 const route = useRoute()

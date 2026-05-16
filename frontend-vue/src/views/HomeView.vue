@@ -65,24 +65,40 @@
     <section v-if="simulationStore.recentSimulations.length > 0" class="mb-8">
       <h2 class="text-2xl font-bold text-white/80 mb-6">{{ t('app.recentSimulations') }}</h2>
       <div class="space-y-4 max-w-2xl mx-auto">
-        <div v-for="sim in simulationStore.recentSimulations" :key="sim.id" class="glass-card p-4">
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex-1 text-right">
-              <span :class="sim.winner_id === sim.fighter1_id ? 'text-green-400 font-semibold' : 'text-white/70'">
-                {{ sim.fighter1_name }}
+        <div
+          v-for="sim in simulationStore.recentSimulations"
+          :key="sim.id"
+          class="sim-card glass-card p-5"
+          :class="{ 'winner-left': sim.winner_id === sim.fighter1_id, 'winner-right': sim.winner_id === sim.fighter2_id }"
+        >
+          <div class="sim-header">
+            <div class="fighter-block" :class="{ 'is-winner': sim.winner_id === sim.fighter1_id }">
+              <span class="f-name">{{ sim.fighter1_name }}</span>
+              <span v-if="sim.fighter1_probability != null" class="f-prob" :class="{ 'prob-high': sim.fighter1_probability >= 50 }">
+                {{ Math.round(sim.fighter1_probability * 100) }}%
               </span>
             </div>
-            <div class="flex-shrink-0 text-center">
-              <span class="text-sm font-bold text-white/30">VS</span>
+            <div class="vs-block">
+              <span class="vs-text">VS</span>
             </div>
-            <div class="flex-1">
-              <span :class="sim.winner_id === sim.fighter2_id ? 'text-green-400 font-semibold' : 'text-white/70'">
-                {{ sim.fighter2_name }}
+            <div class="fighter-block" :class="{ 'is-winner': sim.winner_id === sim.fighter2_id }">
+              <span class="f-name">{{ sim.fighter2_name }}</span>
+              <span v-if="sim.fighter2_probability != null" class="f-prob" :class="{ 'prob-high': sim.fighter2_probability >= 50 }">
+                {{ Math.round(sim.fighter2_probability * 100) }}%
               </span>
             </div>
           </div>
-          <div class="mt-2 text-center text-sm text-white/40">
-            {{ sim.winner_name }} venceu por {{ sim.method_details }} no R{{ sim.finish_round }}
+
+          <div v-if="sim.fighter1_probability != null && sim.fighter2_probability != null" class="prob-track">
+            <div class="prob-fill" :style="{ width: `${sim.fighter1_probability * 100}%` }" />
+          </div>
+
+          <div class="sim-result">
+            <span class="winner-name">{{ sim.winner_name }}</span>
+            <span class="result-text">
+              venceu por <strong>{{ sim.method_details || sim.result_type }}</strong>
+              <span v-if="sim.finish_round"> no Round {{ sim.finish_round }}</span>
+            </span>
           </div>
         </div>
       </div>
@@ -117,3 +133,125 @@ onMounted(async () => {
   loadingStats.value = false
 })
 </script>
+
+<style scoped>
+.stat-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.sim-card {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.sim-card:hover {
+  transform: translateY(-2px);
+}
+
+.sim-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fighter-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.fighter-block.is-winner {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.fighter-block.is-winner .f-name {
+  color: #eab308;
+  font-weight: 800;
+}
+
+.f-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.f-prob {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.f-prob.prob-high {
+  color: #22c55e;
+}
+
+.vs-block {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vs-text {
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.prob-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.prob-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+
+.sim-result {
+  text-align: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--glass-border);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.winner-name {
+  color: #eab308;
+  font-weight: 700;
+}
+
+.result-text strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .sim-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .vs-block {
+    order: -1;
+  }
+}
+</style>

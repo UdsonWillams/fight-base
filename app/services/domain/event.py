@@ -220,21 +220,21 @@ class EventService:
         session = await self.uow.get_session()
         await session.refresh(fight, ["fighter1", "fighter2"])
 
-        fighter1_summary = FighterSummary(
-            id=fight.fighter1.id,
-            name=fight.fighter1.name,
-            nickname=fight.fighter1.nickname,
-            actual_weight_class=fight.fighter1.actual_weight_class,
-            image_url=fight.fighter1.image_url,
-        )
+        def _fighter_summary(fighter):
+            return FighterSummary(
+                id=fighter.id,
+                name=fighter.name,
+                nickname=fighter.nickname,
+                actual_weight_class=fighter.actual_weight_class,
+                image_url=fighter.image_url,
+                overall_rating=getattr(fighter, "overall_rating", None),
+                record=f"{fighter.wins}-{fighter.losses}-{fighter.draws}"
+                if fighter.wins is not None
+                else None,
+            )
 
-        fighter2_summary = FighterSummary(
-            id=fight.fighter2.id,
-            name=fight.fighter2.name,
-            nickname=fight.fighter2.nickname,
-            actual_weight_class=fight.fighter2.actual_weight_class,
-            image_url=fight.fighter2.image_url,
-        )
+        fighter1_summary = _fighter_summary(fight.fighter1)
+        fighter2_summary = _fighter_summary(fight.fighter2)
 
         winner_summary = None
         if fight.winner_id:
@@ -243,13 +243,7 @@ class EventService:
                 if fight.winner_id == fight.fighter1_id
                 else fight.fighter2
             )
-            winner_summary = FighterSummary(
-                id=winner.id,
-                name=winner.name,
-                nickname=winner.nickname,
-                actual_weight_class=winner.actual_weight_class,
-                image_url=winner.image_url,
-            )
+            winner_summary = _fighter_summary(winner)
 
         return FightResponse(
             id=fight.id,

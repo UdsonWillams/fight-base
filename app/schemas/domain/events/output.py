@@ -15,6 +15,8 @@ class FighterSummary(BaseModel):
     nickname: Optional[str] = None
     actual_weight_class: Optional[str] = None
     image_url: Optional[str] = None
+    overall_rating: Optional[float] = None
+    record: Optional[str] = None
 
 
 class FightResponse(BaseModel):

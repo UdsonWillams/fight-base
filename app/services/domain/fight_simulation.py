@@ -2,6 +2,7 @@
 
 import random
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -77,7 +78,18 @@ class FightSimulationService:
 
         if ml_prob is not None:
             prob1 = ml_prob * 100
-            prob2 = (1 - ml_prob) * 100
+
+            # Ajuste para cross-weight: o modelo foi treinado com lutas da mesma categoria
+            w1 = fighter1.weight_lbs or 155
+            w2 = fighter2.weight_lbs or 155
+            weight_pct = abs(w1 - w2) / max(w1, w2)
+            if weight_pct > 0.10:  # diferenca > 10% do peso = categorias diferentes
+                if w1 > w2:
+                    prob1 = min(98, prob1 + weight_pct * 50)
+                else:
+                    prob1 = max(2, prob1 - weight_pct * 50)
+
+            prob2 = 100 - prob1
             logger.info(
                 f"🤖 Usando predição ML: {fighter1.name} {prob1:.2f}% vs {fighter2.name} {prob2:.2f}%"
             )
@@ -150,39 +162,22 @@ class FightSimulationService:
         self, fighter1: Fighter, fighter2: Fighter, round_number: int
     ) -> dict:
         """
-        Simula um round individual usando stats de ML (slpm, sapm, td_avg, etc.)
-
-        Agora consistente com as probabilidades do modelo ML!
+        Simula um round individual com eventos para AMBOS os lutadores.
+        Balanceado para ser divertido: 70% stats + 30% aleatoriedade.
         """
-        # Usa stats de ML para calcular pontos do round
-        # SLPM (Significant Strikes Landed per Minute) - Quanto mais, melhor no striking
-        # SAPM (Significant Strikes Absorbed per Minute) - Quanto menos, melhor na defesa
-        # TD_AVG (Takedown Average) - Média de quedas por 15min
-        # SUB_AVG (Submission Average) - Média de finalizações por 15min
-        # STR_DEF (Striking Defense %) - Defesa contra golpes
-        # TD_DEF (Takedown Defense %) - Defesa contra quedas
-
-        # Round dura 5 minutos
         ROUND_MINUTES = 5
 
-        # Striking: pontos por acertar golpes e defender
+        # --- Cálculo de pontos (scores internos) ---
         striking_offense1 = (fighter1.slpm or 3.0) * ROUND_MINUTES
-        striking_defense1 = (
-            (fighter1.str_def or 50) / 100
-        ) * 10  # Defesa reduz pontos do adversário
+        striking_defense1 = ((fighter1.str_def or 50) / 100) * 10
         striking_score1 = striking_offense1 + striking_defense1
 
         striking_offense2 = (fighter2.slpm or 3.0) * ROUND_MINUTES
         striking_defense2 = ((fighter2.str_def or 50) / 100) * 10
         striking_score2 = striking_offense2 + striking_defense2
 
-        # Grappling: pontos por quedas e finalizações
-        grappling_offense1 = (
-            (fighter1.td_avg or 1.0) / 3
-        ) * ROUND_MINUTES  # td_avg é por 15min
-        submission_threat1 = (
-            ((fighter1.sub_avg or 0.5) / 3) * ROUND_MINUTES * 2
-        )  # Finalizações valem mais
+        grappling_offense1 = ((fighter1.td_avg or 1.0) / 3) * ROUND_MINUTES
+        submission_threat1 = ((fighter1.sub_avg or 0.5) / 3) * ROUND_MINUTES * 2
         grappling_defense1 = ((fighter1.td_def or 50) / 100) * 5
         grappling_score1 = grappling_offense1 + submission_threat1 + grappling_defense1
 
@@ -191,50 +186,193 @@ class FightSimulationService:
         grappling_defense2 = ((fighter2.td_def or 50) / 100) * 5
         grappling_score2 = grappling_offense2 + submission_threat2 + grappling_defense2
 
-        # Pontuação total do round
-        # Striking tem peso maior (60%) que grappling (40%) em pontos
         base_points1 = (striking_score1 * 0.6) + (grappling_score1 * 0.4)
         base_points2 = (striking_score2 * 0.6) + (grappling_score2 * 0.4)
 
-        # Adiciona aleatoriedade realista (±15% de variação por round)
-        randomness1 = random.uniform(0.85, 1.15)  # nosec B311
-        randomness2 = random.uniform(0.85, 1.15)  # nosec B311
+        # --- Modificadores físicos (peso, alcance, altura, idade) ---
+        f1_w = fighter1.weight_lbs or 155
+        f2_w = fighter2.weight_lbs or 155
+        f1_r = fighter1.reach_inches or 70
+        f2_r = fighter2.reach_inches or 70
+        f1_h = fighter1.height_inches or 69
+        f2_h = fighter2.height_inches or 69
 
-        points1 = base_points1 * randomness1
-        points2 = base_points2 * randomness2
+        # Idade: prime 27-32 ganha bonus, acima de 35 perde
+        def _age_factor(dob):
+            if not dob:
+                return 1.0
+            age = (
+                datetime.now(timezone.utc) - dob.replace(tzinfo=timezone.utc)
+                if dob.tzinfo is None
+                else dob
+            ).days / 365.25
+            if 27 <= age <= 32:
+                return 1.05
+            if age > 35:
+                return max(0.88, 1.0 - (age - 35) * 0.015)
+            return 1.0
 
-        # Determina dominância
+        # Peso: cada 10lbs de vantagem = +5% (cap 25%)
+        weight_diff_abs = abs(f1_w - f2_w)
+        weight_bonus = min(weight_diff_abs / 10 * 0.05, 0.25)
+
+        # Alcance: cada 2in = +2% striking
+        reach_bonus = abs(f1_r - f2_r) / 2 * 0.02
+
+        # Altura: cada 3in = +1% striking
+        height_bonus = abs(f1_h - f2_h) / 3 * 0.01
+
+        # Aplica bonus no mais pesado/mais longo/mais alto
+        phys_mult1 = 1.0
+        phys_mult2 = 1.0
+        if f1_w > f2_w:
+            phys_mult1 += weight_bonus
+        else:
+            phys_mult2 += weight_bonus
+        if f1_r > f2_r:
+            phys_mult1 += reach_bonus
+        else:
+            phys_mult2 += reach_bonus
+        if f1_h > f2_h:
+            phys_mult1 += height_bonus
+        else:
+            phys_mult2 += height_bonus
+
+        phys_mult1 *= _age_factor(fighter1.date_of_birth)
+        phys_mult2 *= _age_factor(fighter2.date_of_birth)
+
+        # Aplica modificadores físicos nos pontos base
+        points1 = base_points1 * phys_mult1 * random.uniform(0.75, 1.25)  # nosec B311
+        points2 = base_points2 * phys_mult2 * random.uniform(0.75, 1.25)  # nosec B311
+
         dominant = fighter1.name if points1 > points2 else fighter2.name
+        underdog = fighter2.name if dominant == fighter1.name else fighter1.name
 
-        # Gera eventos do round baseados nos stats de ML
+        # --- Gerador de eventos para AMBOS os lutadores ---
         events = []
+        max_events = random.randint(3, 6)  # nosec B311
 
-        # Diferença significativa de pontos indica dominância
+        # Diferença significativa indica dominância
         point_diff = abs(points1 - points2)
         if point_diff > 5:
             events.append(f"{dominant} dominou o round")
 
-        # Eventos baseados em stats reais
-        # Takedown: chance baseada em td_avg do dominante
-        td_avg_dominant = (
-            fighter1.td_avg if dominant == fighter1.name else fighter2.td_avg
-        )
-        if td_avg_dominant and random.random() < min((td_avg_dominant / 3) * 0.3, 0.5):  # nosec B311
-            events.append(f"{dominant} conseguiu um takedown")
+        # Eventos para lutador1
+        td1 = min((fighter1.td_avg or 1.0) / 5, 0.40)
+        slpm1 = min((fighter1.slpm or 3.0) / 6, 0.35)
+        sub1 = min((fighter1.sub_avg or 0.5) / 3, 0.25)
+        td_def2 = min((fighter2.td_def or 50) / 100 * 0.3, 0.30)
+        str_def2 = min((fighter2.str_def or 50) / 100 * 0.2, 0.20)
 
-        # Strike significativo: chance baseada em slpm
-        slpm_dominant = fighter1.slpm if dominant == fighter1.name else fighter2.slpm
-        if slpm_dominant and random.random() < min((slpm_dominant / 5) * 0.2, 0.4):  # nosec B311
-            events.append(f"{dominant} acertou golpes significativos")
+        if random.random() < td1:  # nosec B311
+            if random.random() < td_def2:  # nosec B311
+                events.append(
+                    f"{fighter1.name} tentou o takedown, mas {fighter2.name} defendeu"
+                )
+            else:
+                events.append(
+                    f"{fighter1.name} derrubou {fighter2.name} com um takedown"
+                )
+        if random.random() < slpm1:  # nosec B311
+            if random.random() < str_def2:  # nosec B311
+                events.append(
+                    f"{fighter1.name} avançou com uma combinacao, {fighter2.name} esquivou"
+                )
+            else:
+                events.append(f"{fighter1.name} acertou um direto certeiro no queixo")
+        if random.random() < sub1:  # nosec B311
+            events.append(f"{fighter1.name} buscou uma finalizacao no chao")
 
-        # Tentativa de finalização: chance baseada em sub_avg
-        sub_avg_dominant = (
-            fighter1.sub_avg if dominant == fighter1.name else fighter2.sub_avg
-        )
-        if sub_avg_dominant and random.random() < min(
-            (sub_avg_dominant / 2) * 0.25, 0.3
-        ):  # nosec B311
-            events.append(f"{dominant} tentou uma finalização")
+        # Eventos para lutador2
+        td2 = min((fighter2.td_avg or 1.0) / 5, 0.40)
+        slpm2 = min((fighter2.slpm or 3.0) / 6, 0.35)
+        sub2 = min((fighter2.sub_avg or 0.5) / 3, 0.25)
+        td_def1 = min((fighter1.td_def or 50) / 100 * 0.3, 0.30)
+        str_def1 = min((fighter1.str_def or 50) / 100 * 0.2, 0.20)
+
+        if random.random() < td2:  # nosec B311
+            if random.random() < td_def1:  # nosec B311
+                events.append(
+                    f"{fighter2.name} tentou o takedown, mas {fighter1.name} defendeu"
+                )
+            else:
+                events.append(
+                    f"{fighter2.name} derrubou {fighter1.name} com um takedown"
+                )
+        if random.random() < slpm2:  # nosec B311
+            if random.random() < str_def1:  # nosec B311
+                events.append(
+                    f"{fighter2.name} avançou com uma combinacao, {fighter1.name} esquivou"
+                )
+            else:
+                events.append(f"{fighter2.name} acertou um uppercut devastador")
+        if random.random() < sub2:  # nosec B311
+            events.append(f"{fighter2.name} buscou uma finalizacao no chao")
+
+        # Eventos neutros (20% chance cada)
+        neutrals = [
+            "Trocação equilibrada no centro do octogono",
+            "Clinch na grade, ambos lutando por posicao",
+            f"{dominant} controlou o centro do octogono",
+            f"{underdog} tentou manter a distancia com jabs",
+            "Round ritmado com muita trocação de baixa potencia",
+        ]
+        if random.random() < 0.20:  # nosec B311
+            events.append(random.choice(neutrals))  # nosec B311
+
+        # Eventos de vantagem fisica (peso, alcance, altura)
+        if phys_mult1 > 1.05 and random.random() < 0.30:  # nosec B311
+            if (f1_r - f2_r) > 2:
+                events.append(
+                    f"{fighter1.name} manteve {fighter2.name} na ponta do jab com seu alcance superior"
+                )
+            elif (f1_w - f2_w) > 15:
+                events.append(f"{fighter1.name} mostrou poder superior no clinch")
+            else:
+                events.append(
+                    f"{fighter1.name} usou sua vantagem fisica para controlar"
+                )
+        if phys_mult2 > 1.05 and random.random() < 0.30:  # nosec B311
+            if (f2_r - f1_r) > 2:
+                events.append(
+                    f"{fighter2.name} manteve {fighter1.name} na ponta do jab com seu alcance superior"
+                )
+            elif (f2_w - f1_w) > 15:
+                events.append(f"{fighter2.name} mostrou poder superior no clinch")
+            else:
+                events.append(
+                    f"{fighter2.name} usou sua vantagem fisica para controlar"
+                )
+
+        if fighter1.date_of_birth and fighter2.date_of_birth:
+            f1_age = (
+                datetime.now(timezone.utc)
+                - fighter1.date_of_birth.replace(tzinfo=timezone.utc)
+                if fighter1.date_of_birth.tzinfo is None
+                else fighter1.date_of_birth
+            ).days / 365.25
+            f2_age = (
+                datetime.now(timezone.utc)
+                - fighter2.date_of_birth.replace(tzinfo=timezone.utc)
+                if fighter2.date_of_birth.tzinfo is None
+                else fighter2.date_of_birth
+            ).days / 365.25
+            if f1_age > 38 and random.random() < 0.15:  # nosec B311
+                events.append(
+                    f"{fighter1.name} pareceu cansado, idade cobrando seu preco"
+                )
+            if f2_age > 38 and random.random() < 0.15:  # nosec B311
+                events.append(
+                    f"{fighter2.name} pareceu cansado, idade cobrando seu preco"
+                )
+
+        # Limita a max_events
+        if len(events) > max_events:
+            random.shuffle(events)  # nosec B311
+            events = events[:max_events]
+
+        # Reordena para que "dominou" fique primeiro se existir
+        events.sort(key=lambda e: (0 if "dominou" in e else 1))
 
         return {
             "round_number": round_number,
@@ -555,12 +693,8 @@ class FightSimulationService:
         """
         Retorna uma simulação com todos os detalhes formatados incluindo nomes dos lutadores.
         """
-        fighter1 = simulation.fighter1 or await self.fighter_repo.get_by_id(
-            simulation.fighter1_id
-        )
-        fighter2 = simulation.fighter2 or await self.fighter_repo.get_by_id(
-            simulation.fighter2_id
-        )
+        fighter1 = await self.fighter_repo.get_by_id(simulation.fighter1_id)
+        fighter2 = await self.fighter_repo.get_by_id(simulation.fighter2_id)
         winner = fighter1 if simulation.winner_id == fighter1.id else fighter2
 
         return {
@@ -595,8 +729,8 @@ class FightSimulationService:
 
         fights = []
         for sim in history:
-            f1 = sim.fighter1
-            f2 = sim.fighter2
+            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
+            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
             winner = f1 if sim.winner_id == f1.id else f2
 
             fights.append(
@@ -632,8 +766,8 @@ class FightSimulationService:
 
         results = []
         for sim in history:
-            f1 = sim.fighter1
-            f2 = sim.fighter2
+            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
+            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
             winner = f1 if sim.winner_id == f1.id else f2
 
             results.append(
@@ -661,8 +795,8 @@ class FightSimulationService:
 
         results = []
         for sim in simulations:
-            f1 = sim.fighter1
-            f2 = sim.fighter2
+            f1 = await self.fighter_repo.get_by_id(sim.fighter1_id)
+            f2 = await self.fighter_repo.get_by_id(sim.fighter2_id)
             winner = f1 if sim.winner_id == f1.id else f2
 
             results.append(

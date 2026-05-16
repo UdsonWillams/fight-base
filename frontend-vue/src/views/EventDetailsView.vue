@@ -6,7 +6,7 @@
     </button>
 
     <div v-if="!authStore.isLoggedIn" class="glass-card p-8 text-center max-w-lg mx-auto">
-      <div class="text-4xl mb-4">&#x1F512;</div>
+      <div class="text-4xl mb-4">🔒</div>
       <h2 class="text-xl font-semibold text-white mb-2">Login necessario</h2>
       <p class="text-white/50 mb-6">Voce precisa estar logado para ver os detalhes do evento.</p>
       <div class="flex gap-3 justify-center">
@@ -50,14 +50,28 @@
       </div>
 
       <div v-else class="space-y-3">
+        <div v-if="loadingFighters" class="grid gap-3">
+          <div v-for="i in Math.min(event.fights.length, 6)" :key="i" class="glass-card p-6 animate-pulse">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex-1"><div class="h-5 bg-white/10 rounded w-32 mb-2" /><div class="h-4 bg-white/10 rounded w-12" /></div>
+              <div class="text-center"><div class="h-4 bg-white/10 rounded w-8 mb-2" /><div class="h-3 bg-white/10 rounded w-16" /></div>
+              <div class="flex-1 text-right"><div class="h-5 bg-white/10 rounded w-32 mb-2 ml-auto" /><div class="h-4 bg-white/10 rounded w-12 ml-auto" /></div>
+            </div>
+          </div>
+        </div>
+
         <FightCard
           v-for="fight in sortedFights"
           :key="fight.id"
           :fight="fight"
           :fighter1-name="fight.fighter1?.name || 'TBD'"
           :fighter2-name="fight.fighter2?.name || 'TBD'"
-          :fighter1-overall="0"
-          :fighter2-overall="0"
+          :fighter1-nickname="fight.fighter1?.nickname"
+          :fighter2-nickname="fight.fighter2?.nickname"
+          :fighter1-overall="fight.fighter1?.overall_rating || 0"
+          :fighter2-overall="fight.fighter2?.overall_rating || 0"
+          :fighter1-probability="fight.fighter1_probability"
+          :fighter2-probability="fight.fighter2_probability"
         />
       </div>
     </template>
@@ -67,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'primevue/usetoast'
@@ -75,6 +89,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import FightCard from '@/components/events/FightCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useEventStore } from '@/stores/events'
+import { api } from '@/services/api'
 import type { Fight } from '@/types'
 
 const route = useRoute()
@@ -86,6 +101,7 @@ const authStore = useAuthStore()
 const eventStore = useEventStore()
 
 const event = computed(() => eventStore.currentEvent)
+const loadingFighters = ref(false)
 
 const formattedDate = computed(() => {
   if (!event.value?.date) return 'Data nao definida'
@@ -108,6 +124,64 @@ const sortedFights = computed(() => {
   return [...event.value.fights].sort((a, b) => (b.fight_order || 0) - (a.fight_order || 0))
 })
 
+async function loadFighterDetails() {
+  if (!event.value?.fights?.length) return
+
+  // Se o backend já enviou overall_rating, não precisa buscar
+  const needsFetch = event.value.fights.some(
+    (f: any) => !f.fighter1?.overall_rating || !f.fighter2?.overall_rating
+  )
+  if (!needsFetch) return
+
+  loadingFighters.value = true
+  const fights = event.value.fights
+  const batchSize = 6
+
+  for (let i = 0; i < fights.length; i += batchSize) {
+    const batch = fights.slice(i, i + batchSize)
+    const fighterIds = new Set<string>()
+    batch.forEach((f: any) => {
+      if (f.fighter1_id) fighterIds.add(f.fighter1_id)
+      if (f.fighter2_id) fighterIds.add(f.fighter2_id)
+    })
+
+    try {
+      const fighterDetails = await Promise.all(
+        Array.from(fighterIds).map(id => api.getFighter(id).catch(() => null))
+      )
+
+      const detailsMap = new Map(fighterDetails.filter(Boolean).map((f: any) => [f.id, f]))
+
+      batch.forEach((fight: any) => {
+        if (fight.fighter1_id && detailsMap.has(fight.fighter1_id)) {
+          const details = detailsMap.get(fight.fighter1_id)
+          if (fight.fighter1) {
+            fight.fighter1.overall_rating = details?.overall_rating
+            fight.fighter1.nickname = details?.nickname
+          }
+        }
+        if (fight.fighter2_id && detailsMap.has(fight.fighter2_id)) {
+          const details = detailsMap.get(fight.fighter2_id)
+          if (fight.fighter2) {
+            fight.fighter2.overall_rating = details?.overall_rating
+            fight.fighter2.nickname = details?.nickname
+          }
+        }
+      })
+    } catch {
+      // Silencioso - mostra sem overall se falhar
+    }
+  }
+
+  loadingFighters.value = false
+}
+
+watch(() => eventStore.currentEvent, (newEvent) => {
+  if (newEvent?.fights?.length) {
+    loadFighterDetails()
+  }
+}, { immediate: true })
+
 function confirmSimulate() {
   if (!event.value) return
   confirm.require({
@@ -119,6 +193,8 @@ function confirmSimulate() {
       try {
         await eventStore.simulateEvent(event.value!.id)
         toast.add({ severity: 'success', summary: t('common.success'), detail: 'Evento simulado!', life: 3000 })
+        // Recarrega os detalhes dos lutadores após simulação
+        await loadFighterDetails()
       } catch {
         toast.add({ severity: 'error', summary: t('common.error'), detail: eventStore.error || t('common.error'), life: 5000 })
       }
@@ -150,7 +226,7 @@ onMounted(async () => {
   if (!id) return
   await authStore.checkAuth()
   if (authStore.isLoggedIn) {
-    eventStore.fetchEvent(id)
+    await eventStore.fetchEvent(id)
   }
 })
 </script>

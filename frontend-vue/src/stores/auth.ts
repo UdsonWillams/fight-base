@@ -8,6 +8,11 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('idToken'))
   const loading = ref(false)
 
+  // Garante que o token existente no localStorage seja setado na API ao inicializar
+  if (token.value) {
+    api.setToken(token.value)
+  }
+
   const isLoggedIn = computed(() => !!token.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
   const username = computed(() => user.value?.name ?? '')

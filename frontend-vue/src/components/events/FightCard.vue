@@ -2,17 +2,22 @@
   <div class="fight-card glass-card">
     <div class="fight-content">
       <div class="fighter-side" :class="{ winner: isWinner(fighter1Name) }">
-        <h4 class="f-name">{{ fighter1Name }}</h4>
-        <div class="f-stats">
-          <span class="f-overall" :style="{ color: getOverallColor(fighter1Overall) }">
+        <div class="fighter-name-block">
+          <h4 class="f-name">
+            <FighterNameDisplay :name="fighter1Name" :nickname="fighter1Nickname" />
+          </h4>
+          <div class="f-overall" :style="{ color: getOverallColor(fighter1Overall) }">
             {{ fighter1Overall || '--' }}
-          </span>
+          </div>
+        </div>
+        <div v-if="fighter1Probability != null" class="f-prob">
+          {{ Math.round(fighter1Probability) }}%
         </div>
       </div>
 
       <div class="vs-divider">
         <span class="vs-label">VS</span>
-        <div v-if="fight?.is_title_fight" class="title-badge">&#x1F3C6; TITLE</div>
+        <div v-if="fight?.is_title_fight" class="title-badge">🏆 TITLE</div>
         <div v-if="fight?.weight_class" class="wc-label">{{ fight.weight_class }}</div>
         <div v-if="fight?.rounds" class="rounds-label">{{ fight.rounds }}R</div>
         <div v-if="fight?.result_type" class="result-mini">
@@ -24,33 +29,54 @@
       </div>
 
       <div class="fighter-side" :class="{ winner: isWinner2() }">
-        <h4 class="f-name">{{ fighter2Name }}</h4>
-        <div class="f-stats">
-          <span class="f-overall" :style="{ color: getOverallColor(fighter2Overall) }">
+        <div class="fighter-name-block">
+          <h4 class="f-name">
+            <FighterNameDisplay :name="fighter2Name" :nickname="fighter2Nickname" />
+          </h4>
+          <div class="f-overall" :style="{ color: getOverallColor(fighter2Overall) }">
             {{ fighter2Overall || '--' }}
-          </span>
+          </div>
+        </div>
+        <div v-if="fighter2Probability != null" class="f-prob">
+          {{ Math.round(fighter2Probability) }}%
         </div>
       </div>
     </div>
 
     <div v-if="fight?.result_type && fight?.method_details" class="result-detail">
       <span class="font-semibold" :class="winnerColor">{{ fight.winner?.name || '' }}</span>
-      <span>venceu por {{ fight.method_details }}</span>
-      <span v-if="fight.finish_time">as {{ fight.finish_time }}</span>
+      <span>&nbsp;venceu por {{ fight.method_details }}</span>
+      <span v-if="fight.finish_round">&nbsp;no R{{ fight.finish_round }}</span>
+      <span v-if="fight.finish_time">&nbsp;({{ fight.finish_time }})</span>
+    </div>
+
+    <div v-if="fight?.fighter1_probability != null && fight?.fighter2_probability != null" class="prob-bar">
+      <div class="prob-track">
+        <div class="prob-fill" :style="{ width: `${fight.fighter1_probability}%` }" />
+      </div>
+      <div class="prob-labels">
+        <span :class="{ 'prob-high': (fight.fighter1_probability || 0) >= 50 }">{{ Math.round(fight.fighter1_probability || 0) }}%</span>
+        <span :class="{ 'prob-high': (fight.fighter2_probability || 0) >= 50 }">{{ Math.round(fight.fighter2_probability || 0) }}%</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import FighterNameDisplay from './FighterNameDisplay.vue'
 import type { Fight } from '@/types'
 
 const props = defineProps<{
   fight?: Fight | null
   fighter1Name: string
   fighter2Name: string
+  fighter1Nickname?: string | null
+  fighter2Nickname?: string | null
   fighter1Overall: number
   fighter2Overall: number
+  fighter1Probability?: number | null
+  fighter2Probability?: number | null
 }>()
 
 function isWinner(name: string): boolean {
@@ -82,50 +108,72 @@ function getOverallColor(overall: number): string {
 .fight-card {
   padding: 1rem 1.25rem;
   position: relative;
+  transition: all 0.3s ease;
+}
+
+.fight-card:hover {
+  transform: translateY(-2px);
 }
 
 .fight-content {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 12px;
 }
 
 .fighter-side {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 6px 0;
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
-.fighter-side.winner .f-name {
-  color: var(--gold-light);
+.fighter-side.winner {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.fighter-name-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .f-name {
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.f-stats {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .f-overall {
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: 1.5rem;
+}
+
+.f-prob {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-weight: 600;
 }
 
 .vs-divider {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   flex-shrink: 0;
   min-width: 56px;
+  padding: 4px 0;
 }
 
 .vs-label {
@@ -201,11 +249,56 @@ function getOverallColor(overall: number): string {
 
 .result-detail {
   text-align: center;
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--glass-border);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   font-weight: 500;
+}
+
+.prob-bar {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.prob-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.prob-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 4px;
+  transition: width 0.8s ease;
+}
+
+.prob-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.prob-high {
+  color: var(--success);
+}
+
+@media (max-width: 640px) {
+  .fight-content {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .vs-divider {
+    flex-direction: row;
+    gap: 8px;
+    min-width: auto;
+  }
 }
 </style>
