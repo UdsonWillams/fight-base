@@ -25,6 +25,9 @@
         <RouterLink to="/leagues" class="nav-link" active-class="nav-link--active" @click="closeMenu">
           {{ t('nav.leagues') }}
         </RouterLink>
+        <RouterLink v-if="auth.isAdmin" to="/admin" class="nav-link nav-link--admin" active-class="nav-link--active" @click="closeMenu">
+          Admin
+        </RouterLink>
       </div>
 
       <div class="nav-actions">

@@ -12,6 +12,8 @@ import asyncio
 import sys
 from pathlib import Path
 
+import pytest
+
 # Adiciona o diretório raiz ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -27,6 +29,7 @@ from app.services.ml.prediction_service import ml_prediction_service
 settings = get_settings()
 
 
+@pytest.mark.asyncio
 async def test_ml_integration():
     """Teste completo da integração ML"""
 
@@ -36,7 +39,7 @@ async def test_ml_integration():
 
     # 1. Carrega modelo
     print("📦 Passo 1: Carregando modelo ML...")
-    model = ml_model_loader.load_model()
+    model = await ml_model_loader.load_model()
 
     if model is None:
         print("❌ FALHA: Modelo não foi carregado")
@@ -106,7 +109,7 @@ async def test_ml_integration():
         print("🤖 Passo 5: Predição ML Direta")
         print("-" * 80)
 
-        ml_prob = ml_prediction_service.predict_winner_from_model(fighter1, fighter2)
+        ml_prob = await ml_prediction_service.predict_winner_from_model(fighter1, fighter2)
 
         if ml_prob is None:
             print("❌ FALHA: Predição ML retornou None")

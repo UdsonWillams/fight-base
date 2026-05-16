@@ -4,7 +4,7 @@ import uuid
 import pytest_asyncio
 from passlib.context import CryptContext
 
-from app.database.models.base import User
+from app.database.models.base import User, Fighter
 from app.schemas.external.fake_products.products import Products
 
 sys.path.append("app/")
@@ -84,6 +84,46 @@ async def products(async_session, user):
         review=4.5,
         external_id="external-123",
         user_id=user.id,
+    )
+    async_session.add(base_entity)
+    await async_session.commit()
+    await async_session.refresh(base_entity)
+    return base_entity
+
+
+@pytest_asyncio.fixture(scope="function")
+async def fighter(async_session, user):
+    base_entity = Fighter(
+        id=uuid.uuid4(),
+        name="Test Fighter",
+        nickname="The Tester",
+        wins=10,
+        losses=2,
+        draws=0,
+        is_real=False,
+        creator_id=user.id,
+        created_by="test",
+        updated_by="test",
+    )
+    async_session.add(base_entity)
+    await async_session.commit()
+    await async_session.refresh(base_entity)
+    return base_entity
+
+
+@pytest_asyncio.fixture(scope="function")
+async def fighter2(async_session, user):
+    base_entity = Fighter(
+        id=uuid.uuid4(),
+        name="Test Fighter 2",
+        nickname="The Opponent",
+        wins=8,
+        losses=3,
+        draws=1,
+        is_real=False,
+        creator_id=user.id,
+        created_by="test",
+        updated_by="test",
     )
     async_session.add(base_entity)
     await async_session.commit()

@@ -94,8 +94,7 @@ class ApiClient {
   async getCurrentUser(): Promise<User | null> {
     if (!this.token) return null
     try {
-      const payload = JSON.parse(atob(this.token.split('.')[1]))
-      return this.request(`/users/email/${encodeURIComponent(payload.sub)}`)
+      return this.request('/auth/me')
     } catch {
       return null
     }
@@ -336,6 +335,41 @@ class ApiClient {
 
   async getMyLeagues(): Promise<League[]> {
     return this.request('/leagues/my')
+  }
+
+  // ── Admin ──
+
+  async triggerImport(): Promise<{ task_id: string; status: string; message: string; check_status_url: string }> {
+    return this.request('/admin/import/ufc-dataset', { method: 'POST' })
+  }
+
+  async getImportStatus(taskId: string): Promise<{
+    status: string
+    message: string
+    progress: number
+    created_at?: string
+    stats?: Record<string, number>
+  }> {
+    return this.request(`/admin/import/status/${taskId}`)
+  }
+
+  async cancelImport(taskId: string): Promise<{ status: string; message: string }> {
+    return this.request(`/admin/import/cancel/${taskId}`, { method: 'POST' })
+  }
+
+  async triggerTraining(quick: boolean = false): Promise<{ task_id: string; status: string; message: string; check_status_url: string }> {
+    const q = quick ? '?quick=true' : ''
+    return this.request(`/admin/train-model${q}`, { method: 'POST' })
+  }
+
+  async getTrainingStatus(taskId: string): Promise<{
+    status: string
+    message: string
+    progress: number
+    created_at?: string
+    output?: string
+  }> {
+    return this.request(`/admin/train-model/status/${taskId}`)
   }
 }
 

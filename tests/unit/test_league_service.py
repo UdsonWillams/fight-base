@@ -250,3 +250,34 @@ class TestGetLeagueLeaderboard:
         mock_repo.get_league_members.assert_called_once()
         args = mock_repo.get_league_members.call_args
         assert args[0][1] == 50
+
+
+class TestCreateLeagueRetry:
+    @pytest.mark.asyncio
+    async def test_retries_when_code_exists(self):
+        mock_uow = MagicMock()
+        mock_session = AsyncMock()
+        mock_uow.get_session = AsyncMock(return_value=mock_session)
+
+        mock_repo = AsyncMock()
+        mock_repo.get_by_invite_code = AsyncMock(side_effect=[
+            make_league(invite_code="EXISTING"),
+            make_league(invite_code="EXISTING2"),
+            None,
+        ])
+
+        created_league = make_league(invite_code="FINAL_CODE")
+        mock_repo.create = AsyncMock(return_value=created_league)
+
+        service = LeagueService(mock_uow, mock_repo)
+        result = await service.create_league(
+            user_id=uuid4(),
+            name="Retry League",
+            description=None,
+            is_public=False,
+            max_members=10,
+        )
+
+        assert result == created_league
+        assert mock_repo.get_by_invite_code.call_count == 3
+        assert mock_repo.create.call_count == 1

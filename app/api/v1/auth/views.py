@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from app.api.v1.auth.dependencies import get_current_user
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
 from app.exceptions.exceptions import NotFoundError
-from app.schemas.auth import Token, UserLogin
+from app.schemas.auth import AuthenticatedUser, Token, UserLogin
 from app.services.auth.authentication import AuthService
 from app.services.auth.google_oauth import GoogleOAuthService, get_google_oauth_service
 from app.core.logger import logger
@@ -65,3 +66,11 @@ async def google_callback(
     # Redireciona para o frontend com o token
     frontend_url = f"http://localhost:8080/?token={token.access_token}"
     return RedirectResponse(url=frontend_url)
+
+
+@router.get("/me", response_model=AuthenticatedUser)
+async def get_me(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    """Retorna os dados do usuário autenticado, incluindo role (admin/user)."""
+    return current_user

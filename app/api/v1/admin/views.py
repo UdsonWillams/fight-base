@@ -384,78 +384,165 @@ train_tasks_status: Dict[str, Dict[str, Any]] = {}
 
 
 def run_model_training(task_id: str, quick: bool = False):
-    """Executa o script de treinamento V2 em background"""
-    try:
-        train_tasks_status[task_id] = {
-            "status": "running",
-            "message": "Treinamento iniciado",
-            "progress": 5,
-        }
+    """Executa o script de treinamento V2 em background com progresso em tempo real."""
+    import time
 
-        script_path = "scripts/train_model_v2_db.py"
-        cmd = [sys.executable, script_path]
-        if quick:
-            cmd.append("--quick")
-            train_tasks_status[task_id]["message"] = (
-                "Treinando modelo V2 (modo rapido)..."
-            )
+    train_tasks_status[task_id] = {
+        "status": "running",
+        "message": "Treinamento iniciado",
+        "progress": 5,
+        "created_at": datetime.now(timezone.utc),
+        "output_lines": [],
+    }
 
-        logger.info(f"[{task_id}] Executando: {' '.join(cmd)}")
-        train_tasks_status[task_id]["progress"] = 15
+    script_path = "scripts/train_model_v2_db.py"
+    cmd = [sys.executable, script_path]
+    if quick:
+        cmd.append("--quick")
+        train_tasks_status[task_id]["message"] = "Treinando modelo V2 (modo rapido)..."
+        expected_minutes = 10
+    else:
         train_tasks_status[task_id]["message"] = (
-            "Extraindo features e treinando ensemble..."
+            "Treinando modelo V2 (modo completo)..."
+        )
+        expected_minutes = 30
+
+    logger.info(f"[{task_id}] Iniciando: {' '.join(cmd)}")
+
+    # Mapa de marcadores de progresso (texto na stdout → progresso %)
+    progress_markers = [
+        ("Passo 1", 10),
+        ("Passo 2", 20),
+        ("Passo 3", 30),
+        ("Passo 4", 40),
+        ("Tuning RandomForest", 50),
+        ("Tuning HistGradientBoosting", 65),
+        ("Passo 5", 85),
+        ("PIPELINE V2 CONCLUÍDO", 95),
+    ]
+
+    start_time = time.time()
+    expected_seconds = expected_minutes * 60
+    collected_output = []
+
+    try:
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
         )
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+        def _read_output():
+            for line in iter(process.stdout.readline, ""):
+                if not line:
+                    break
+                collected_output.append(line)
+                line_stripped = line.strip()
+                if line_stripped:
+                    train_tasks_status[task_id].setdefault("output_lines", []).append(
+                        line_stripped
+                    )
+                    train_tasks_status[task_id]["output_lines"] = train_tasks_status[
+                        task_id
+                    ]["output_lines"][-200:]
+                    for marker, pct in progress_markers:
+                        if marker in line_stripped:
+                            train_tasks_status[task_id]["progress"] = pct
+                            train_tasks_status[task_id]["message"] = line_stripped[:120]
+                            break
 
-        if result.returncode == 0:
+        import threading
+
+        reader_thread = threading.Thread(target=_read_output, daemon=True)
+        reader_thread.start()
+
+        # Poll até o processo terminar ou timeout
+        timeout_seconds = get_settings().MODEL_TRAIN_TIMEOUT_SECONDS
+        poll_interval = 2.0
+        last_progress = train_tasks_status[task_id]["progress"]
+
+        while process.poll() is None:
+            elapsed = time.time() - start_time
+            if elapsed > timeout_seconds:
+                process.kill()
+                reader_thread.join(timeout=5)
+                train_tasks_status[task_id] = {
+                    "status": "error",
+                    "message": f"Timeout: treinamento excedeu {timeout_seconds // 60} minutos",
+                    "progress": train_tasks_status[task_id].get("progress", 0),
+                    "created_at": train_tasks_status[task_id].get("created_at"),
+                }
+                logger.warning(f"[{task_id}] Treinamento cancelado por timeout")
+                return
+
+            # Progresso por tempo como fallback entre marcadores
+            current_marker = train_tasks_status[task_id]["progress"]
+            if current_marker == last_progress and current_marker < 95:
+                time_based = min(
+                    current_marker + 5,
+                    int(elapsed / expected_seconds * 100),
+                    95,
+                )
+                if time_based > current_marker:
+                    train_tasks_status[task_id]["progress"] = time_based
+
+            last_progress = train_tasks_status[task_id]["progress"]
+            time.sleep(poll_interval)
+
+        reader_thread.join(timeout=10)
+
+        if process.returncode == 0:
+            train_tasks_status[task_id] = {
+                "status": "running",
+                "message": "Modelo treinado! Recarregando no servidor...",
+                "progress": 98,
+                "created_at": train_tasks_status[task_id].get("created_at"),
+                "output_lines": train_tasks_status[task_id].get("output_lines", []),
+            }
+
+            import asyncio
+            from app.services.ml.model_loader import ml_model_loader
+
+            async def reload():
+                await ml_model_loader.load_model(force_reload=True)
+
+            asyncio.run(reload())
+
+            output_text = "".join(collected_output)
             train_tasks_status[task_id] = {
                 "status": "completed",
-                "message": "Modelo treinado com sucesso! Salvo em models/mma_model_v2.joblib",
+                "message": "Modelo treinado com sucesso! Salvo em models/mma_model_v2.joblib | Modelo recarregado no servidor.",
                 "progress": 100,
-                "output": result.stdout[-3000:],
+                "output": output_text[-3000:],
+                "created_at": train_tasks_status[task_id].get("created_at"),
             }
-            logger.info(f"[{task_id}] Treinamento concluido!")
-
-            try:
-                import asyncio
-                from app.services.ml.model_loader import ml_model_loader
-
-                async def reload():
-                    await ml_model_loader.load_model(force_reload=True)
-
-                asyncio.run(reload())
-                train_tasks_status[task_id]["message"] += (
-                    " | Modelo recarregado no servidor."
-                )
-            except Exception as e:
-                logger.warning(
-                    f"[{task_id}] Modelo treinado mas falha ao recarregar: {e}"
-                )
-                train_tasks_status[task_id]["message"] += (
-                    " | ATENCAO: Reinicie o servidor para usar o novo modelo."
-                )
+            logger.info(
+                f"[{task_id}] Treinamento concluido! "
+                f"({(time.time() - start_time) / 60:.1f} min)"
+            )
         else:
+            output_text = "".join(collected_output)
             train_tasks_status[task_id] = {
                 "status": "error",
-                "message": f"Erro no treinamento. Codigo de saida: {result.returncode}",
-                "output": result.stderr[-3000:] or result.stdout[-3000:],
+                "message": f"Erro no treinamento. Codigo de saida: {process.returncode}",
+                "output": output_text[-3000:],
                 "progress": 0,
+                "created_at": train_tasks_status[task_id].get("created_at"),
             }
-            logger.error(f"[{task_id}] Erro no treinamento: {result.stderr[-500:]}")
+            logger.error(
+                f"[{task_id}] Erro no treinamento (exit={process.returncode}): "
+                f"{output_text[-500:]}"
+            )
 
-    except subprocess.TimeoutExpired:
-        train_tasks_status[task_id] = {
-            "status": "error",
-            "message": "Timeout: treinamento excedeu 60 minutos",
-            "progress": 0,
-        }
     except Exception as e:
         logger.error(f"[{task_id}] Erro no treinamento: {str(e)}")
         train_tasks_status[task_id] = {
             "status": "error",
             "message": f"Erro ao treinar modelo: {str(e)}",
             "progress": 0,
+            "created_at": train_tasks_status[task_id].get("created_at"),
         }
 
 

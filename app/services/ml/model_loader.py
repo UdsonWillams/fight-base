@@ -14,6 +14,7 @@ class MLModelLoader:
     _lock = asyncio.Lock()
 
     _default_local_paths = [
+        "models/mma_model_v2.joblib",
         "models/mma_model_v1.joblib",
         "models/mma_model.joblib",
     ]
