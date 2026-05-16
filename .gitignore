@@ -171,3 +171,4 @@ models/
 node_modules/
 frontend-vue/dist/
 *.tsbuildinfo
+.vercel

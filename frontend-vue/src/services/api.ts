@@ -19,7 +19,7 @@ import type {
   UserPredictionStats,
 } from '@/types'
 
-const API_BASE_URL = 'https://fightbase-api.onrender.com/api/v1'
+const API_BASE_URL = 'https://fight-base-api.onrender.com/api/v1'
 
 class ApiClient {
   private baseURL: string

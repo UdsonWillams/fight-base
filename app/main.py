@@ -106,7 +106,7 @@ async def general_exception_handler(request, exc):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.APP_CORS_LIST if settings.APP_CORS != "*" else ["*"],
-    allow_credentials=True if settings.APP_CORS != "*" else False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
