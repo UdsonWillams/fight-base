@@ -52,8 +52,8 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URL_SYNC(self):  # pragma: no cover
         if self.DATABASE_URL_ENV:
-            return self.DATABASE_URL_ENV.replace("+asyncpg", "")
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            return self.DATABASE_URL_ENV.replace("+asyncpg", "+psycopg")
+        return f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # fake store api
     EXTERNAL_PRODUCTS_BASE_URL: str = "https://serverest.dev"
