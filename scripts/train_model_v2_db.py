@@ -66,6 +66,7 @@ from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
 log = logging.getLogger("train_model_v2")
 log.setLevel(logging.DEBUG)
 
+os.makedirs("models", exist_ok=True)
 fh = logging.FileHandler("models/train_model_v2.log", encoding="utf-8")
 fh.setLevel(logging.INFO)
 fh.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%H:%M:%S"))
