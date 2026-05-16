@@ -490,10 +490,11 @@ onMounted(() => {
 .momentum-bar {
   width: 100%;
   height: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .momentum-fill {
@@ -518,7 +519,7 @@ onMounted(() => {
 
 .stat-box small {
   font-size: 0.6rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -568,17 +569,18 @@ onMounted(() => {
 }
 
 .round-indicator.round-break {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
   font-size: 0.75rem;
 }
 
 .time-bar-container {
   width: 100%;
   height: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .time-bar {
@@ -610,8 +612,8 @@ onMounted(() => {
 }
 
 .round-card.completed {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 15, 20, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .round-card.active {
@@ -624,7 +626,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .round-card-title {
@@ -660,10 +662,11 @@ onMounted(() => {
   gap: 8px;
   padding: 7px 12px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
   font-size: 0.82rem;
   color: var(--text-secondary);
   animation: fadeInUp 0.3s ease forwards;
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .fight-event.critical-event {
@@ -698,7 +701,7 @@ onMounted(() => {
 .winner-title {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 3px;
   margin-bottom: 8px;
@@ -729,8 +732,9 @@ onMounted(() => {
 
 .final-prob-box {
   padding: 12px;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
   border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .final-prob-box h4 {
@@ -773,7 +777,7 @@ onMounted(() => {
 .final-score-vs {
   font-size: 0.75rem;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   letter-spacing: 2px;
 }
 

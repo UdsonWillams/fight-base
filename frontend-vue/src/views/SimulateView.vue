@@ -5,7 +5,7 @@
     <div v-if="!authStore.isLoggedIn" class="glass-card p-8 text-center max-w-lg mx-auto mb-10">
       <div class="text-4xl mb-4">🔒</div>
       <h2 class="text-xl font-semibold text-white mb-2">Login necessario</h2>
-      <p class="text-white/50 mb-6">Voce precisa estar logado para simular lutas.</p>
+      <p class="text-white/60 mb-6">Voce precisa estar logado para simular lutas.</p>
       <div class="flex gap-3 justify-center">
         <router-link to="/login" class="glass-button primary !px-6 !py-2 !rounded-xl">Entrar</router-link>
         <router-link to="/register" class="glass-button !px-6 !py-2 !rounded-xl">Criar Conta</router-link>
@@ -31,8 +31,8 @@
 
         <div v-if="predictionLoading" class="animate-pulse flex flex-col items-center gap-3">
           <div class="h-4 bg-white/10 rounded w-48" />
-          <div class="h-3 bg-white/10 rounded w-64" />
-          <div class="h-2 bg-white/10 rounded w-full mt-2" />
+          <div class="h-3 bg-white/8 rounded w-64" />
+          <div class="h-2 bg-white/5 rounded w-full mt-2" />
         </div>
 
         <div v-else-if="predictionError" class="text-red-400 text-sm">
@@ -77,7 +77,7 @@
 
       <div class="glass-card p-6 text-center max-w-md mx-auto mb-10">
         <div class="flex items-center justify-center gap-4 mb-6">
-          <span class="text-sm font-medium text-white/60">{{ t('simulate.rounds') }}</span>
+          <span class="text-sm font-medium text-white/70">{{ t('simulate.rounds') }}</span>
           <div class="flex gap-2">
             <button v-for="r in [3, 5]" :key="r" class="glass-button text-sm !py-2 !px-6" :class="{ primary: rounds === r }" @click="rounds = r">{{ r }}</button>
           </div>
@@ -100,11 +100,11 @@
         <div class="space-y-3">
           <div v-for="sim in simulationStore.recentSimulations" :key="sim.id" class="glass-card p-4">
             <div class="flex items-center justify-between gap-4">
-              <span class="text-sm text-white/30">{{ new Date(sim.created_at).toLocaleDateString('pt-BR') }}</span>
+              <span class="text-sm text-white/40">{{ new Date(sim.created_at).toLocaleDateString('pt-BR') }}</span>
               <div class="flex items-center gap-4">
-                <span class="font-semibold text-sm" :class="sim.winner_id === sim.fighter1_id ? 'text-green-400' : 'text-white/50'">{{ sim.fighter1_name }}</span>
-                <span class="text-xs text-white/20">VS</span>
-                <span class="font-semibold text-sm" :class="sim.winner_id === sim.fighter2_id ? 'text-green-400' : 'text-white/50'">{{ sim.fighter2_name }}</span>
+                <span class="font-semibold text-sm" :class="sim.winner_id === sim.fighter1_id ? 'text-green-400' : 'text-white/60'">{{ sim.fighter1_name }}</span>
+                <span class="text-xs text-white/30">VS</span>
+                <span class="font-semibold text-sm" :class="sim.winner_id === sim.fighter2_id ? 'text-green-400' : 'text-white/60'">{{ sim.fighter2_name }}</span>
               </div>
               <span class="text-sm text-purple-400">{{ sim.result_type }}</span>
             </div>
@@ -248,12 +248,13 @@ onMounted(async () => {
   color: var(--text-secondary);
   white-space: nowrap;
   text-align: center;
+  font-weight: 500;
 }
 
 .prediction-value {
   font-size: 1.3rem;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .prediction-value.prob-high {
@@ -263,9 +264,10 @@ onMounted(async () => {
 .prediction-track {
   flex: 1;
   height: 14px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 7px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .prediction-fill {
@@ -284,6 +286,7 @@ onMounted(async () => {
   color: var(--text-primary);
   font-weight: 500;
   margin-bottom: 8px;
+  line-height: 1.5;
 }
 
 .advantages {

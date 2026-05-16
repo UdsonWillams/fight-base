@@ -129,23 +129,27 @@ const showAnimation = computed(() => {
 }
 
 .method-ko, .method-knockout, .method-tko {
-  background: rgba(239, 68, 68, 0.2);
-  color: var(--danger);
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .method-submission, .method-sub {
-  background: rgba(16, 185, 129, 0.2);
-  color: var(--success);
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .method-decision, .method-dec {
-  background: rgba(59, 130, 246, 0.2);
-  color: var(--primary-light);
+  background: rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .method-draw {
-  background: rgba(245, 158, 11, 0.2);
-  color: var(--gold-light);
+  background: rgba(234, 179, 8, 0.25);
+  color: #fbbf24;
+  border: 1px solid rgba(234, 179, 8, 0.3);
 }
 
 .round-info, .time-info {
@@ -177,7 +181,7 @@ const showAnimation = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   min-width: 80px;
 }
 
@@ -186,12 +190,13 @@ const showAnimation = computed(() => {
   color: var(--text-secondary);
   white-space: nowrap;
   text-align: center;
+  font-weight: 500;
 }
 
 .prob-value {
   font-size: 1.1rem;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .prob-value.prob-high {
@@ -201,9 +206,10 @@ const showAnimation = computed(() => {
 .prob-track {
   flex: 1;
   height: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .prob-fill {

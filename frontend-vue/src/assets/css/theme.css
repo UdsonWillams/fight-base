@@ -10,14 +10,14 @@
   --accent-light: #00F0FF;
   --accent-dark: #0099AA;
   --bg-dark: #050505;
-  --bg-panel: rgba(20, 20, 25, 0.6);
-  --glass-bg: rgba(20, 20, 25, 0.6);
+  --bg-panel: rgba(20, 20, 25, 0.8);
+  --glass-bg: rgba(20, 20, 25, 0.8);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-border-hover: rgba(255, 255, 255, 0.2);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --text-primary: #FFFFFF;
-  --text-secondary: #9CA3AF;
-  --text-muted: #9CA3AF;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
   --success: #00FF94;
   --warning: #FFB800;
   --error: #FF003C;
@@ -78,17 +78,17 @@ body {
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(15, 15, 20, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   transition: all 0.3s ease;
 }
 
 .glass-card:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(20, 20, 28, 0.8);
   border-color: rgba(168, 85, 247, 0.3);
   box-shadow: 0 8px 32px rgba(168, 85, 247, 0.1);
   transform: translateY(-2px);
@@ -322,4 +322,53 @@ body {
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+/* PrimeVue dark mode overrides */
+.p-autocomplete,
+.p-dropdown,
+.p-dialog,
+.p-calendar,
+.p-color-picker,
+.p-select {
+  --p-autocomplete-background: rgba(15, 15, 20, 0.95);
+  --p-autocomplete-border-color: rgba(255, 255, 255, 0.1);
+  --p-autocomplete-color: var(--text-primary);
+  --p-dropdown-background: rgba(15, 15, 20, 0.95);
+  --p-dropdown-border-color: rgba(255, 255, 255, 0.1);
+  --p-dropdown-color: var(--text-primary);
+  --p-dialog-background: rgba(15, 15, 20, 0.95);
+  --p-dialog-border-color: rgba(255, 255, 255, 0.1);
+  --p-dialog-color: var(--text-primary);
+}
+
+.p-autocomplete-panel,
+.p-dropdown-panel,
+.p-overlay {
+  background: rgba(15, 15, 20, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+}
+
+.p-autocomplete-items,
+.p-dropdown-items {
+  background: transparent !important;
+}
+
+.p-autocomplete-item,
+.p-dropdown-item {
+  color: var(--text-secondary) !important;
+  padding: 10px 16px !important;
+}
+
+.p-autocomplete-item:hover,
+.p-dropdown-item:hover {
+  background: rgba(168, 85, 247, 0.15) !important;
+  color: var(--text-primary) !important;
+}
+
+.p-autocomplete-item.p-highlight,
+.p-dropdown-item.p-highlight {
+  background: rgba(168, 85, 247, 0.2) !important;
+  color: var(--text-primary) !important;
 }

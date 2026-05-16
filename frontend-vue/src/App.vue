@@ -1,30 +1,29 @@
 <template>
-  <div class="app-dark">
-    <AppLayout>
-      <RouterView v-slot="{ Component, route }">
-        <Transition name="fade" mode="out-in">
-          <component :is="Component" :key="route.path" />
-        </Transition>
-      </RouterView>
-    </AppLayout>
-    <Toast position="top-right" />
-    <ConfirmDialog />
-  </div>
+  <AppLayout>
+    <RouterView v-slot="{ Component, route }">
+      <Transition name="fade" mode="out-in">
+        <component :is="Component" :key="route.path" />
+      </Transition>
+    </RouterView>
+  </AppLayout>
+  <Toast position="top-right" />
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
 import AppLayout from './components/layout/AppLayout.vue'
+
+onMounted(() => {
+  document.documentElement.classList.add('app-dark')
+})
 </script>
 
 <style>
 html, body {
-  overflow-x: hidden;
-}
-
-.app-dark {
   overflow-x: hidden;
 }
 

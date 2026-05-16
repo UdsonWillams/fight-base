@@ -178,11 +178,12 @@ function formatNameWithNickname(name: string, nickname: string) {
 }
 
 .meta-badge {
-  padding: 2px 10px;
+  padding: 3px 12px;
   border-radius: 12px;
   font-size: 0.75rem;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .org-badge {
@@ -201,11 +202,12 @@ function formatNameWithNickname(name: string, nickname: string) {
 .overall-number {
   font-size: 2.5rem;
   font-weight: 800;
+  text-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
 }
 
 .overall-label {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -228,8 +230,9 @@ function formatNameWithNickname(name: string, nickname: string) {
 }
 
 .empty-text {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.9rem;
+  font-style: italic;
 }
 
 .vs-center {
@@ -244,7 +247,7 @@ function formatNameWithNickname(name: string, nickname: string) {
 .vs-text {
   font-size: 2rem;
   font-weight: 900;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   animation: pulse 2s ease-in-out infinite;
 }
 

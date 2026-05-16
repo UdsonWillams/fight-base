@@ -124,7 +124,7 @@ function getOverallColor(overall: number): string {
 }
 
 .option-item {
-  padding: 2px 0;
+  padding: 4px 0;
 }
 
 .option-name {
@@ -137,23 +137,25 @@ function getOverallColor(overall: number): string {
   color: var(--text-muted);
   font-weight: 400;
   font-style: italic;
+  margin-left: 4px;
 }
 
 .option-meta {
   display: flex;
   gap: 8px;
   align-items: center;
-  margin-top: 2px;
+  margin-top: 4px;
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
 .option-org {
-  background: rgba(124, 58, 237, 0.15);
-  color: var(--accent-light);
-  padding: 1px 6px;
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  padding: 1px 8px;
   border-radius: 4px;
-  font-weight: 500;
+  font-weight: 600;
+  border: 1px solid rgba(168, 85, 247, 0.2);
 }
 
 .option-overall {
