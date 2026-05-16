@@ -141,6 +141,70 @@
 
         <div v-if="queryError" class="text-red-400 text-sm mt-2">{{ queryError }}</div>
       </div>
+
+      <!-- SECTION 4: Gerenciar Usuários (admin only) -->
+      <div class="glass-card p-6" style="grid-column: 1 / -1">
+        <h2 class="text-xl font-semibold text-white mb-1">Gerenciar Usuários</h2>
+        <p class="text-white/50 text-sm mb-4">Criar novos usuários e visualizar todos os cadastrados</p>
+
+        <div class="flex gap-4" style="flex-wrap: wrap">
+          <!-- Criar Usuário -->
+          <div class="flex-1" style="min-width: 300px">
+            <h3 class="text-white/80 text-sm font-semibold mb-3 uppercase tracking-wide">Criar Usuário</h3>
+            <div class="space-y-3">
+              <input v-model="newUser.name" type="text" placeholder="Nome completo" class="glass-input w-full" />
+              <input v-model="newUser.email" type="email" placeholder="Email" class="glass-input w-full" />
+              <input v-model="newUser.username" type="text" placeholder="Username" class="glass-input w-full" />
+              <input v-model="newUser.password" type="password" placeholder="Senha" class="glass-input w-full" />
+              <select v-model="newUser.role" class="glass-input w-full">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button class="glass-button primary w-full" :disabled="creatingUser" @click="createUser">
+                {{ creatingUser ? 'Criando...' : 'Criar Usuário' }}
+              </button>
+            </div>
+            <div v-if="createUserError" class="text-red-400 text-sm mt-2">{{ createUserError }}</div>
+            <div v-if="createUserOk" class="text-green-400 text-sm mt-2">{{ createUserOk }}</div>
+          </div>
+
+          <!-- Listar Usuários -->
+          <div class="flex-[2]" style="min-width: 400px">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-white/80 text-sm font-semibold uppercase tracking-wide">
+                Usuários ({{ usersList.length }})
+              </h3>
+              <button class="text-xs text-white/50 hover:text-white/80" @click="loadUsers">Atualizar</button>
+            </div>
+            <div v-if="loadingUsers" class="text-white/40 text-sm">Carregando...</div>
+            <div v-else-if="usersList.length === 0" class="text-white/40 text-sm">Nenhum usuário encontrado</div>
+            <div v-else class="overflow-auto" style="max-height: 300px">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-white/40 text-left border-b border-white/5">
+                    <th class="pb-2 pr-3 font-medium">Nome</th>
+                    <th class="pb-2 pr-3 font-medium">Email</th>
+                    <th class="pb-2 pr-3 font-medium">Username</th>
+                    <th class="pb-2 font-medium">Role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="u in usersList" :key="u.id" class="border-b border-white/5 hover:bg-white/5">
+                    <td class="py-2 pr-3 text-white">{{ u.name }}</td>
+                    <td class="py-2 pr-3 text-white/60">{{ u.email }}</td>
+                    <td class="py-2 pr-3 text-white/60">{{ u.username || '-' }}</td>
+                    <td class="py-2">
+                      <span :class="u.role === 'admin' ? 'text-purple-400' : 'text-white/50'" class="text-xs font-semibold">
+                        {{ u.role }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -203,7 +267,7 @@ function startImportPolling() {
     } catch {
       stopImportPolling()
     }
-  }, 3000)
+  }, 60000)  // poll a cada 60s
 }
 
 function stopImportPolling() {
@@ -278,7 +342,7 @@ function startTrainPolling() {
     } catch {
       stopTrainPolling()
     }
-  }, 2000)
+  }, 60000)  // poll a cada 60s
 }
 
 function stopTrainPolling() {
@@ -311,6 +375,59 @@ async function queryTask() {
     queryError.value = e.message || 'Erro ao consultar task'
   }
 }
+
+// ── User Management ──
+const newUser = reactive({ name: '', email: '', username: '', password: '', role: 'user' })
+const creatingUser = ref(false)
+const createUserError = ref('')
+const createUserOk = ref('')
+const usersList = ref<any[]>([])
+const loadingUsers = ref(false)
+
+async function createUser() {
+  createUserError.value = ''
+  createUserOk.value = ''
+  if (!newUser.name || !newUser.email || !newUser.username || !newUser.password) {
+    createUserError.value = 'Preencha todos os campos'
+    return
+  }
+  creatingUser.value = true
+  try {
+    await api.adminCreateUser({
+      name: newUser.name,
+      email: newUser.email,
+      username: newUser.username,
+      password: newUser.password,
+      role: newUser.role,
+    })
+    createUserOk.value = `Usuário ${newUser.email} criado com sucesso!`
+    newUser.name = ''
+    newUser.email = ''
+    newUser.username = ''
+    newUser.password = ''
+    newUser.role = 'user'
+    loadUsers()
+  } catch (e: any) {
+    createUserError.value = e.message || 'Erro ao criar usuário'
+  } finally {
+    creatingUser.value = false
+  }
+}
+
+async function loadUsers() {
+  loadingUsers.value = true
+  try {
+    const res = await api.listUsers({ page_size: 200 })
+    usersList.value = res.items || []
+  } catch (e: any) {
+    // ignore
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
+// Carrega usuários ao montar
+loadUsers()
 
 // ── Helpers ──
 function statusBadgeClass(status: string) {
@@ -405,5 +522,18 @@ onUnmounted(() => {
 
 .glass-input::placeholder {
   color: rgba(255, 255, 255, 0.3);
+}
+
+select.glass-input {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff50' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.w-full {
+  width: 100%;
 }
 </style>

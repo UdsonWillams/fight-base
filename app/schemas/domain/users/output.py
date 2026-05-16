@@ -13,6 +13,8 @@ class UserResponse(BaseModel):
     id: UUID
     name: str
     email: str
+    username: str = ""
+    role: str = "user"
     fighters: List[FighterOutput] = []
     created_at: datetime
     updated_at: datetime

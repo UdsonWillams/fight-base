@@ -18,6 +18,7 @@ from app.api.v1.auth.dependencies import require_admin
 from app.core.logger import logger
 from app.core.settings import get_settings
 from app.database.models.base import Fighter, User
+from app.schemas.domain.users.input import AdminCreateUser
 
 router = APIRouter()
 
@@ -251,7 +252,9 @@ async def get_import_status(
             "message": "Task não encontrada. Pode ter expirado ou nunca ter existido.",
         }
 
-    return import_tasks_status[task_id]
+    info = import_tasks_status[task_id]
+    # Remove objetos internos não serializáveis
+    return {k: v for k, v in info.items() if k not in ("_importer",)}
 
 
 @router.post("/import/cancel/{task_id}", status_code=status.HTTP_200_OK)
@@ -585,3 +588,61 @@ async def get_train_status(
         }
 
     return train_tasks_status[task_id]
+
+
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+async def admin_create_user(
+    payload: AdminCreateUser,
+    current_user: User = Depends(require_admin),
+) -> dict:
+    """
+    Cria um novo usuário (admin-only). Permite definir role = "admin" ou "user".
+    """
+    import bcrypt
+
+    session = SyncSessionLocal()
+    try:
+        existing = (
+            session.query(User)
+            .filter((User.email == payload.email) | (User.username == payload.username))
+            .first()
+        )
+        if existing:
+            return {
+                "status": "error",
+                "detail": "Email ou username já existe",
+            }
+
+        password_bytes = payload.password.encode("utf-8")
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt).decode("utf-8")
+
+        user = User(
+            email=payload.email,
+            password=hashed,
+            name=payload.name,
+            username=payload.username,
+            role=payload.role,
+            provider="local",
+        )
+        session.add(user)
+        session.commit()
+
+        logger.info(
+            f"Admin {current_user.email} criou usuário {user.email} "
+            f"(role={user.role})"
+        )
+
+        return {
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.name,
+            "username": user.username,
+            "role": user.role,
+        }
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Erro ao criar usuário admin: {str(e)}")
+        raise e
+    finally:
+        session.close()

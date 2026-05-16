@@ -42,7 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(data: { email: string; password: string; username: string; avatar?: string; birth_date?: string }) {
+  async function register(data: { email: string; password: string; username: string; name: string; avatar?: string; birth_date?: string }) {
     loading.value = true
     try {
       await api.register(data)

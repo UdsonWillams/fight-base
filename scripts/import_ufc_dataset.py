@@ -1207,65 +1207,147 @@ class UFCDatasetImporter:
         Este método varre fight_details.csv para extrair o nome real de cada evento
         e atualiza o registro correspondente no banco.
 
-        Fallback: Para eventos que permanecem com nome temporário (sem event_name no CSV),
-        constrói um nome a partir dos lutadores da luta principal (fight_order=1).
+        Matching de IDs: tenta match exato primeiro, depois por sufixo (16, 12, 8 chars).
+        Isso resolve diferenças de formato de URL entre os CSVs (absoluta vs relativa,
+        upcoming vs completed).
+
+        Fallback: Para eventos que permanecem com nome temporário, constrói um nome
+        a partir de qualquer luta do evento (não só a principal).
         """
         print("\n📝 Atualizando nomes dos eventos...")
 
         temp_name_events = set()
 
-        # Ler nomes de eventos do fight_details.csv
+        # ═══ Passo 1: Ler event_name de fight_details.csv ═══
         with open("datasets/fight_details.csv", "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            event_names = {}
+            event_names_from_csv = {}
 
             for row in reader:
                 event_id = row["event_id"].strip()
                 event_name = row.get("event_name", "").strip()
 
-                if event_name and event_id not in event_names:
-                    event_names[event_id] = event_name
+                if event_name and event_id not in event_names_from_csv:
+                    event_names_from_csv[event_id] = event_name
 
-        # Atualizar eventos no banco
-        for ufcstats_id, name in event_names.items():
-            if ufcstats_id in self.event_id_map:
-                event_uuid = self.event_id_map[ufcstats_id]
+        # ═══ Passo 2: Construir índice reverso para match flexível ═══
+        # Mapeia SUFIXO → lista de (ufcstats_id, event_uuid)
+        # Usa tamanhos de sufixo para cobrir URLs de formatos diferentes
+        suffix_map: Dict[int, Dict[str, list]] = {}
+        for suffix_len in (16, 14, 12, 10, 8):
+            suffix_map[suffix_len] = {}
+            for ufcstats_id, event_uuid in self.event_id_map.items():
+                suffix = ufcstats_id[-suffix_len:] if len(ufcstats_id) >= suffix_len else ufcstats_id
+                suffix_map[suffix_len].setdefault(suffix, []).append((ufcstats_id, event_uuid))
+
+        # ═══ Passo 3: Atualizar nomes com matching flexível ═══
+        matched_exact = 0
+        matched_suffix = 0
+        unmatched = []
+
+        for csv_event_id, event_name in event_names_from_csv.items():
+            event_uuid = None
+
+            # Tenta match exato
+            if csv_event_id in self.event_id_map:
+                event_uuid = self.event_id_map[csv_event_id]
+                matched_exact += 1
+            else:
+                # Tenta match: csv_event_id é sufixo de algum ufcstats_id no mapa?
+                # Ou vice-versa: algum map_id é sufixo de csv_event_id?
+                for map_id, map_uuid in self.event_id_map.items():
+                    if map_id.endswith(csv_event_id) or csv_event_id.endswith(map_id):
+                        event_uuid = map_uuid
+                        matched_suffix += 1
+                        break
+
+                # Se não achou por contains, tenta por sufixo de tamanho fixo
+                if not event_uuid:
+                    for suffix_len in (16, 14, 12, 10, 8):
+                        suffix = csv_event_id[-suffix_len:] if len(csv_event_id) >= suffix_len else csv_event_id
+                        candidates = suffix_map[suffix_len].get(suffix, [])
+                        if len(candidates) == 1:
+                            _, event_uuid = candidates[0]
+                            matched_suffix += 1
+                            break
+                        elif len(candidates) > 1:
+                            break
+
+            if event_uuid:
                 event = self.session.get(Event, event_uuid)
                 if event:
-                    event.name = name
+                    event.name = event_name
+            else:
+                unmatched.append(csv_event_id[:8])
 
         self.session.commit()
 
-        # Fallback: para eventos que ainda têm nome temporário, construir a partir das lutas
+        # ═══ Passo 4: Diagnóstico ═══
+        events_in_map = len(self.event_id_map)
+        events_in_csv = len(event_names_from_csv)
+        print(
+            f"  📊 Diagnóstico: {events_in_csv} nomes no CSV | "
+            f"{events_in_map} eventos no mapa | "
+            f"{matched_exact} match exato | "
+            f"{matched_suffix} match por sufixo"
+        )
+        if unmatched:
+            print(
+                f"  ⚠️  {len(unmatched)} event_name(s) sem match no event_id_map: "
+                f"{', '.join(unmatched[:10])}{'...' if len(unmatched) > 10 else ''}"
+            )
+
+        # ═══ Passo 5: Fallback via lutas do banco ═══
         from sqlalchemy.orm import joinedload
 
+        fallback_count = 0
         for ufcstats_id, event_uuid in self.event_id_map.items():
             event = self.session.get(
                 Event,
                 event_uuid,
-                options=[joinedload(Event.fights).joinedload(Fight.fighter1), joinedload(Event.fights).joinedload(Fight.fighter2)],
+                options=[
+                    joinedload(Event.fights).joinedload(Fight.fighter1),
+                    joinedload(Event.fights).joinedload(Fight.fighter2),
+                ],
             )
-            if event and event.name.startswith("UFC Event "):
-                main_fight = next(
-                    (f for f in event.fights if f.fight_order == 1), None
+            if not event or not event.name.startswith("UFC Event "):
+                continue
+
+            # Tenta qualquer luta — não só fight_order=1
+            name_fight = None
+            for f in event.fights:
+                if f.fight_order == 1:
+                    name_fight = f
+                    break
+            if not name_fight:
+                for f in event.fights:
+                    if f.fighter1 and f.fighter2:
+                        name_fight = f
+                        break
+
+            if name_fight and name_fight.fighter1 and name_fight.fighter2:
+                event.name = (
+                    f"{name_fight.fighter1.name} vs {name_fight.fighter2.name}"
                 )
-                if main_fight and main_fight.fighter1 and main_fight.fighter2:
-                    event.name = (
-                        f"{main_fight.fighter1.name} vs {main_fight.fighter2.name}"
-                    )
-                    print(f"  📝 Fallback: {ufcstats_id[:8]} -> {event.name}")
-                else:
-                    temp_name_events.add(event.ufcstats_id or str(event.id)[:8])
+                print(f"  📝 Fallback: {ufcstats_id[:8]} -> {event.name}")
+                fallback_count += 1
+            else:
+                temp_name_events.add(event.ufcstats_id or str(event.id)[:8])
 
         self.session.commit()
 
+        # ═══ Passo 6: Relatório final ═══
+        updated_total = matched_exact + matched_suffix + fallback_count
+        print(f"✓ Nomes atualizados: {updated_total} eventos")
+        if fallback_count:
+            print(f"  📝 {fallback_count} via fallback (Fighter1 vs Fighter2)")
         if temp_name_events:
             print(
-                f"  ⚠️  {len(temp_name_events)} eventos permanecem com nome temporário (sem lutas principais): "
-                f"{', '.join(sorted(temp_name_events))}"
+                f"  ⚠️  {len(temp_name_events)} eventos permanecem com nome "
+                f"temporário (sem lutas no banco): "
+                f"{', '.join(sorted(temp_name_events)[:10])}"
+                f"{'...' if len(temp_name_events) > 10 else ''}"
             )
-
-        print(f"✓ Nomes atualizados para {len(event_names)} eventos")
 
     def update_weight_classes(self):
         """

@@ -75,6 +75,7 @@ class ApiClient {
     email: string
     password: string
     username: string
+    name: string
     avatar?: string
     birth_date?: string
   }): Promise<User> {
@@ -371,14 +372,34 @@ class ApiClient {
   }> {
     return this.request(`/admin/train-model/status/${taskId}`)
   }
+
+  async adminCreateUser(data: {
+    email: string
+    password: string
+    name: string
+    username: string
+    role?: string
+  }): Promise<any> {
+    return this.request('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async listUsers(params?: Record<string, string | number>): Promise<{ items: User[]; count: number }> {
+    const q = params
+      ? '?' + new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString()
+      : ''
+    return this.request(`/users${q}`)
+  }
 }
 
 export const api = new ApiClient()
 
 export const authApi = {
   login: (email: string, password: string) => api.login(email, password),
-  register: (data: { email: string; password: string; name?: string; username?: string }) =>
-    api.register({ email: data.email, password: data.password, username: data.username || data.name || '' }),
+  register: (data: { email: string; password: string; name: string; username: string }) =>
+    api.register(data),
 }
 
 export const fightersApi = {

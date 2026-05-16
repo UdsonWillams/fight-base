@@ -15,6 +15,17 @@
       </div>
 
       <div class="field">
+        <label for="reg-name">{{ t('auth.name') }}</label>
+        <InputText
+          id="reg-name"
+          v-model="name"
+          :placeholder="t('auth.name')"
+          class="w-full"
+          required
+        />
+      </div>
+
+      <div class="field">
         <label for="reg-email">{{ t('auth.email') }}</label>
         <InputText
           id="reg-email"
@@ -127,6 +138,7 @@ const emit = defineEmits<{
 }>()
 
 const username = ref('')
+const name = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
@@ -177,6 +189,7 @@ async function handleSubmit() {
       email: email.value,
       password: password.value,
       username: username.value,
+      name: name.value,
     })
     await auth.login(email.value, password.value)
     emit('success')
