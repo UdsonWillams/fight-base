@@ -1,8 +1,10 @@
 """
-Admin endpoints para operações administrativas como importação de dados
+Admin endpoints para operações administrativas como importação de dados e treinamento de modelo
 """
 
 import csv
+import subprocess
+import sys
 from datetime import datetime
 from typing import Any, Dict
 from uuid import uuid4
@@ -81,27 +83,41 @@ def run_ufc_import(task_id: str, user_id: str):
 
         # 4. Popular vencedores
         logger.info(f"[{task_id}] Populando vencedores...")
-        import_tasks_status[task_id]["progress"] = 65
+        import_tasks_status[task_id]["progress"] = 55
         import_tasks_status[task_id]["message"] = "Populando vencedores..."
         importer.populate_fight_winners("datasets/UFC.csv")
 
-        # 5. Atualizar nomes dos eventos
+        # 5. Agregar ML stats (SLpM, TD avg, KO/sub wins)
+        logger.info(f"[{task_id}] Agregando ML stats...")
+        import_tasks_status[task_id]["progress"] = 65
+        import_tasks_status[task_id]["message"] = "Agregando estatisticas ML..."
+        importer.update_fighter_ml_stats()
+
+        # 6. Atualizar nomes dos eventos
         logger.info(f"[{task_id}] Atualizando nomes dos eventos...")
         import_tasks_status[task_id]["progress"] = 75
         import_tasks_status[task_id]["message"] = "Atualizando nomes dos eventos..."
         importer.update_event_names()
 
-        # 6. Atualizar cartel dos lutadores
+        # 7. Atualizar cartel dos lutadores
         logger.info(f"[{task_id}] Atualizando cartel dos lutadores...")
         import_tasks_status[task_id]["progress"] = 85
         import_tasks_status[task_id]["message"] = "Atualizando cartel dos lutadores..."
         importer.update_fighter_cartels()
 
-        # 7. Atualizar categorias de peso
+        # 8. Atualizar categorias de peso
         logger.info(f"[{task_id}] Atualizando categorias de peso...")
-        import_tasks_status[task_id]["progress"] = 95
+        import_tasks_status[task_id]["progress"] = 92
         import_tasks_status[task_id]["message"] = "Atualizando categorias de peso..."
         importer.update_weight_classes()
+
+        # 9. Recalcular atributos de jogo (ML stats + win rate)
+        logger.info(f"[{task_id}] Recalculando atributos...")
+        import_tasks_status[task_id]["progress"] = 98
+        import_tasks_status[task_id]["message"] = (
+            "Recalculando atributos dos lutadores..."
+        )
+        importer.recalculate_fighter_attributes()
 
         # Concluído
         import_tasks_status[task_id] = {
@@ -246,3 +262,124 @@ async def update_weight_classes(
         }
     finally:
         session.close()
+
+
+# Dicionario para rastrear status de treinamento em andamento
+train_tasks_status: Dict[str, Dict[str, Any]] = {}
+
+
+def run_model_training(task_id: str, quick: bool = False):
+    """Executa o script de treinamento V2 em background"""
+    try:
+        train_tasks_status[task_id] = {
+            "status": "running",
+            "message": "Treinamento iniciado",
+            "progress": 5,
+        }
+
+        script_path = "scripts/train_model_v2_db.py"
+        cmd = [sys.executable, script_path]
+        if quick:
+            cmd.append("--quick")
+            train_tasks_status[task_id]["message"] = (
+                "Treinando modelo V2 (modo rapido)..."
+            )
+
+        logger.info(f"[{task_id}] Executando: {' '.join(cmd)}")
+        train_tasks_status[task_id]["progress"] = 15
+        train_tasks_status[task_id]["message"] = (
+            "Extraindo features e treinando ensemble..."
+        )
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+
+        if result.returncode == 0:
+            train_tasks_status[task_id] = {
+                "status": "completed",
+                "message": "Modelo treinado com sucesso! Salvo em models/mma_model_v2.joblib",
+                "progress": 100,
+                "output": result.stdout[-3000:],
+            }
+            logger.info(f"[{task_id}] Treinamento concluido!")
+
+            try:
+                import asyncio
+                from app.services.ml.model_loader import ml_model_loader
+
+                async def reload():
+                    await ml_model_loader.load_model(force_reload=True)
+
+                asyncio.run(reload())
+                train_tasks_status[task_id]["message"] += (
+                    " | Modelo recarregado no servidor."
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[{task_id}] Modelo treinado mas falha ao recarregar: {e}"
+                )
+                train_tasks_status[task_id]["message"] += (
+                    " | ATENCAO: Reinicie o servidor para usar o novo modelo."
+                )
+        else:
+            train_tasks_status[task_id] = {
+                "status": "error",
+                "message": f"Erro no treinamento. Codigo de saida: {result.returncode}",
+                "output": result.stderr[-3000:] or result.stdout[-3000:],
+                "progress": 0,
+            }
+            logger.error(f"[{task_id}] Erro no treinamento: {result.stderr[-500:]}")
+
+    except subprocess.TimeoutExpired:
+        train_tasks_status[task_id] = {
+            "status": "error",
+            "message": "Timeout: treinamento excedeu 60 minutos",
+            "progress": 0,
+        }
+    except Exception as e:
+        logger.error(f"[{task_id}] Erro no treinamento: {str(e)}")
+        train_tasks_status[task_id] = {
+            "status": "error",
+            "message": f"Erro ao treinar modelo: {str(e)}",
+            "progress": 0,
+        }
+
+
+@router.post("/train-model", status_code=status.HTTP_202_ACCEPTED)
+async def train_model(
+    background_tasks: BackgroundTasks,
+    quick: bool = False,
+    current_user: User = Depends(require_admin),
+):
+    """
+    Inicia treinamento do modelo ML V2 (Stacking Ensemble) em background.
+
+    - **quick**: Se true, usa 5 iteracoes e 3-fold CV (rapido).
+      Se false, 20 iteracoes e 5-fold CV (completo, ~15-30min).
+
+    Retorna um task_id para verificar o status.
+    """
+    task_id = str(uuid4())
+
+    background_tasks.add_task(run_model_training, task_id, quick)
+
+    return {
+        "task_id": task_id,
+        "status": "accepted",
+        "message": "Treinamento iniciado em background",
+        "check_status_url": f"/api/v1/admin/train-model/status/{task_id}",
+    }
+
+
+@router.get("/train-model/status/{task_id}", status_code=status.HTTP_200_OK)
+async def get_train_status(
+    task_id: str,
+    current_user: User = Depends(require_admin),
+):
+    """Verifica o status de um treinamento em andamento"""
+    if task_id not in train_tasks_status:
+        return {
+            "status": "error",
+            "message": "Task nao encontrada. Pode ter expirado ou nunca ter existido.",
+        }
+
+    return train_tasks_status[task_id]
