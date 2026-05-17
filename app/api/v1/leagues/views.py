@@ -13,6 +13,7 @@ from app.schemas.domain.predictions.input import (
     LeagueSelectEvent,
     LeaguePredictionsBulk,
     LeagueCreateFighter,
+    LeagueUpgradeFighter,
 )
 from app.schemas.domain.predictions.output import (
     LeagueResponse,
@@ -110,7 +111,21 @@ async def select_event(
     """Seleciona o evento ativo da liga (apenas o dono)"""
     try:
         league = await service.select_event(league_id, data.event_id, current_user.id)
-        return LeagueResponse.model_validate(league)
+        members_count = len(league.members) if league.members else 0
+        return {
+            "id": str(league.id),
+            "name": league.name,
+            "description": league.description,
+            "invite_code": league.invite_code,
+            "owner_id": str(league.owner_id),
+            "members_count": members_count,
+            "active_event_id": str(league.active_event_id)
+            if league.active_event_id
+            else None,
+            "active_event_name": league.active_event.name
+            if league.active_event
+            else None,
+        }
     except ValueError as e:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(e)}
@@ -211,6 +226,26 @@ async def create_league_fighter(
     try:
         result = await service.create_fighter_with_points(
             league_id, current_user.id, data
+        )
+        return result
+    except ValueError as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(e)}
+        )
+
+
+@router.post("/{league_id}/fighters/{fighter_id}/upgrade")
+async def upgrade_league_fighter(
+    league_id: UUID,
+    fighter_id: UUID,
+    data: LeagueUpgradeFighter,
+    current_user: User = Depends(get_current_user),
+    service: LeagueService = Depends(get_league_service),
+):
+    """Melhora atributos de um lutador gastando pontos da liga"""
+    try:
+        result = await service.upgrade_fighter_attributes(
+            league_id, fighter_id, current_user.id, data.attribute, data.points_cost
         )
         return result
     except ValueError as e:

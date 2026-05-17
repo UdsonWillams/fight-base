@@ -69,3 +69,23 @@ class LeagueCreateFighter(BaseModel):
     organization: str = "League"
     gender: Optional[str] = None
     points_cost: int = Field(default=0, ge=0)
+
+
+class LeagueUpgradeFighter(BaseModel):
+    """Schema para melhorar atributos de um lutador gastando pontos da liga."""
+
+    attribute: str = Field(
+        ...,
+        description="Atributo a aumentar: striking, grappling, defense, stamina, speed, strategy",
+    )
+    points_cost: int = Field(
+        default=0, ge=0, description="Pontos a gastar (cada ponto = +1 no atributo)"
+    )
+
+    @field_validator("attribute")
+    @classmethod
+    def validate_attribute(cls, v: str) -> str:
+        valid = {"striking", "grappling", "defense", "stamina", "speed", "strategy"}
+        if v not in valid:
+            raise ValueError(f"attribute must be one of: {', '.join(valid)}")
+        return v

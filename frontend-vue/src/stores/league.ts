@@ -163,6 +163,21 @@ export const useLeagueStore = defineStore('league', () => {
     }
   }
 
+  async function upgradeFighter(leagueId: string, fighterId: string, attribute: string, pointsCost: number) {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await api.upgradeLeagueFighter(leagueId, fighterId, { attribute, points_cost: pointsCost })
+      await fetchLeaderboard(leagueId)
+      return result
+    } catch (e: any) {
+      error.value = e.message || 'Erro ao melhorar lutador'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     leagues,
     currentLeague,
@@ -181,5 +196,6 @@ export const useLeagueStore = defineStore('league', () => {
     fetchMyPredictions,
     leaveLeague: leaveLeagueFn,
     createFighter,
+    upgradeFighter,
   }
 })

@@ -32,6 +32,7 @@ export interface Fighter {
   td_def: number | null
   sub_avg: number | null
   image_url: string | null
+  creator_id: string | null
   created_at: string
   updated_at: string
 }

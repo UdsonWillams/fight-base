@@ -34,6 +34,43 @@
           <button class="glass-button text-sm !py-1.5 !px-4" @click="openEditDialog">{{ t('common.edit') }}</button>
           <button class="glass-button danger text-sm !py-1.5 !px-4" @click="confirmDelete">{{ t('common.delete') }}</button>
         </div>
+
+        <div v-if="isCreator && hasLeagues" class="mt-4 pt-4 border-t border-white/5">
+          <h3 class="text-sm font-semibold text-white/60 mb-3 uppercase tracking-wide">Melhorar Atributos com Pontos da Liga</h3>
+          <div class="flex items-end gap-3 flex-wrap">
+            <div>
+              <label class="block text-xs text-white/40 mb-1">Liga</label>
+              <select v-model="upgradeLeagueId" class="glass-input text-sm">
+                <option value="">Selecionar...</option>
+                <option v-for="l in myLeagues" :key="l.id" :value="l.id">{{ l.name }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-white/40 mb-1">Atributo</label>
+              <select v-model="upgradeAttr" class="glass-input text-sm">
+                <option value="striking">Striking</option>
+                <option value="grappling">Grappling</option>
+                <option value="defense">Defesa</option>
+                <option value="stamina">Stamina</option>
+                <option value="speed">Velocidade</option>
+                <option value="strategy">Estratégia</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-white/40 mb-1">Pontos a gastar</label>
+              <input v-model.number="upgradePoints" type="number" class="glass-input text-sm w-24" min="1" max="100" />
+            </div>
+            <button
+              class="glass-button primary text-sm !py-2 !px-4"
+              :disabled="!upgradeLeagueId || !upgradeAttr || !upgradePoints || upgrading"
+              @click="handleUpgrade"
+            >
+              {{ upgrading ? 'Melhorando...' : 'Melhorar' }}
+            </button>
+          </div>
+          <div v-if="upgradeError" class="text-red-400 text-xs mt-2">{{ upgradeError }}</div>
+          <div v-if="upgradeOk" class="text-green-400 text-xs mt-2">{{ upgradeOk }}</div>
+        </div>
       </div>
 
       <TabView class="glass-card !rounded-2xl" :pt="{ root: { class: '!bg-transparent' }, nav: { class: '!bg-transparent !border-b !border-white/10' }, panelContainer: { class: '!bg-transparent' } }">
@@ -114,6 +151,7 @@ import FighterRecordTimeline from '@/components/fighters/FighterRecordTimeline.v
 import FighterAdvancedStats from '@/components/fighters/FighterAdvancedStats.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useFighterStore } from '@/stores/fighters'
+import { useLeagueStore } from '@/stores/league'
 import { translateStance } from '@/utils/translations'
 import type { FighterCreate } from '@/types'
 
@@ -124,10 +162,26 @@ const toast = useToast()
 const confirm = useConfirm()
 const authStore = useAuthStore()
 const fighterStore = useFighterStore()
+const leagueStore = useLeagueStore()
 
 const showEditDialog = ref(false)
 
+const upgradeLeagueId = ref('')
+const upgradeAttr = ref('striking')
+const upgradePoints = ref(1)
+const upgrading = ref(false)
+const upgradeError = ref('')
+const upgradeOk = ref('')
+const myLeagues = ref<any[]>([])
+
 const fighter = computed(() => fighterStore.currentFighter)
+
+const isCreator = computed(() => {
+  if (!fighter.value || !authStore.user) return false
+  return (fighter.value as any).creator_id === authStore.user.id
+})
+
+const hasLeagues = computed(() => myLeagues.value.length > 0)
 
 const overallColor = computed(() => {
   const ov = fighter.value?.overall_rating || 0
@@ -172,5 +226,34 @@ function confirmDelete() {
 onMounted(() => {
   const id = route.params.id as string
   if (id) fighterStore.fetchFighter(id)
+  loadMyLeagues()
 })
+
+async function loadMyLeagues() {
+  try {
+    myLeagues.value = await leagueStore.fetchLeagues() as any
+  } catch { /* ignore */ }
+}
+
+async function handleUpgrade() {
+  if (!fighter.value || !upgradeLeagueId.value || !upgradeAttr.value || !upgradePoints.value) return
+  upgradeError.value = ''
+  upgradeOk.value = ''
+  upgrading.value = true
+  try {
+    const result = await leagueStore.upgradeFighter(
+      upgradeLeagueId.value,
+      fighter.value.id,
+      upgradeAttr.value,
+      upgradePoints.value
+    )
+    upgradeOk.value = `${upgradeAttr.value}: ${result.old_value} → ${result.new_value} (pontos restantes: ${result.remaining_points})`
+    upgradePoints.value = 1
+    fighterStore.fetchFighter(fighter.value.id)
+  } catch (e: any) {
+    upgradeError.value = e.message || 'Erro'
+  } finally {
+    upgrading.value = false
+  }
+}
 </script>

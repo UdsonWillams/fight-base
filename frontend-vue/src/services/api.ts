@@ -1,19 +1,26 @@
-  import type {
-    User,
-    Fighter,
-    FighterListResponse,
-    FighterCreate,
-    Event,
-    EventDetail,
-    Fight,
-    FightCreate,
-    Prediction,
-    League,
-    LeagueDetail,
-    LeagueLeaderboardEntry,
-    LeaguePrediction,
-    LeaderboardEntry,
-  } from '@/types'
+import type {
+  User,
+  Fighter,
+  FighterListResponse,
+  FighterStats,
+  FighterCreate,
+  Event,
+  EventDetail,
+  Fight,
+  FightCreate,
+  Prediction,
+  UserPredictionStats,
+  Achievement,
+  League,
+  LeagueDetail,
+  LeagueLeaderboardEntry,
+  LeaguePrediction,
+  LeaderboardEntry,
+  Simulation,
+  SimulationResult,
+  SimulationStats,
+  LoginResponse,
+} from '@/types'
 
 const API_BASE_URL = 'https://fight-base-api.onrender.com/api/v1'
 
@@ -378,6 +385,13 @@ class ApiClient {
 
   async createLeagueFighter(leagueId: string, data: { name: string; nickname?: string; actual_weight_class?: string; fighting_style?: string; stance?: string; height?: number; weight?: number; reach?: number; organization?: string; gender?: string; points_cost: number }): Promise<any> {
     return this.request(`/leagues/${leagueId}/fighters`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async upgradeLeagueFighter(leagueId: string, fighterId: string, data: { attribute: string; points_cost: number }): Promise<any> {
+    return this.request(`/leagues/${leagueId}/fighters/${fighterId}/upgrade`, {
       method: 'POST',
       body: JSON.stringify(data),
     })

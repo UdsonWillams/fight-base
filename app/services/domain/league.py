@@ -200,7 +200,7 @@ class LeagueService:
         league.active_event_id = event_id
         league.updated_by = str(user_id)
         await session.commit()
-        await session.refresh(league, ["active_event"])
+        await session.refresh(league, ["active_event", "members"])
         return league
 
     # ── League Predictions ──
@@ -262,6 +262,10 @@ class LeagueService:
             .outerjoin(
                 Fighter,
                 Prediction.predicted_winner_id == Fighter.id,
+            )
+            .options(
+                selectinload(Fight.fighter1),
+                selectinload(Fight.fighter2),
             )
             .filter(
                 Prediction.user_id == user_id,
@@ -391,6 +395,62 @@ class LeagueService:
             "id": str(fighter.id),
             "name": fighter.name,
             "nickname": fighter.nickname,
+            "points_spent": points_cost,
+            "remaining_points": member.total_points,
+        }
+
+    # ── Upgrade Fighter Attributes ──
+    async def upgrade_fighter_attributes(
+        self,
+        league_id: UUID,
+        fighter_id: UUID,
+        user_id: UUID,
+        attribute: str,
+        points_cost: int,
+    ) -> dict:
+        session = await self.uow.get_session()
+
+        member = await self.league_repo.get_member(league_id, user_id)
+        if not member:
+            raise ValueError("Você não é membro desta liga.")
+
+        if member.total_points < points_cost:
+            raise ValueError(
+                f"Pontos insuficientes. Você tem {member.total_points}, "
+                f"custa {points_cost}."
+            )
+
+        fighter_query = select(Fighter).filter(
+            Fighter.id == fighter_id, Fighter.deleted_at.is_(None)
+        )
+        fighter_result = await session.execute(fighter_query)
+        fighter = fighter_result.scalar_one_or_none()
+        if not fighter:
+            raise ValueError("Lutador não encontrado.")
+        if str(fighter.creator_id) != str(user_id):
+            raise ValueError("Você não criou este lutador.")
+
+        current = getattr(fighter, attribute, 0) or 0
+        setattr(fighter, attribute, current + points_cost)
+        fighter.updated_by = str(user_id)
+
+        member.total_points -= points_cost
+        member.updated_by = str(user_id)
+
+        await session.commit()
+        await session.refresh(fighter)
+
+        logger.info(
+            f"Fighter '{fighter.name}' upgraded: {attribute} {current} → {getattr(fighter, attribute)} "
+            f"(custo: {points_cost} pts na liga {league_id})"
+        )
+
+        return {
+            "fighter_id": str(fighter.id),
+            "fighter_name": fighter.name,
+            "attribute": attribute,
+            "old_value": current,
+            "new_value": getattr(fighter, attribute),
             "points_spent": points_cost,
             "remaining_points": member.total_points,
         }
