@@ -357,6 +357,7 @@ class Prediction(BaseModel):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     fight_id = Column(UUID(as_uuid=True), ForeignKey("fights.id"), nullable=False)
     event_id = Column(UUID(as_uuid=True), ForeignKey("events.id"), nullable=False)
+    league_id = Column(UUID(as_uuid=True), ForeignKey("leagues.id"), nullable=True)
 
     # Palpite - winner_id NULL = empate
     predicted_winner_id = Column(
@@ -442,6 +443,9 @@ class League(BaseModel):
 
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     owner = relationship("User")
+
+    active_event_id = Column(UUID(as_uuid=True), ForeignKey("events.id"), nullable=True)
+    active_event = relationship("Event")
 
     members = relationship("LeagueMember", back_populates="league")
 

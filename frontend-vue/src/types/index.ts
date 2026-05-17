@@ -259,5 +259,41 @@ export interface League {
   invite_code: string
   members_count: number
   owner_id: string
+  active_event_id?: string | null
+  active_event_name?: string | null
   created_at: string
+}
+
+export interface LeagueDetail {
+  id: string
+  name: string
+  description: string | null
+  invite_code: string
+  owner_id: string
+  owner_name: string
+  members_count: number
+  is_owner: boolean
+  is_member: boolean
+  active_event_id: string | null
+  active_event_name: string | null
+  active_event_date: string | null
+  active_event_fights_count: number
+}
+
+export interface LeagueLeaderboardEntry {
+  user_id: string
+  username: string
+  total_points: number
+  rank: number | null
+}
+
+export interface LeaguePrediction {
+  id: string
+  fight_id: string
+  fighter1_name: string | null
+  fighter2_name: string | null
+  predicted_winner_id: string | null
+  predicted_winner_name: string | null
+  is_correct: boolean | null
+  points_earned: number
 }

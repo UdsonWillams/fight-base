@@ -34,3 +34,38 @@ class UpdateFightResult(BaseModel):
     finish_round: Optional[int] = None
     finish_time: Optional[str] = None
     method_details: Optional[str] = None
+
+
+class LeagueSelectEvent(BaseModel):
+    """Schema para o owner da liga selecionar o evento ativo."""
+
+    event_id: UUID
+
+
+class LeaguePrediction(BaseModel):
+    """Schema para palpitar em uma luta dentro da liga."""
+
+    fight_id: UUID
+    predicted_winner_id: Optional[UUID] = None
+
+
+class LeaguePredictionsBulk(BaseModel):
+    """Schema para enviar múltiplos palpites de uma vez."""
+
+    predictions: list[LeaguePrediction]
+
+
+class LeagueCreateFighter(BaseModel):
+    """Schema para criar lutador gastando pontos da liga."""
+
+    name: str = Field(..., min_length=1, max_length=150)
+    nickname: Optional[str] = None
+    actual_weight_class: Optional[str] = None
+    fighting_style: Optional[str] = None
+    stance: Optional[str] = None
+    height: Optional[float] = None
+    weight: Optional[float] = None
+    reach: Optional[float] = None
+    organization: str = "League"
+    gender: Optional[str] = None
+    points_cost: int = Field(default=0, ge=0)

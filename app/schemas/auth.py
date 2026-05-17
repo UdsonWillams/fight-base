@@ -20,7 +20,7 @@ class UserLogin(UserBase):
 
 class AuthenticatedUser(UserBase):
     id: UUID
-    full_name: Optional[str] = None
+    name: str = ""
     is_active: bool = True
     role: RoleEnum = RoleEnum.user
     provider: str = "local"

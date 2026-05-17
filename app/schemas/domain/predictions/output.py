@@ -61,9 +61,48 @@ class LeagueResponse(BaseModel):
     invite_code: str
     owner_id: UUID
     members_count: int = 0
+    active_event_id: Optional[UUID] = None
+    active_event_name: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class LeagueDetailResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    invite_code: str
+    owner_id: UUID
+    owner_name: str = ""
+    members_count: int = 0
+    is_owner: bool = False
+    is_member: bool = False
+    active_event_id: Optional[UUID] = None
+    active_event_name: Optional[str] = None
+    active_event_date: Optional[str] = None
+    active_event_fights_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class LeagueLeaderboardEntry(BaseModel):
+    user_id: UUID
+    username: str
+    total_points: int
+    rank: Optional[int] = None
+
+
+class LeaguePredictionResponse(BaseModel):
+    id: UUID
+    fight_id: UUID
+    fighter1_name: Optional[str] = None
+    fighter2_name: Optional[str] = None
+    predicted_winner_id: Optional[UUID] = None
+    predicted_winner_name: Optional[str] = None
+    is_correct: Optional[bool] = None
+    points_earned: int = 0
 
 
 class AchievementResponse(BaseModel):

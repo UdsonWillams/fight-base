@@ -145,7 +145,7 @@
       <!-- SECTION 4: Gerenciar Usuários (admin only) -->
       <div class="glass-card p-6" style="grid-column: 1 / -1">
         <h2 class="text-xl font-semibold text-white mb-1">Gerenciar Usuários</h2>
-        <p class="text-white/50 text-sm mb-4">Criar novos usuários e visualizar todos os cadastrados</p>
+        <p class="text-white/50 text-sm mb-4">Criar, buscar, editar e remover usuários</p>
 
         <div class="flex gap-4" style="flex-wrap: wrap">
           <!-- Criar Usuário -->
@@ -168,13 +168,17 @@
             <div v-if="createUserOk" class="text-green-400 text-sm mt-2">{{ createUserOk }}</div>
           </div>
 
-          <!-- Listar Usuários -->
+          <!-- Listar / Buscar Usuários -->
           <div class="flex-[2]" style="min-width: 400px">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-white/80 text-sm font-semibold uppercase tracking-wide">
-                Usuários ({{ usersList.length }})
-              </h3>
-              <button class="text-xs text-white/50 hover:text-white/80" @click="loadUsers">Atualizar</button>
+            <div class="flex items-center gap-3 mb-3">
+              <input
+                v-model="userSearch"
+                type="text"
+                placeholder="Buscar por nome, email ou username..."
+                class="glass-input flex-1"
+                @input="onSearchInput"
+              />
+              <button class="text-xs text-white/50 hover:text-white/80 whitespace-nowrap" @click="loadUsers">Limpar</button>
             </div>
             <div v-if="loadingUsers" class="text-white/40 text-sm">Carregando...</div>
             <div v-else-if="usersList.length === 0" class="text-white/40 text-sm">Nenhum usuário encontrado</div>
@@ -185,7 +189,8 @@
                     <th class="pb-2 pr-3 font-medium">Nome</th>
                     <th class="pb-2 pr-3 font-medium">Email</th>
                     <th class="pb-2 pr-3 font-medium">Username</th>
-                    <th class="pb-2 font-medium">Role</th>
+                    <th class="pb-2 pr-3 font-medium">Role</th>
+                    <th class="pb-2 font-medium">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -193,10 +198,16 @@
                     <td class="py-2 pr-3 text-white">{{ u.name }}</td>
                     <td class="py-2 pr-3 text-white/60">{{ u.email }}</td>
                     <td class="py-2 pr-3 text-white/60">{{ u.username || '-' }}</td>
-                    <td class="py-2">
+                    <td class="py-2 pr-3">
                       <span :class="u.role === 'admin' ? 'text-purple-400' : 'text-white/50'" class="text-xs font-semibold">
                         {{ u.role }}
                       </span>
+                    </td>
+                    <td class="py-2">
+                      <div class="flex gap-2">
+                        <button class="text-xs text-blue-400 hover:text-blue-300" @click="startEditUser(u)">Editar</button>
+                        <button class="text-xs text-red-400 hover:text-red-300" @click="confirmDeleteUser(u)">Apagar</button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -205,6 +216,32 @@
           </div>
         </div>
       </div>
+
+      <!-- Modal Editar Usuário -->
+      <Dialog v-model:visible="showEditDialog" header="Editar Usuário" :modal="true" class="glass-card" :pt="{ header: { class: '!bg-transparent !border-b !border-white/5 !text-white !px-6 !py-4' }, content: { class: '!bg-transparent !px-6 !pb-6' } }">
+        <div v-if="editForm" class="space-y-4 pt-2">
+          <div><label class="block text-sm font-medium text-white/60 mb-2">Nome</label><input v-model="editForm.name" class="glass-input w-full" /></div>
+          <div><label class="block text-sm font-medium text-white/60 mb-2">Email</label><input v-model="editForm.email" class="glass-input w-full" /></div>
+          <div><label class="block text-sm font-medium text-white/60 mb-2">Username</label><input v-model="editForm.username" class="glass-input w-full" /></div>
+          <div><label class="block text-sm font-medium text-white/60 mb-2">Role</label><select v-model="editForm.role" class="glass-input w-full"><option value="user">User</option><option value="admin">Admin</option></select></div>
+          <div><label class="block text-sm font-medium text-white/60 mb-2">Nova Senha (deixe em branco para manter)</label><input v-model="editForm.password" type="password" class="glass-input w-full" placeholder="Opcional" /></div>
+          <div v-if="editError" class="text-red-400 text-sm">{{ editError }}</div>
+          <div class="flex justify-end gap-3 pt-4">
+            <button class="glass-button" @click="showEditDialog = false">Cancelar</button>
+            <button class="glass-button primary" :disabled="savingUser" @click="saveUserEdit">{{ savingUser ? 'Salvando...' : 'Salvar' }}</button>
+          </div>
+        </div>
+      </Dialog>
+
+      <!-- Modal Confirmar Delete -->
+      <Dialog v-model:visible="showDeleteConfirm" header="Confirmar Exclusão" :modal="true" class="glass-card" :pt="{ header: { class: '!bg-transparent !border-b !border-white/5 !text-white !px-6 !py-4' }, content: { class: '!bg-transparent !px-6 !pb-6' } }">
+        <p class="text-white/70 pt-2 mb-6">Tem certeza que deseja apagar o usuário <strong class="text-white">{{ deleteTarget?.name }}</strong> ({{ deleteTarget?.email }})?</p>
+        <div v-if="deleteError" class="text-red-400 text-sm mb-3">{{ deleteError }}</div>
+        <div class="flex justify-end gap-3">
+          <button class="glass-button" @click="showDeleteConfirm = false">Cancelar</button>
+          <button class="glass-button !bg-red-500/20 !border-red-500/40 !text-red-300 hover:!bg-red-500/30" :disabled="deletingUser" @click="executeDeleteUser">{{ deletingUser ? 'Apagando...' : 'Apagar' }}</button>
+        </div>
+      </Dialog>
     </div>
   </div>
 </template>
@@ -213,6 +250,7 @@
 import { ref, reactive, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/services/api'
+import Dialog from 'primevue/dialog'
 
 const authStore = useAuthStore()
 
@@ -383,6 +421,42 @@ const createUserError = ref('')
 const createUserOk = ref('')
 const usersList = ref<any[]>([])
 const loadingUsers = ref(false)
+const userSearch = ref('')
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+
+// Edit dialog
+const showEditDialog = ref(false)
+const editForm = ref<any>(null)
+const savingUser = ref(false)
+const editError = ref('')
+
+// Delete dialog
+const showDeleteConfirm = ref(false)
+const deleteTarget = ref<any>(null)
+const deletingUser = ref(false)
+const deleteError = ref('')
+
+function onSearchInput() {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    if (userSearch.value.trim()) {
+      searchUsers()
+    } else {
+      loadUsers()
+    }
+  }, 300)
+}
+
+async function searchUsers() {
+  loadingUsers.value = true
+  try {
+    usersList.value = await api.searchUsers(userSearch.value.trim())
+  } catch {
+    // ignore
+  } finally {
+    loadingUsers.value = false
+  }
+}
 
 async function createUser() {
   createUserError.value = ''
@@ -415,6 +489,7 @@ async function createUser() {
 }
 
 async function loadUsers() {
+  userSearch.value = ''
   loadingUsers.value = true
   try {
     const res = await api.listUsers({ page_size: 200 })
@@ -423,6 +498,65 @@ async function loadUsers() {
     // ignore
   } finally {
     loadingUsers.value = false
+  }
+}
+
+function startEditUser(u: any) {
+  editError.value = ''
+  editForm.value = {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    username: u.username || '',
+    role: u.role || 'user',
+    password: '',
+  }
+  showEditDialog.value = true
+}
+
+async function saveUserEdit() {
+  if (!editForm.value) return
+  editError.value = ''
+  savingUser.value = true
+  try {
+    const data: Record<string, unknown> = {
+      name: editForm.value.name,
+      email: editForm.value.email,
+      username: editForm.value.username,
+      role: editForm.value.role,
+    }
+    if (editForm.value.password) {
+      data.password = editForm.value.password
+    }
+    await api.updateUser(editForm.value.id, data)
+    showEditDialog.value = false
+    loadUsers()
+  } catch (e: any) {
+    editError.value = e.message || 'Erro ao salvar'
+  } finally {
+    savingUser.value = false
+  }
+}
+
+function confirmDeleteUser(u: any) {
+  deleteError.value = ''
+  deleteTarget.value = u
+  showDeleteConfirm.value = true
+}
+
+async function executeDeleteUser() {
+  if (!deleteTarget.value) return
+  deleteError.value = ''
+  deletingUser.value = true
+  try {
+    await api.deleteUser(deleteTarget.value.id)
+    showDeleteConfirm.value = false
+    deleteTarget.value = null
+    loadUsers()
+  } catch (e: any) {
+    deleteError.value = e.message || 'Erro ao apagar'
+  } finally {
+    deletingUser.value = false
   }
 }
 

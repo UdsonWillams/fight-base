@@ -1,3 +1,4 @@
+from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -39,6 +40,20 @@ async def list_users(
         sort_by=sort_by, filters={}, page=page, page_size=page_size
     )
     return response
+
+
+@router.get(
+    "/search", response_model=List[output.UserResponse], status_code=status.HTTP_200_OK
+)
+async def search_users(
+    q: str,
+    admin: AuthenticatedUser = Depends(require_admin),
+    uow: UnitOfWorkConnection = Depends(get_uow),
+):
+    """Busca usuários por nome, email ou username (admin only)."""
+    service = UserService(uow, admin)
+    users = await service.search(q)
+    return [output.UserResponse.model_validate(u.to_dict()) for u in users]
 
 
 @router.get(

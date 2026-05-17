@@ -26,6 +26,7 @@
     "email": "Email",
     "password": "Senha",
     "username": "Nome de usuario",
+    "name": "Nome completo",
     "confirmPassword": "Confirmar Senha",
     "birthDate": "Data de nascimento",
     "avatar": "Escolha seu avatar",
@@ -165,7 +166,14 @@
     "inviteCode": "Codigo de Convite",
     "noLeagues": "Nenhuma liga",
     "createLeagueSuccess": "Liga criada!",
-    "joinLeagueSuccess": "Voce entrou na liga!"
+    "joinLeagueSuccess": "Voce entrou na liga!",
+    "selectEvent": "Selecionar Evento",
+    "activeEvent": "Evento Ativo",
+    "predict": "Palpitar",
+    "leaderboard": "Ranking",
+    "createFighter": "Criar Lutador",
+    "leave": "Sair da Liga",
+    "delete": "Deletar Liga"
   },
   "common": {
     "back": "Voltar",

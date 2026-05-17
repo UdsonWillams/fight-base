@@ -1,23 +1,19 @@
-import type {
-  Fighter,
-  FighterCreate,
-  Event,
-  EventDetail,
-  Fight,
-  Simulation,
-  SimulationResult,
-  User,
-  LoginResponse,
-  Prediction,
-  League,
-  Achievement,
-  FighterStats,
-  SimulationStats,
-  FightCreate,
-  FighterListResponse,
-  LeaderboardEntry,
-  UserPredictionStats,
-} from '@/types'
+  import type {
+    User,
+    Fighter,
+    FighterListResponse,
+    FighterCreate,
+    Event,
+    EventDetail,
+    Fight,
+    FightCreate,
+    Prediction,
+    League,
+    LeagueDetail,
+    LeagueLeaderboardEntry,
+    LeaguePrediction,
+    LeaderboardEntry,
+  } from '@/types'
 
 const API_BASE_URL = 'https://fight-base-api.onrender.com/api/v1'
 
@@ -110,6 +106,14 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    return this.request(`/users/${userId}`, { method: 'DELETE' })
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    return this.request(`/users/search?q=${encodeURIComponent(query)}`)
   }
 
   // ── Fighters ──
@@ -336,6 +340,47 @@ class ApiClient {
 
   async getMyLeagues(): Promise<League[]> {
     return this.request('/leagues/my')
+  }
+
+  async getLeague(leagueId: string): Promise<LeagueDetail> {
+    return this.request(`/leagues/${leagueId}`)
+  }
+
+  async deleteLeague(leagueId: string): Promise<void> {
+    return this.request(`/leagues/${leagueId}`, { method: 'DELETE' })
+  }
+
+  async selectLeagueEvent(leagueId: string, eventId: string): Promise<League> {
+    return this.request(`/leagues/${leagueId}/select-event`, {
+      method: 'POST',
+      body: JSON.stringify({ event_id: eventId }),
+    })
+  }
+
+  async getLeagueLeaderboard(leagueId: string): Promise<LeagueLeaderboardEntry[]> {
+    return this.request(`/leagues/${leagueId}/leaderboard`)
+  }
+
+  async createLeaguePredictions(leagueId: string, predictions: { fight_id: string; predicted_winner_id: string | null }[]): Promise<LeaguePrediction[]> {
+    return this.request(`/leagues/${leagueId}/predictions`, {
+      method: 'POST',
+      body: JSON.stringify({ predictions }),
+    })
+  }
+
+  async getMyLeaguePredictions(leagueId: string): Promise<LeaguePrediction[]> {
+    return this.request(`/leagues/${leagueId}/predictions/my`)
+  }
+
+  async leaveLeague(leagueId: string): Promise<void> {
+    return this.request(`/leagues/${leagueId}/leave`, { method: 'POST' })
+  }
+
+  async createLeagueFighter(leagueId: string, data: { name: string; nickname?: string; actual_weight_class?: string; fighting_style?: string; stance?: string; height?: number; weight?: number; reach?: number; organization?: string; gender?: string; points_cost: number }): Promise<any> {
+    return this.request(`/leagues/${leagueId}/fighters`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   }
 
   // ── Admin ──

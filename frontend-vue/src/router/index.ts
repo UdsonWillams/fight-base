@@ -56,6 +56,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/LeaguesView.vue'),
   },
   {
+    path: '/leagues/:id',
+    name: 'league-detail',
+    component: () => import('../views/LeagueDetailView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/admin',
     name: 'admin',
     component: () => import('../views/AdminView.vue'),

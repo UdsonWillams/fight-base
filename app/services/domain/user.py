@@ -64,6 +64,17 @@ class UserService:
             raise NotFoundError
         return updated_user.to_dict()
 
+    async def search(self, query: str):
+        """Busca usuários por nome, email ou username."""
+        filters = {
+            "$or": [
+                {"name": f"%{query}%"},
+                {"email": f"%{query}%"},
+                {"username": f"%{query}%"},
+            ]
+        }
+        return await self.repository.get(filters=filters, page_size=50)
+
     async def delete(self, user_id: int):
         """Deleta um usuário (soft delete)."""
         if (

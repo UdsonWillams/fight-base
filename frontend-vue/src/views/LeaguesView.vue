@@ -30,7 +30,7 @@
     </div>
 
     <div v-else class="grid-3">
-      <div v-for="league in predictionStore.leagues" :key="league.id" class="glass-card p-5">
+      <div v-for="league in predictionStore.leagues" :key="league.id" class="glass-card p-5 cursor-pointer hover:bg-white/5 transition-all" @click="$router.push(`/leagues/${league.id}`)">
         <h3 class="text-lg font-bold text-white mb-1">{{ league.name }}</h3>
         <p v-if="league.description" class="text-sm text-white/50 mb-4 line-clamp-2">{{ league.description }}</p>
         <p v-else class="text-sm text-white/20 italic mb-4">Sem descrição</p>

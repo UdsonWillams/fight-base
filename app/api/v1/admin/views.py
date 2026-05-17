@@ -388,6 +388,7 @@ train_tasks_status: Dict[str, Dict[str, Any]] = {}
 
 def run_model_training(task_id: str, quick: bool = False):
     """Executa o script de treinamento V2 em background com progresso em tempo real."""
+    import os
     import time
 
     train_tasks_status[task_id] = {
@@ -398,8 +399,31 @@ def run_model_training(task_id: str, quick: bool = False):
         "output_lines": [],
     }
 
-    script_path = "scripts/train_model_v2_db.py"
-    cmd = [sys.executable, script_path]
+    script_path = os.path.abspath("scripts/train_model_v2_db.py")
+    dataset_path = os.path.abspath("datasets/UFC.csv")
+    details_path = os.path.abspath("datasets/fighter_details.csv")
+    output_path = os.path.abspath("models/mma_model_v2.joblib")
+
+    logger.info(f"[{task_id}] CWD: {os.getcwd()}")
+    logger.info(f"[{task_id}] Script path: {script_path}")
+    logger.info(
+        f"[{task_id}] Dataset path: {dataset_path} existe={os.path.exists(dataset_path)}"
+    )
+    logger.info(
+        f"[{task_id}] Details path: {details_path} existe={os.path.exists(details_path)}"
+    )
+    logger.info(f"[{task_id}] Output path: {output_path}")
+
+    cmd = [
+        sys.executable,
+        script_path,
+        "--dataset",
+        dataset_path,
+        "--details",
+        details_path,
+        "--output",
+        output_path,
+    ]
     if quick:
         cmd.append("--quick")
         train_tasks_status[task_id]["message"] = "Treinando modelo V2 (modo rapido)..."
@@ -524,6 +548,15 @@ def run_model_training(task_id: str, quick: bool = False):
             logger.info(
                 f"[{task_id}] Treinamento concluido! "
                 f"({(time.time() - start_time) / 60:.1f} min)"
+            )
+            metadata_path = output_path.replace(".joblib", "_metadata.json")
+            logger.info(f"[{task_id}] Verificando arquivos de saida:")
+            logger.info(
+                f"  Modelo: {output_path} existe={os.path.exists(output_path)} "
+                f"tamanho={os.path.getsize(output_path) if os.path.exists(output_path) else 'N/A'}"
+            )
+            logger.info(
+                f"  Metadata: {metadata_path} existe={os.path.exists(metadata_path)}"
             )
         else:
             output_text = "".join(collected_output)

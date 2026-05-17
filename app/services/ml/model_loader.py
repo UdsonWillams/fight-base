@@ -27,25 +27,33 @@ class MLModelLoader:
                 return cls._model
 
             local_path = os.getenv("LOCAL_MODEL_PATH")
-            if local_path and os.path.exists(local_path):
-                try:
-                    logger.info(f"🤖 Carregando modelo ML Local de {local_path}")
-                    cls._model = joblib.load(local_path)
-                    cls._log_model_info_success(local_path)
-                    return cls._model
-                except Exception as e:
-                    logger.error(f"❌ Erro ao carregar modelo local: {e}")
+            if local_path:
+                abs_local = os.path.abspath(local_path)
+                logger.info(
+                    f"Procurando modelo ML (LOCAL_MODEL_PATH): {abs_local} existe={os.path.exists(abs_local)}"
+                )
+                if os.path.exists(abs_local):
+                    try:
+                        logger.info(f"🤖 Carregando modelo ML Local de {abs_local}")
+                        cls._model = joblib.load(abs_local)
+                        cls._log_model_info_success(abs_local)
+                        return cls._model
+                    except Exception as e:
+                        logger.error(f"❌ Erro ao carregar modelo local: {e}")
 
-            if not local_path:
-                for default_path in cls._default_local_paths:
-                    if os.path.exists(default_path):
-                        try:
-                            logger.info(f"🤖 Modelo local detectado: {default_path}")
-                            cls._model = joblib.load(default_path)
-                            cls._log_model_info_success(default_path)
-                            return cls._model
-                        except Exception as e:
-                            logger.error(f"❌ Erro ao carregar modelo local: {e}")
+            logger.info(f"Procurando modelo ML nos paths padrao (CWD={os.getcwd()}):")
+            for default_path in cls._default_local_paths:
+                abs_path = os.path.abspath(default_path)
+                exists = os.path.exists(abs_path)
+                logger.info(f"  {abs_path} existe={exists}")
+                if exists:
+                    try:
+                        logger.info(f"🤖 Modelo local detectado: {abs_path}")
+                        cls._model = joblib.load(abs_path)
+                        cls._log_model_info_success(abs_path)
+                        return cls._model
+                    except Exception as e:
+                        logger.error(f"❌ Erro ao carregar modelo local: {e}")
 
             logger.warning(
                 "⚠️  Modelo ML não encontrado. Sistema funcionará sem predições ML (Dummy Mode)"

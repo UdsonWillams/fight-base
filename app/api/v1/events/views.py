@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 
-from app.api.v1.auth.dependencies import get_current_user
+from app.api.v1.auth.dependencies import get_current_user, require_admin
 from app.api.v1.predictions.views import get_prediction_service
 from app.core.logger import logger
 from app.database.repositories.fight_simulation import FightSimulationRepository
@@ -14,7 +14,7 @@ from app.database.repositories.event import EventRepository
 from app.database.repositories.fight import FightRepository
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
 from app.schemas.auth import AuthenticatedUser
-from app.schemas.domain.events.input import AddFightToEvent, CreateEvent
+from app.schemas.domain.events.input import AddFightToEvent, CreateEvent, UpdateEvent
 from app.schemas.domain.events.output import (
     EventListResponse,
     EventResponse,
@@ -70,7 +70,7 @@ async def update_fight_result(
     fight_id: UUID,
     payload: UpdateFightResult,
     background_tasks: BackgroundTasks,
-    # current_user: AuthenticatedUser = Depends(require_admin), # Placeholder for admin check
+    current_user: AuthenticatedUser = Depends(require_admin),
     service: EventService = Depends(get_event_service),
     prediction_service: PredictionService = Depends(get_prediction_service),
 ):
@@ -199,6 +199,29 @@ async def get_event(
         ) from e
 
 
+@router.put(
+    "/{event_id}",
+    response_model=EventResponse,
+    summary="Update event",
+)
+async def update_event(
+    event_id: UUID,
+    payload: UpdateEvent,
+    service: EventService = Depends(get_event_service),
+    current_user: AuthenticatedUser = Depends(require_admin),
+):
+    """
+    Atualiza dados de um evento (admin-only).
+    """
+    try:
+        await service.update_event(event_id, payload)
+        return await service.get_event(event_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
+
+
 @router.post(
     "/{event_id}/fights",
     response_model=dict,
@@ -260,6 +283,7 @@ async def simulate_event(
 async def delete_event(
     event_id: UUID,
     service: EventService = Depends(get_event_service),
+    current_user: AuthenticatedUser = Depends(require_admin),
 ):
     """
     Deleta um evento (soft delete).

@@ -26,6 +26,7 @@
     "email": "Email",
     "password": "Password",
     "username": "Username",
+    "name": "Full name",
     "confirmPassword": "Confirm Password",
     "birthDate": "Birth Date",
     "avatar": "Choose your avatar",
@@ -165,7 +166,14 @@
     "inviteCode": "Invite Code",
     "noLeagues": "No leagues",
     "createLeagueSuccess": "League created!",
-    "joinLeagueSuccess": "You joined the league!"
+    "joinLeagueSuccess": "You joined the league!",
+    "selectEvent": "Select Event",
+    "activeEvent": "Active Event",
+    "predict": "Predict",
+    "leaderboard": "Leaderboard",
+    "createFighter": "Create Fighter",
+    "leave": "Leave League",
+    "delete": "Delete League"
   },
   "common": {
     "back": "Back",

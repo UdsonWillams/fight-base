@@ -210,6 +210,8 @@ class EventService:
 
         await session.commit()
 
+        await self._score_leagues_for_event(event_id)
+
         ko_count = sum(1 for f in simulated_fights if f.result_type == "KO")
         sub_count = sum(1 for f in simulated_fights if f.result_type == "Submission")
         dec_count = sum(1 for f in simulated_fights if f.result_type == "Decision")
@@ -351,7 +353,47 @@ class EventService:
             logger.info(
                 f"Event {event_id} automatically marked as completed - all fights finished"
             )
+            await self._score_leagues_for_event(event_id)
+
+    async def update_event(self, event_id: UUID, payload) -> Event:
+        """Atualiza dados de um evento (admin-only)."""
+        event = await self.event_repo.get_by_id(event_id)
+        if not event:
+            raise NotFoundError("Event not found")
+        update_data = payload.model_dump(exclude_unset=True)
+        return await self.event_repo.update(
+            event_id, update_data, updated_by=self.user_email
+        )
 
     async def delete_event(self, event_id: UUID) -> bool:
         """Deleta um evento (soft delete)"""
         return await self.event_repo.delete(event_id)
+
+    async def _score_leagues_for_event(self, event_id: UUID) -> None:
+        """Percorre ligas com este evento ativo e pontua os palpites."""
+        from app.database.repositories.league import LeagueRepository
+        from app.services.domain.league import LeagueService
+
+        try:
+            league_repo = LeagueRepository(self.uow)
+            league_service = LeagueService(self.uow, league_repo)
+
+            session = await self.uow.get_session()
+            from sqlalchemy import select as sa_select
+            from app.database.models.base import League
+
+            query = sa_select(League).filter(
+                League.active_event_id == event_id,
+                League.deleted_at.is_(None),
+            )
+            result = await session.execute(query)
+            leagues = result.scalars().all()
+
+            for league in leagues:
+                await league_service.score_league_event(league.id, event_id)
+                logger.info(
+                    f"Liga '{league.name}' ({league.id}) pontuada "
+                    f"para evento {event_id}"
+                )
+        except Exception as e:
+            logger.error(f"Erro ao pontuar ligas para evento {event_id}: {e}")

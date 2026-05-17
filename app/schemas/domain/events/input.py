@@ -84,6 +84,18 @@ class CreateEvent(BaseModel):
         return v
 
 
+class UpdateEvent(BaseModel):
+    """Schema para atualizar um evento (admin-only). Todos campos opcionais."""
+
+    name: str | None = Field(None, min_length=3, max_length=255)
+    date: datetime | None = None
+    location: str | None = Field(None, max_length=255)
+    organization: str | None = Field(None, min_length=2, max_length=100)
+    description: str | None = None
+    poster_url: str | None = Field(None, max_length=500)
+    status: str | None = None
+
+
 class AddFightToEvent(BaseModel):
     """Schema para adicionar uma luta a um evento existente"""
 
