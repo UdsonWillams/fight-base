@@ -50,6 +50,7 @@ class LeagueRepository(BaseRepository[League]):
             session = await self.uow.get_session()
             query = (
                 select(LeagueMember)
+                .options(selectinload(LeagueMember.user))
                 .filter(
                     LeagueMember.league_id == league_id,
                     LeagueMember.deleted_at.is_(None),
