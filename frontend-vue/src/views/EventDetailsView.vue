@@ -110,12 +110,12 @@ const formattedDate = computed(() => {
 })
 
 const statusLabel = computed(() => {
-  const map: Record<string, string> = { upcoming: 'Em breve', completed: 'Finalizado', in_progress: 'Em andamento', cancelled: 'Cancelado' }
+  const map: Record<string, string> = { scheduled: 'Agendado', upcoming: 'Em breve', completed: 'Finalizado', in_progress: 'Em andamento', cancelled: 'Cancelado' }
   return event.value ? (map[event.value.status] || event.value.status) : ''
 })
 
 const statusBadgeClass = computed(() => {
-  const map: Record<string, string> = { upcoming: 'badge-blue', completed: 'badge-green', in_progress: 'badge-yellow', cancelled: 'badge-red' }
+  const map: Record<string, string> = { scheduled: 'badge-purple', upcoming: 'badge-blue', completed: 'badge-green', in_progress: 'badge-yellow', cancelled: 'badge-red' }
   return event.value ? (map[event.value.status] || 'badge-purple') : ''
 })
 

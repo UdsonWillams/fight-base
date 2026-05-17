@@ -97,6 +97,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select from 'primevue/select'
 import FighterSelector from '@/components/ui/FighterSelector.vue'
+import { api } from '@/services/api'
 import type { Fighter, FightCreate } from '@/types'
 
 const { t } = useI18n()
@@ -109,6 +110,8 @@ interface FightSlot {
   rounds: number
   is_title_fight: boolean
   fight_order: number
+  fighter1_id?: string
+  fighter2_id?: string
 }
 
 const props = defineProps<{
@@ -147,13 +150,11 @@ const fights = ref<FightSlot[]>([])
 
 watch(
   () => props.modelValue,
-  (val) => {
+  async (val) => {
     if (val.length === 0 && fights.value.length === 0) {
-      // Inicializa vazio
       fights.value = []
     } else if (val.length > 0) {
-      // Popula do modelValue
-      fights.value = val.map((f, i) => ({
+      const slots: FightSlot[] = val.map((f, i) => ({
         fighter1: null as Fighter | null,
         fighter2: null as Fighter | null,
         fight_type: f.fight_type || 'main_card',
@@ -161,7 +162,41 @@ watch(
         rounds: f.rounds || 3,
         is_title_fight: f.is_title_fight || false,
         fight_order: f.fight_order || i + 1,
+        fighter1_id: f.fighter1_id,
+        fighter2_id: f.fighter2_id,
       }))
+
+      // Fetch fighter details for existing fights
+      const idsToFetch = new Set<string>()
+      slots.forEach((s) => {
+        if (s.fighter1_id) idsToFetch.add(s.fighter1_id)
+        if (s.fighter2_id) idsToFetch.add(s.fighter2_id)
+      })
+
+      if (idsToFetch.size > 0) {
+        try {
+          const results = await Promise.all(
+            Array.from(idsToFetch).map((id) => api.getFighter(id).catch(() => null))
+          )
+          const map: Record<string, Fighter> = {}
+          results.filter(Boolean).forEach((f) => {
+            if (f) map[String(f.id)] = f as Fighter
+          })
+
+          slots.forEach((s) => {
+            if (s.fighter1_id && map[s.fighter1_id]) {
+              s.fighter1 = map[s.fighter1_id]
+            }
+            if (s.fighter2_id && map[s.fighter2_id]) {
+              s.fighter2 = map[s.fighter2_id]
+            }
+          })
+        } catch {
+          // silently ignore
+        }
+      }
+
+      fights.value = slots
     }
   },
   { immediate: true },

@@ -269,14 +269,14 @@ python scripts/create_admin.py
 ### 3. Fazer Login
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/token \
+curl -X POST http://localhost:8080/api/v1/auth/token \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@mail.com", "password": "pass@word"}'
 ```
 
 ### 4. Criar Lutadores
 
-Use o Swagger em `http://localhost:8000/swagger` e teste os endpoints!
+Use o Swagger em `http://localhost:8080/swagger` e teste os endpoints!
 
 ### 5. Simular Lutas
 

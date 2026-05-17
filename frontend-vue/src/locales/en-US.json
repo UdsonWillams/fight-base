@@ -45,7 +45,8 @@
     "orContinueWith": "or continue with",
     "orContinueWithEmail": "or continue with email",
     "loginSuccess": "Login successful!",
-    "registerSuccess": "Account created! Sign in now."
+    "registerSuccess": "Account created! Sign in now.",
+    "googleMaintenance": "Google login under maintenance. Sorry, please create an account or sign in with email and password."
   },
   "fighters": {
     "title": "Fighters",
@@ -140,7 +141,20 @@
     "upcoming": "Upcoming",
     "completed": "Completed",
     "inProgress": "In Progress",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "setResult": "Set Result",
+    "winner": "Winner",
+    "method": "Method",
+    "round": "Round",
+    "fighter1": "Fighter 1",
+    "fighter2": "Fighter 2",
+    "draw": "Draw",
+    "noContest": "No Contest",
+    "ko": "KO",
+    "tko": "TKO",
+    "submission": "Submission",
+    "decision": "Decision",
+    "dq": "Disqualification"
   },
   "rankings": {
     "title": "Rankings",
@@ -173,7 +187,19 @@
     "leaderboard": "Leaderboard",
     "createFighter": "Create Fighter",
     "leave": "Leave League",
-    "delete": "Delete League"
+    "delete": "Delete League",
+    "members": "Members",
+    "history": "History",
+    "points": "Points",
+    "accuracy": "Accuracy",
+    "streak": "Streak",
+    "eventsParticipated": "Events",
+    "yourPerformance": "Your Performance",
+    "viewGrid": "View Predictions Grid",
+    "pointsEarned": "Points Earned",
+    "correctPredictions": "Correct",
+    "position": "Position",
+    "of": "of"
   },
   "common": {
     "back": "Back",
@@ -186,6 +212,8 @@
     "error": "Error",
     "success": "Success",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "understood": "Got it",
+    "maintenance": "Under maintenance"
   }
 }

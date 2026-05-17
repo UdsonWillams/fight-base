@@ -32,10 +32,35 @@
             <Select v-model="form.organization" :options="organizations" option-label="label" option-value="value" class="w-full" panel-class="!bg-gray-900 !border-white/10" />
           </div>
         </div>
+
+        <div class="mt-5 pt-5 border-t border-white/5">
+          <label class="block text-sm font-medium text-white/60 mb-2">Status do Evento</label>
+          <div class="flex items-center gap-3">
+            <Select v-model="form.status" :options="statusOptions" option-label="label" option-value="value" class="w-56" panel-class="!bg-gray-900 !border-white/10" />
+            <span class="badge text-xs" :class="statusBadgeClass">{{ statusLabel }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="glass-card p-6 mb-8">
+        <h3 class="text-lg font-semibold text-white mb-4">Card de Lutas</h3>
         <FightCardBuilder v-model="fights" :event-id="event.id" />
+      </div>
+
+      <div v-if="form.status === 'in_progress' || form.status === 'completed'" class="glass-card p-6 mb-8">
+        <h3 class="text-lg font-semibold text-white mb-4">Resultados das Lutas</h3>
+        <div v-if="event.fights && event.fights.length > 0" class="space-y-4">
+          <FightResultEditor
+            v-for="f in event.fights"
+            :key="f.id"
+            :event-id="event.id"
+            :fight="f"
+            :fighter1-name="f.fighter1?.name || 'TBD'"
+            :fighter2-name="f.fighter2?.name || 'TBD'"
+            @saved="onResultSaved"
+          />
+        </div>
+        <div v-else class="text-white/30 text-center py-6">Nenhuma luta cadastrada. Adicione lutas no card acima.</div>
       </div>
 
       <div class="flex justify-end gap-3">
@@ -49,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'primevue/usetoast'
@@ -59,6 +84,7 @@ import DatePicker from 'primevue/datepicker'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
 import FightCardBuilder from '@/components/events/FightCardBuilder.vue'
+import FightResultEditor from '@/components/events/FightResultEditor.vue'
 import { useEventStore } from '@/stores/events'
 import type { FightCreate } from '@/types'
 
@@ -70,7 +96,13 @@ const confirm = useConfirm()
 const eventStore = useEventStore()
 
 const event = ref(eventStore.currentEvent)
-const form = ref({ name: '', date: null as Date | null, location: '', organization: '' })
+const form = ref({
+  name: '',
+  date: null as Date | null,
+  location: '',
+  organization: '',
+  status: 'scheduled',
+})
 const fights = ref<FightCreate[]>([])
 
 const organizations = [
@@ -80,15 +112,48 @@ const organizations = [
   { label: 'PFL', value: 'PFL' },
 ]
 
+const statusOptions = [
+  { label: 'Agendado', value: 'scheduled' },
+  { label: 'Em Andamento', value: 'in_progress' },
+  { label: 'Finalizado', value: 'completed' },
+]
+
+const statusLabel = computed(() => {
+  const map: Record<string, string> = {
+    scheduled: 'Agendado',
+    in_progress: 'Em Andamento',
+    completed: 'Finalizado',
+  }
+  return map[form.value.status] || form.value.status
+})
+
+const statusBadgeClass = computed(() => {
+  const map: Record<string, string> = {
+    scheduled: 'badge-purple',
+    in_progress: 'badge-yellow',
+    completed: 'badge-green',
+  }
+  return map[form.value.status] || 'badge-purple'
+})
+
 watch(() => eventStore.currentEvent, (e) => {
   if (e) {
     event.value = e
-    form.value = { name: e.name || '', date: e.date ? new Date(e.date) : null, location: e.location || '', organization: e.organization || '' }
+    form.value = {
+      name: e.name || '',
+      date: e.date ? new Date(e.date) : null,
+      location: e.location || '',
+      organization: e.organization || '',
+      status: e.status || 'scheduled',
+    }
     fights.value = (e.fights || []).map((f, i) => ({
       fighter1_id: f.fighter1_id,
       fighter2_id: f.fighter2_id,
-      position: f.fight_type,
-      fight_order: i + 1,
+      fight_type: f.fight_type,
+      weight_class: f.weight_class || undefined,
+      rounds: f.rounds,
+      is_title_fight: f.is_title_fight,
+      fight_order: f.fight_order || i + 1,
     }))
   }
 })
@@ -101,12 +166,19 @@ async function handleSubmit() {
       date: form.value.date.toISOString(),
       location: form.value.location || undefined,
       organization: form.value.organization || undefined,
+      status: form.value.status,
       fights: fights.value,
     })
     toast.add({ severity: 'success', summary: t('common.success'), detail: 'Evento atualizado!', life: 3000 })
     router.push(`/events/${event.value.id}`)
   } catch {
     toast.add({ severity: 'error', summary: t('common.error'), detail: eventStore.error || t('common.error'), life: 5000 })
+  }
+}
+
+function onResultSaved() {
+  if (event.value) {
+    eventStore.fetchEvent(event.value.id)
   }
 }
 

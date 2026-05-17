@@ -310,20 +310,25 @@ normalized = [p / total * 100 for p in probabilities]
 
 ## 📊 Melhorias Futuras
 
-### Machine Learning
+### Machine Learning (✅ Implementado)
+
+O FightBase já conta com modelos de ML treinados com dados reais do UFC:
+
+- Modelo: `models/mma_model_v2.joblib`
+- Serviço: `app/services/ml/prediction_service.py`
+- Carregamento automático no startup da API
 
 ```python
-# Treinar modelo com dados reais
-from sklearn.ensemble import RandomForestClassifier
+# Treinar modelo atualizado com dados do banco
+python scripts/train_model_v2_db.py
 
-model = RandomForestClassifier()
-model.fit(X_train, y_train)  # X = atributos, y = resultado
-
-# Usar para previsões
-prediction = model.predict([fighter1_attrs, fighter2_attrs])
+# Treinar com dados locais
+python scripts/train_model_local.py
 ```
 
-### Fatores Adicionais
+O modelo complementa o algoritmo baseado em regras, fornecendo uma camada adicional de inteligência nas previsões.
+
+### Fatores Adicionais (alguns já implementados via modelo ML)
 
 1. **Altitude/Localização**
    - Ajustar stamina baseado em altitude

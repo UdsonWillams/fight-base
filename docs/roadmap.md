@@ -5,7 +5,7 @@
 ### 1. Executar as Migrations
 
 ```bash
-cd /home/udson-rego/Documentos/estudos/fight-base/fight-base
+cd fight-base
 alembic upgrade head
 ```
 
@@ -13,16 +13,16 @@ alembic upgrade head
 
 ```bash
 # Com Docker (recomendado)
-docker-compose up --build
+docker compose up --build
 
 # OU localmente
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port=8080
 ```
 
 ### 3. Acessar Documentação
 
-- Swagger UI: http://localhost:8000/swagger
-- ReDoc: http://localhost:8000/docs
+- Swagger UI: http://localhost:8080/swagger
+- ReDoc: http://localhost:8080/docs
 
 ### 4. Criar Usuário Admin
 
@@ -230,19 +230,16 @@ GET /api/v1/simulations/export?fighter_id={id}&format=pdf
 
 ### 🤖 Inteligência Artificial
 
-#### 1. Modelo de Previsão ML
+#### 1. Modelo de Previsão ML (✅ Implementado)
 
-```python
-# Treinar com dados reais do UFC Stats
-from sklearn.ensemble import RandomForestClassifier
+Modelos scikit-learn já estão integrados:
+- `models/mma_model_v2.joblib` — carregado automaticamente no startup
+- Serviço: `app/services/ml/prediction_service.py`
+- Scripts de treino: `scripts/train_model_local.py` e `scripts/train_model_v2_db.py`
 
-model = train_model(real_ufc_data)
-model.save('fight_predictor.pkl')
-
-# Usar no endpoint
-GET /api/v1/simulations/predict-ml
-# Retorna previsão usando ML + algoritmo atual
-```
+Próximos passos:
+- Melhorar acurácia com mais dados de treino
+- Adicionar features como idade, alcance, histórico de lesões
 
 #### 2. Recomendação de Matchups
 
@@ -256,23 +253,19 @@ GET /api/v1/recommendations/matchups
 
 ### 📊 Dashboard e Visualizações
 
-#### Frontend Simples
+#### Frontend (✅ Implementado em Vue 3)
 
-```javascript
-// React/Vue/Svelte dashboard
-// - Lista de lutadores com fotos
-// - Cards de comparação
-// - Botão "Simular Luta"
-// - Histórico visual
-// - Gráficos de estatísticas
-```
+Frontend moderno já disponível em `frontend-vue/`:
+- Vue 3 + TypeScript + Vite
+- PrimeVue 4 + Tailwind CSS 4
+- Pinia state management
+- Vue Router com auth guards
+- i18n (pt-BR / en-US)
 
-#### Gráficos
-
+Próximos passos:
+- Gráficos com Chart.js ou similar
 - Radar charts dos atributos
-- Line charts de evolução
-- Bar charts de estatísticas
-- Heat maps de probabilidades
+- Modo offline/PWA
 
 ### 🌐 API Pública
 

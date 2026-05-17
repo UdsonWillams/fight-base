@@ -98,17 +98,12 @@ await audit.log_action(
 
 ## 🟡 IMPORTANTES (Próximas 2 semanas)
 
-### 4. Cache com Redis
+### 4. Cache com Redis (✅ Já implementado no docker-compose)
+
+**Status:** Redis já está configurado no `docker-compose.yaml`. Resta integrar ao código.
 
 ```python
-# docker-compose.yaml
-services:
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-
-# app/cache/redis.py
+# app/cache/redis.py (a criar)
 from redis.asyncio import Redis
 
 class CacheService:
@@ -363,7 +358,7 @@ self.addEventListener("install", (event) => {
 
 ### 🟡 Próximas 2 Semanas (Performance)
 
-4. ✅ Cache com Redis
+4. ✅ Cache com Redis (infra pronta, falta código)
 5. ✅ Índices de banco
 6. ✅ Validação client-side
 7. ✅ Retry logic

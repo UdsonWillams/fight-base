@@ -129,6 +129,29 @@ export const useEventStore = defineStore('events', () => {
     }
   }
 
+  async function updateFightResult(
+    eventId: string,
+    fightId: string,
+    data: { winner_id: string; method_details: string; finish_round: number; finish_time: string }
+  ) {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await api.updateFightResult(eventId, fightId, data)
+      if (currentEvent.value && currentEvent.value.id === eventId) {
+        const updated = await api.getEvent(eventId)
+        currentEvent.value = updated
+      }
+      return result
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Erro ao atualizar resultado'
+      error.value = msg
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     events,
     currentEvent,
@@ -144,5 +167,6 @@ export const useEventStore = defineStore('events', () => {
     deleteEvent,
     addFight,
     simulateEvent,
+    updateFightResult,
   }
 })

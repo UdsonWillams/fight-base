@@ -46,7 +46,7 @@ Este guia detalha como configurar a autenticação Google OAuth 2.0 no Google Cl
 - **App name**: `FightBase`
 - **User support email**: seu-email@gmail.com
 - **App logo**: (opcional) Upload uma imagem 120x120px
-- **Application home page**: `http://localhost:8000`
+- **Application home page**: `http://localhost:8080`
 - **Developer contact information**: seu-email@gmail.com
 
 Clique em **"SAVE AND CONTINUE"**
@@ -84,11 +84,11 @@ Revise as informações e clique em **"BACK TO DASHBOARD"**
    - **Name**: `FightBase Web Client`
 
    **Authorized JavaScript origins**:
-   - `http://localhost:8000`
+   - `http://localhost:8080`
    - `http://localhost:8080`
 
    **Authorized redirect URIs** ⚠️ **IMPORTANTE**:
-   - `http://localhost:8000/api/v1/auth/google/callback`
+   - `http://localhost:8080/api/v1/auth/google/callback`
 
 5. Clique em **"CREATE"**
 
@@ -114,7 +114,7 @@ No arquivo `.env` do projeto FightBase, adicione:
 # Google OAuth 2.0
 GOOGLE_CLIENT_ID=123456789-abcdefg.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxxxx
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:8080/api/v1/auth/google/callback
 ```
 
 > 🔒 **Segurança**: Nunca commite o arquivo `.env` no Git! Ele já está no `.gitignore`.
@@ -155,7 +155,7 @@ GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
 **Causa**: A URI de callback no código não corresponde às URIs autorizadas no GCP.
 
 **Solução**:
-1. Verifique se a URI no `.env` é exatamente: `http://localhost:8000/api/v1/auth/google/callback`
+1. Verifique se a URI no `.env` é exatamente: `http://localhost:8080/api/v1/auth/google/callback`
 2. Vá em **Credentials** → Clique no Client ID criado
 3. Em **Authorized redirect URIs**, confirme que a URI está correta
 4. Reinicie o servidor após alterar `.env`

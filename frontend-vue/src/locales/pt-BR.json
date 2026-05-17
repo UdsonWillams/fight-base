@@ -45,7 +45,8 @@
     "orContinueWith": "ou continue com",
     "orContinueWithEmail": "ou continue com email",
     "loginSuccess": "Login realizado com sucesso!",
-    "registerSuccess": "Conta criada! Faca login."
+    "registerSuccess": "Conta criada! Faca login.",
+    "googleMaintenance": "Login com Google em manutenção. Desculpe, crie sua conta ou entre com email e senha."
   },
   "fighters": {
     "title": "Lutadores",
@@ -140,7 +141,20 @@
     "upcoming": "Em breve",
     "completed": "Finalizado",
     "inProgress": "Em andamento",
-    "cancelled": "Cancelado"
+    "cancelled": "Cancelado",
+    "setResult": "Definir Resultado",
+    "winner": "Vencedor",
+    "method": "Metodo",
+    "round": "Round",
+    "fighter1": "Lutador 1",
+    "fighter2": "Lutador 2",
+    "draw": "Empate",
+    "noContest": "No Contest",
+    "ko": "KO",
+    "tko": "TKO",
+    "submission": "Submissao",
+    "decision": "Decisao",
+    "dq": "Desqualificacao"
   },
   "rankings": {
     "title": "Rankings",
@@ -173,7 +187,19 @@
     "leaderboard": "Ranking",
     "createFighter": "Criar Lutador",
     "leave": "Sair da Liga",
-    "delete": "Deletar Liga"
+    "delete": "Deletar Liga",
+    "members": "Membros",
+    "history": "Historico",
+    "points": "Pontos",
+    "accuracy": "Precisao",
+    "streak": "Sequencia",
+    "eventsParticipated": "Eventos",
+    "yourPerformance": "Seu desempenho",
+    "viewGrid": "Ver Grid de Palpites",
+    "pointsEarned": "Pontos ganhos",
+    "correctPredictions": "Acertos",
+    "position": "Posicao",
+    "of": "de"
   },
   "common": {
     "back": "Voltar",
@@ -186,6 +212,8 @@
     "error": "Erro",
     "success": "Sucesso",
     "yes": "Sim",
-    "no": "Nao"
+    "no": "Nao",
+    "understood": "Entendi",
+    "maintenance": "Em manutencao"
   }
 }

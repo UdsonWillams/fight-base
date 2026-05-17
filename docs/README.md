@@ -103,15 +103,20 @@ Bem-vindo à documentação completa do FightBase! Todos os documentos estão or
     - Cálculos
     - API endpoints
 
-12. **[frontend-guide.md](frontend-guide.md)** - Guia do Frontend
+12. **[frontend-guide.md](frontend-guide.md)** - Guia do Frontend (Vue 3)
 
-    - Estrutura de arquivos
-    - Componentes principais
-    - API client
-    - Estilos e temas
-    - Dark mode
+    - Vue 3 + TypeScript + Vite
+    - PrimeVue 4 + Tailwind CSS 4
+    - Pinia state management
+    - Router e i18n
 
-13. **[git-commit-guide.md](git-commit-guide.md)** - Guia de Commits
+13. **[google-oauth-setup.md](google-oauth-setup.md)** - Google OAuth 2.0
+    - Configuração no GCP
+    - Credenciais OAuth
+    - Redirect URI
+    - Teste local
+
+14. **[git-commit-guide.md](git-commit-guide.md)** - Guia de Commits
     - Padrões de commit
     - Conventional Commits
     - Boas práticas
@@ -134,6 +139,26 @@ FightBase
 │   ├── Probabilidades calculadas
 │   └── Tipos de resultado (KO/Sub/Dec)
 │
+├── 📅 Eventos (MMA Events)
+│   ├── Cards de luta reais
+│   ├── Fights com stats detalhadas
+│   └── Importação de datasets
+│
+├── 🎯 Predições (Predictions)
+│   ├── Palpites dos usuários
+│   ├── Scoring automático
+│   └── Achievements e badges
+│
+├── 🏆 Ligas (Leagues)
+│   ├── Grupos privados
+│   ├── Código de convite
+│   └── Leaderboards
+│
+├── 🤖 Machine Learning
+│   ├── Modelos scikit-learn
+│   ├── Treino com dados reais
+│   └── Previsões inteligentes
+│
 ├── 📊 Análises
 │   ├── Comparação de lutadores
 │   ├── Previsão de resultados
@@ -143,6 +168,7 @@ FightBase
 └── 🔐 Autenticação
     ├── JWT tokens
     ├── Roles (admin/user)
+    ├── Google OAuth 2.0
     └── Controle de acesso
 ```
 
@@ -150,29 +176,29 @@ FightBase
 
 ### "Quero começar a usar AGORA!"
 
-1. [QUICKSTART.md](QUICKSTART.md)
-2. [README.md](README.md) - Seção "Exemplos de Uso"
+1. [quickstart.md](quickstart.md)
+2. [../README.md](../README.md) - Seção "Exemplos de Uso"
 
 ### "Quero entender como funciona"
 
-1. [README.md](README.md) - Seção "Como Funciona a Simulação"
-2. [docs/ALGORITMO_TECNICO.md](docs/ALGORITMO_TECNICO.md)
+1. [../README.md](../README.md) - Seção "Como Funciona a Simulação"
+2. [algoritmo-simulacao.md](algoritmo-simulacao.md)
 
 ### "Quero ver exemplos práticos"
 
-1. [docs/EXEMPLOS_PRATICOS.md](docs/EXEMPLOS_PRATICOS.md)
-2. Swagger UI: http://localhost:8000/swagger
+1. [exemplos-api.md](exemplos-api.md)
+2. Swagger UI: http://localhost:8080/swagger
 
 ### "Quero contribuir/desenvolver"
 
-1. [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)
-2. [PROXIMOS_PASSOS.md](PROXIMOS_PASSOS.md)
-3. [docs/ALGORITMO_TECNICO.md](docs/ALGORITMO_TECNICO.md)
+1. [refactoring-history.md](refactoring-history.md)
+2. [roadmap.md](roadmap.md)
+3. [algoritmo-simulacao.md](algoritmo-simulacao.md)
 
 ### "Quero ideias de features"
 
-1. [docs/CASOS_DE_USO.md](docs/CASOS_DE_USO.md)
-2. [PROXIMOS_PASSOS.md](PROXIMOS_PASSOS.md)
+1. [casos-de-uso.md](casos-de-uso.md)
+2. [roadmap.md](roadmap.md)
 
 ## 📁 Estrutura de Arquivos
 
@@ -186,33 +212,47 @@ fight-base/
 │   ├── README.md                      📖 Índice (este arquivo)
 │   ├── quickstart.md                  ⚡ Início rápido (5 min)
 │   ├── exemplos-api.md                🎯 Exemplos práticos da API
-│   ├── casos-de-uso.md                � Casos de uso e ideias
+│   ├── casos-de-uso.md                💡 Casos de uso e ideias
 │   ├── algoritmo-simulacao.md         🧠 Algoritmo detalhado
-│   ├── roadmap.md                     � Próximos passos
+│   ├── roadmap.md                     🗺️ Próximos passos
 │   ├── refactoring-history.md         📋 Histórico de refatoração
 │   ├── melhorias-recomendadas.md      ✨ Análise e melhorias
 │   ├── migracao-banco.md              🔧 Guia do Alembic
-│   ├── importacao-csv.md              � Importar lutadores
+│   ├── importacao-csv.md              📥 Importar lutadores
+│   ├── google-oauth-setup.md          🔑 Google OAuth 2.0
 │   ├── sistema-recordes.md            🏆 Sistema de recordes
 │   ├── frontend-guide.md              🎨 Guia do frontend
-│   └── git-commit-guide.md            � Padrão de commits
+│   └── git-commit-guide.md            📝 Padrão de commits
 │
 ├── app/                               💻 Código da aplicação
 │   ├── api/v1/                        🌐 Endpoints REST
 │   │   ├── auth/                      🔐 Autenticação
 │   │   ├── fighters/                  🥋 Lutadores
 │   │   ├── events/                    📅 Eventos
-│   │   └── simulations/               ⚔️ Simulações
+│   │   ├── simulations/               ⚔️ Simulações
+│   │   ├── predictions/               🎯 Predições
+│   │   ├── leagues/                   🏆 Ligas
+│   │   ├── users/                     👤 Usuários
+│   │   └── admin/                     🛡️ Admin
 │   ├── database/                      🗄️ Modelos e repositórios
 │   ├── schemas/                       📝 Schemas Pydantic
 │   ├── services/                      🎯 Lógica de negócio
+│   │   ├── domain/                    🥊 Domínio (fighters, events, etc)
+│   │   ├── auth/                      🔐 Autenticação
+│   │   └── ml/                        🤖 Machine Learning
 │   └── core/                          ⚙️ Configurações
 │
-├── frontend/                          🎨 Interface web
-│   ├── index.html                     🏠 Página principal
-│   ├── css/                           💅 Estilos
-│   └── js/                            ⚡ JavaScript modules
+├── frontend-vue/                      🎨 Frontend Vue 3 + PrimeVue + Tailwind
+│   └── src/
+│       ├── views/                     📄 Páginas (14 views)
+│       ├── components/                🧩 Componentes reutilizáveis
+│       ├── stores/                    🗃️ Pinia state management
+│       ├── router/                    🧭 Vue Router
+│       └── locales/                   🌐 i18n (pt-BR / en-US)
 │
+├── frontend/                          🎨 Frontend vanilla (legado)
+├── models/                            🤖 Modelos ML treinados
+├── datasets/                          📊 Datasets UFC (CSV)
 ├── migrations/                        📊 Migrações do banco
 ├── tests/                             🧪 Testes
 └── scripts/                           🔧 Scripts úteis
@@ -222,9 +262,9 @@ fight-base/
 
 ### Documentação Interativa
 
-- [Swagger UI](http://localhost:8000/swagger) - Testar endpoints
-- [ReDoc](http://localhost:8000/docs) - Documentação bonita
-- [OpenAPI JSON](http://localhost:8000/openapi.json) - Spec da API
+- [Swagger UI](http://localhost:8080/swagger) - Testar endpoints
+- [ReDoc](http://localhost:8080/docs) - Documentação bonita
+- [OpenAPI JSON](http://localhost:8080/openapi.json) - Spec da API
 
 ### Código no GitHub
 
@@ -328,13 +368,29 @@ fight-base/
 ### Frontend
 
 - [frontend-guide.md](frontend-guide.md)
-- `frontend/`
+- `frontend-vue/` (Vue 3 + TypeScript + Vite)
 
 ### Dataset e Dados
 
 - [importacao-csv.md](importacao-csv.md)
-- [dataset-ufc-compatibilidade.md](dataset-ufc-compatibilidade.md)
-- `scripts/import_fighters_from_csv.py`
+- `scripts/import_ufc_dataset.py`
+
+### OAuth
+
+- [google-oauth-setup.md](google-oauth-setup.md)
+- `app/services/auth/google_oauth.py`
+
+### Machine Learning
+
+- [algoritmo-simulacao.md](algoritmo-simulacao.md) - Seção "Machine Learning"
+- `app/services/ml/`
+- `scripts/train_model_v2_db.py`
+
+### Predições e Ligas
+
+- [roadmap.md](roadmap.md)
+- `app/api/v1/predictions/views.py`
+- `app/api/v1/leagues/views.py`
 
 ### Contribuir
 
@@ -371,6 +427,9 @@ A: [melhorias-recomendadas.md](melhorias-recomendadas.md)
 
 **Q: Como usar o frontend?**
 A: [frontend-guide.md](frontend-guide.md)
+
+**Q: Como configurar login com Google?**
+A: [google-oauth-setup.md](google-oauth-setup.md)
 
 **Q: Como fazer commits?**
 A: [git-commit-guide.md](git-commit-guide.md)

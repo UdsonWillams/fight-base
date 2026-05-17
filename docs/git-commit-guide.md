@@ -65,12 +65,12 @@ Refatoração completa do sistema genérico de clientes/produtos para **FightBas
 ### Documentação
 
 - `README.md` - Atualizado completamente
-- `QUICKSTART.md` - Guia de início rápido
-- `REFACTORING_SUMMARY.md` - Resumo detalhado da refatoração
-- `PROXIMOS_PASSOS.md` - Roadmap e próximos passos
-- `docs/CASOS_DE_USO.md` - Casos de uso e ideias futuras
-- `docs/EXEMPLOS_PRATICOS.md` - Exemplos completos com curl
-- `docs/ALGORITMO_TECNICO.md` - Documentação técnica do algoritmo
+- `docs/quickstart.md` - Guia de início rápido
+- `docs/refactoring-history.md` - Resumo detalhado da refatoração
+- `docs/roadmap.md` - Roadmap e próximos passos
+- `docs/casos-de-uso.md` - Casos de uso e ideias futuras
+- `docs/exemplos-api.md` - Exemplos completos com curl
+- `docs/algoritmo-simulacao.md` - Documentação técnica do algoritmo
 
 ## 🔧 Algoritmo de Simulação
 
@@ -163,19 +163,19 @@ GET    /api/v1/simulations/recent         - Recentes
 
 ### Para Começar
 
-1. `QUICKSTART.md` - Início em 5 minutos
+1. `docs/quickstart.md` - Início em 5 minutos
 2. `README.md` - Visão geral completa
-3. `REFACTORING_SUMMARY.md` - Detalhes da refatoração
+3. `docs/refactoring-history.md` - Detalhes da refatoração
 
 ### Para Desenvolver
 
-1. `docs/ALGORITMO_TECNICO.md` - Como funciona o algoritmo
-2. `docs/EXEMPLOS_PRATICOS.md` - Exemplos com curl
-3. `PROXIMOS_PASSOS.md` - O que fazer a seguir
+1. `docs/algoritmo-simulacao.md` - Como funciona o algoritmo
+2. `docs/exemplos-api.md` - Exemplos com curl
+3. `docs/roadmap.md` - O que fazer a seguir
 
 ### Para Expandir
 
-1. `docs/CASOS_DE_USO.md` - Ideias e casos de uso
+1. `docs/casos-de-uso.md` - Ideias e casos de uso
 2. Swagger/OpenAPI - Documentação interativa
 
 ## 🔒 Compatibilidade
@@ -214,7 +214,7 @@ python scripts/create_admin.py
 uvicorn app.main:app --reload
 
 # 4. Acessar Swagger
-http://localhost:8000/swagger
+http://localhost:8080/swagger
 
 # 5. Testar endpoints!
 ```
@@ -279,8 +279,8 @@ Um projeto completamente refatorado que:
 
 ## 🔗 Links Úteis
 
-- Swagger: http://localhost:8000/swagger
-- ReDoc: http://localhost:8000/docs
+- Swagger: http://localhost:8080/swagger
+- ReDoc: http://localhost:8080/docs
 - Repo: https://github.com/UdsonWillams/fight-base
 
 ---

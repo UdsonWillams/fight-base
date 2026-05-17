@@ -170,13 +170,13 @@ Após importar, você pode validar via API:
 
 ```bash
 # Listar lutadores
-curl http://localhost:8000/api/v1/fighters
+curl http://localhost:8080/api/v1/fighters
 
 # Buscar por nome
-curl http://localhost:8000/api/v1/fighters/search?name=Danny
+curl http://localhost:8080/api/v1/fighters/search?name=Danny
 
 # Ver top fighters
-curl http://localhost:8000/api/v1/fighters/top?limit=10
+curl http://localhost:8080/api/v1/fighters/top?limit=10
 ```
 
 ## ⚠️ Observações

@@ -5,7 +5,7 @@
 ### 1. 📝 Criar Conta
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/customers" \
+curl -X POST "http://localhost:8080/api/v1/users" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "MMA Fan",
@@ -17,7 +17,7 @@ curl -X POST "http://localhost:8000/api/v1/customers" \
 ### 2. 🔐 Fazer Login
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/auth/token" \
+curl -X POST "http://localhost:8080/api/v1/auth/token" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "fan@mma.com",
@@ -41,7 +41,7 @@ curl -X POST "http://localhost:8000/api/v1/auth/token" \
 ### Criar Lutador - Jon Jones
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/fighters" \
+curl -X POST "http://localhost:8080/api/v1/fighters" \
   -H "Authorization: Bearer <your_token_here>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -72,7 +72,7 @@ curl -X POST "http://localhost:8000/api/v1/fighters" \
 ### Criar Lutador - Khabib Nurmagomedov
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/fighters" \
+curl -X POST "http://localhost:8080/api/v1/fighters" \
   -H "Authorization: Bearer <your_token_here>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -103,7 +103,7 @@ curl -X POST "http://localhost:8000/api/v1/fighters" \
 ### Criar Lutador Fictício
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/fighters" \
+curl -X POST "http://localhost:8080/api/v1/fighters" \
   -H "Authorization: Bearer <your_token_here>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -130,41 +130,41 @@ curl -X POST "http://localhost:8000/api/v1/fighters" \
 #### Por Nome
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters?name=Jones"
+curl "http://localhost:8080/api/v1/fighters?name=Jones"
 ```
 
 #### Por Organização
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters?organization=UFC&limit=20"
+curl "http://localhost:8080/api/v1/fighters?organization=UFC&limit=20"
 ```
 
 #### Por Categoria de Peso
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters?weight_class=Peso-leve"
+curl "http://localhost:8080/api/v1/fighters?weight_class=Peso-leve"
 ```
 
 #### Lutadores Reais vs Fictícios
 
 ```bash
 # Apenas reais
-curl "http://localhost:8000/api/v1/fighters?is_real=true"
+curl "http://localhost:8080/api/v1/fighters?is_real=true"
 
 # Apenas fictícios
-curl "http://localhost:8000/api/v1/fighters?is_real=false"
+curl "http://localhost:8080/api/v1/fighters?is_real=false"
 ```
 
 #### Rating Mínimo
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters?min_overall=90"
+curl "http://localhost:8080/api/v1/fighters?min_overall=90"
 ```
 
 ### Ver Meus Lutadores
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters/my/fighters" \
+curl "http://localhost:8080/api/v1/fighters/my/fighters" \
   -H "Authorization: Bearer <your_token_here>"
 ```
 
@@ -173,25 +173,25 @@ curl "http://localhost:8000/api/v1/fighters/my/fighters" \
 #### Top 10 Geral
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters/rankings/top?limit=10"
+curl "http://localhost:8080/api/v1/fighters/rankings/top?limit=10"
 ```
 
 #### Top 10 do UFC
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters/rankings/top?organization=UFC&limit=10"
+curl "http://localhost:8080/api/v1/fighters/rankings/top?organization=UFC&limit=10"
 ```
 
 #### Top 5 dos Peso-pesado
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters/rankings/top?weight_class=Peso-pesado&limit=5"
+curl "http://localhost:8080/api/v1/fighters/rankings/top?weight_class=Peso-pesado&limit=5"
 ```
 
 ### Estatísticas Gerais
 
 ```bash
-curl "http://localhost:8000/api/v1/fighters/statistics/overview"
+curl "http://localhost:8080/api/v1/fighters/statistics/overview"
 ```
 
 **Resposta exemplo:**
@@ -223,7 +223,7 @@ curl "http://localhost:8000/api/v1/fighters/statistics/overview"
 ### Simular Luta Completa
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/simulations" \
+curl -X POST "http://localhost:8080/api/v1/simulations" \
   -H "Authorization: Bearer <your_token_here>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -284,7 +284,7 @@ curl -X POST "http://localhost:8000/api/v1/simulations" \
 ### Prever Resultado (Sem Simular)
 
 ```bash
-curl "http://localhost:8000/api/v1/simulations/predict?fighter1_id=jones-uuid&fighter2_id=khabib-uuid"
+curl "http://localhost:8080/api/v1/simulations/predict?fighter1_id=jones-uuid&fighter2_id=khabib-uuid"
 ```
 
 **Resposta exemplo:**
@@ -315,7 +315,7 @@ curl "http://localhost:8000/api/v1/simulations/predict?fighter1_id=jones-uuid&fi
 ### Comparar Lutadores
 
 ```bash
-curl "http://localhost:8000/api/v1/simulations/compare?fighter1_id=jones-uuid&fighter2_id=khabib-uuid"
+curl "http://localhost:8080/api/v1/simulations/compare?fighter1_id=jones-uuid&fighter2_id=khabib-uuid"
 ```
 
 **Resposta exemplo:**
@@ -382,7 +382,7 @@ curl "http://localhost:8000/api/v1/simulations/compare?fighter1_id=jones-uuid&fi
 ### Ver Histórico de um Lutador
 
 ```bash
-curl "http://localhost:8000/api/v1/simulations/history/jones-uuid?limit=20"
+curl "http://localhost:8080/api/v1/simulations/history/jones-uuid?limit=20"
 ```
 
 **Resposta exemplo:**
@@ -424,13 +424,13 @@ curl "http://localhost:8000/api/v1/simulations/history/jones-uuid?limit=20"
 ### Ver Confrontos Diretos
 
 ```bash
-curl "http://localhost:8000/api/v1/simulations/matchup?fighter1_id=jones-uuid&fighter2_id=cormier-uuid"
+curl "http://localhost:8080/api/v1/simulations/matchup?fighter1_id=jones-uuid&fighter2_id=cormier-uuid"
 ```
 
 ### Ver Simulações Recentes
 
 ```bash
-curl "http://localhost:8000/api/v1/simulations/recent?limit=50"
+curl "http://localhost:8080/api/v1/simulations/recent?limit=50"
 ```
 
 ## 🎯 Cenários de Uso Completos
@@ -439,7 +439,7 @@ curl "http://localhost:8000/api/v1/simulations/recent?limit=50"
 
 ```bash
 # 1. Criar Anderson Silva
-curl -X POST "http://localhost:8000/api/v1/fighters" \
+curl -X POST "http://localhost:8080/api/v1/fighters" \
   -H "Authorization: Bearer <your_token_here>" \
   -d '{
     "name": "Anderson Silva",
@@ -458,13 +458,13 @@ curl -X POST "http://localhost:8000/api/v1/fighters" \
   }'
 
 # 2. Comparar
-curl "http://localhost:8000/api/v1/simulations/compare?fighter1_id=silva-uuid&fighter2_id=jones-uuid"
+curl "http://localhost:8080/api/v1/simulations/compare?fighter1_id=silva-uuid&fighter2_id=jones-uuid"
 
 # 3. Ver previsão
-curl "http://localhost:8000/api/v1/simulations/predict?fighter1_id=silva-uuid&fighter2_id=jones-uuid"
+curl "http://localhost:8080/api/v1/simulations/predict?fighter1_id=silva-uuid&fighter2_id=jones-uuid"
 
 # 4. Simular luta de 5 rounds
-curl -X POST "http://localhost:8000/api/v1/simulations" \
+curl -X POST "http://localhost:8080/api/v1/simulations" \
   -H "Authorization: Bearer <your_token_here>" \
   -d '{
     "fighter1_id": "silva-uuid",
@@ -481,24 +481,24 @@ curl -X POST "http://localhost:8000/api/v1/simulations" \
 # ... (criar Israel Adesanya, Robert Whittaker, etc)
 
 # 2. Ver top 10
-curl "http://localhost:8000/api/v1/fighters/rankings/top?organization=UFC&weight_class=Peso-médio&limit=10"
+curl "http://localhost:8080/api/v1/fighters/rankings/top?organization=UFC&weight_class=Peso-médio&limit=10"
 
 # 3. Simular campeonato (semifinais + final)
 # Semifinal 1
-curl -X POST "http://localhost:8000/api/v1/simulations" ...
+curl -X POST "http://localhost:8080/api/v1/simulations" ...
 
 # Semifinal 2
-curl -X POST "http://localhost:8000/api/v1/simulations" ...
+curl -X POST "http://localhost:8080/api/v1/simulations" ...
 
 # Final
-curl -X POST "http://localhost:8000/api/v1/simulations" ...
+curl -X POST "http://localhost:8080/api/v1/simulations" ...
 ```
 
 ### Cenário 3: Testar seu Lutador Personalizado
 
 ```bash
 # 1. Criar lutador fictício
-curl -X POST "http://localhost:8000/api/v1/fighters" \
+curl -X POST "http://localhost:8080/api/v1/fighters" \
   -H "Authorization: Bearer <your_token_here>" \
   -d '{
     "name": "Seu Nome",
@@ -515,10 +515,10 @@ curl -X POST "http://localhost:8000/api/v1/fighters" \
   }'
 
 # 2. Testar contra os melhores
-curl "http://localhost:8000/api/v1/fighters/rankings/top?weight_class=Peso-médio&limit=5"
+curl "http://localhost:8080/api/v1/fighters/rankings/top?weight_class=Peso-médio&limit=5"
 
 # 3. Simular contra cada um
-curl -X POST "http://localhost:8000/api/v1/simulations" ...
+curl -X POST "http://localhost:8080/api/v1/simulations" ...
 ```
 
 ## 🔍 Dicas e Truques
@@ -557,7 +557,7 @@ Overall = (striking + grappling + defense + stamina + speed + strategy) / 6
 
 ```bash
 # Verifique se o UUID está correto
-curl "http://localhost:8000/api/v1/fighters/UUID_AQUI"
+curl "http://localhost:8080/api/v1/fighters/UUID_AQUI"
 ```
 
 ### Erro: "Unauthorized"
@@ -578,14 +578,14 @@ curl "http://localhost:8000/api/v1/fighters/UUID_AQUI"
 ### Ver todas as suas simulações
 
 ```bash
-curl "http://localhost:8000/api/v1/simulations/recent?limit=100" \
+curl "http://localhost:8080/api/v1/simulations/recent?limit=100" \
   -H "Authorization: Bearer <your_token_here>"
 ```
 
 ### Estatísticas de um lutador
 
 ```bash
-curl "http://localhost:8000/api/v1/simulations/history/fighter-uuid"
+curl "http://localhost:8080/api/v1/simulations/history/fighter-uuid"
 ```
 
 ---

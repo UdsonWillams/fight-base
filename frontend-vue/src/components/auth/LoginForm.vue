@@ -153,4 +153,30 @@ async function handleSubmit() {
 .link-btn:hover {
   text-decoration: underline;
 }
+
+:deep(.p-password .p-password-toggle-icon) {
+  color: var(--text-secondary);
+}
+
+:deep(.p-password .p-password-toggle-icon:hover) {
+  color: var(--text-primary);
+}
+
+:deep(.p-password .p-password-input) {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 16px;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+:deep(.p-password .p-password-input:focus) {
+  border-color: rgba(168, 85, 247, 0.5);
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+}
+
+:deep(.p-password .p-password-input::placeholder) {
+  color: rgba(255, 255, 255, 0.3);
+}
 </style>
