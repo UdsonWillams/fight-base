@@ -131,7 +131,7 @@ def append_csv_safe(filepath: Path, new_df: pd.DataFrame, replace_event_ids: set
             ]
             removed = before - len(existing_df)
             if removed:
-                print(f"  Replaced {removed} old row(s) (upcoming→completed)")
+                print(f"  Replaced {removed} old row(s) (upcoming->completed)")
         merged = pd.concat([existing_df, new_df], ignore_index=True)
         merged.to_csv(filepath, index=False)
     else:
@@ -152,7 +152,7 @@ def filter_new_only(event_links, existing_event_ids, existing_event_status=None)
             new_links.append((status, url))
         elif prev_status == "upcoming" and status == "completed":
             new_links.append((status, url))
-            print(f"  ⟳ {event_id}: upcoming → completed, re-scraping for full data")
+            print(f"  [UPDATE] {event_id}: upcoming -> completed, re-scraping for full data")
         else:
             skipped += 1
     return new_links, skipped
@@ -172,8 +172,9 @@ async def fetch_html(client, url):
             await asyncio.sleep(2**attempt)  # Exponential backoff
 
 
-async def get_event_data(client, semaphore, idx, link, event_status="completed"):
-    """Scrape event data from the given link. event_status: 'completed' or 'upcoming'."""
+async def get_event_data(client, semaphore, idx, link, event_status="completed", event_scrape_order=0):
+    """Scrape event data from the given link. event_status: 'completed' or 'upcoming'.
+    event_scrape_order is the sequential index of this event in the scraping order."""
     link = link.strip()
     async with semaphore:
         html = await fetch_html(client, link)
@@ -194,7 +195,7 @@ async def get_event_data(client, semaphore, idx, link, event_status="completed")
             "tr",
             class_="b-fight-details__table-row b-fight-details__table-row__hover js-fight-details-click",
         )
-        for i in fight_links:
+        for fight_idx, i in enumerate(fight_links):
             winner_name = None
             winner_id = None
 
@@ -229,12 +230,14 @@ async def get_event_data(client, semaphore, idx, link, event_status="completed")
                 "winner_id": winner_id,
                 "event_status": event_status,
             }
-            new_fight_links_all.append(data_link)
+            # Store with ordering info: event_scrape_order + fight_scrape_order (0=main event)
+            new_fight_links_all.append((data_link, event_scrape_order, fight_idx))
             winner_names.append(data_dic)
 
 
-async def get_fight_data(client, semaphore, idx, link):
-    """Scrape fight data from the given link. Works for both completed and upcoming."""
+async def get_fight_data(client, semaphore, idx, link, event_scrape_order=0, fight_scrape_order=0):
+    """Scrape fight data from the given link. Works for both completed and upcoming.
+    event_scrape_order and fight_scrape_order preserve the original page ordering."""
     link = link.strip()
     async with semaphore:
         html = await fetch_html(client, link)
@@ -839,6 +842,8 @@ async def get_fight_data(client, semaphore, idx, link):
             "b_landed_clinch_per": b_landed_clinch_per,
             "b_landed_ground_per": b_landed_ground_per,
             "scrape_order": idx,
+            "event_scrape_order": event_scrape_order,
+            "fight_scrape_order": fight_scrape_order,
         }
         fight_details.append(data_dic)
 
@@ -991,7 +996,7 @@ async def main():
             }
 
             event_tasks = [
-                get_event_data(client, semaphore, idx, url, status)
+                get_event_data(client, semaphore, idx, url, status, event_scrape_order=idx)
                 for idx, (status, url) in enumerate(new_links)
             ]
             for task in asyncio.as_completed(event_tasks):
@@ -1004,8 +1009,8 @@ async def main():
 
             if new_fight_links_all:
                 fight_tasks = [
-                    get_fight_data(client, semaphore, idx, link)
-                    for idx, link in enumerate(new_fight_links_all)
+                    get_fight_data(client, semaphore, idx, link, event_scrape_order=eso, fight_scrape_order=fso)
+                    for idx, (link, eso, fso) in enumerate(new_fight_links_all)
                 ]
                 completed = 0
                 for task in asyncio.as_completed(fight_tasks):
@@ -1015,7 +1020,8 @@ async def main():
                         print(f"Fights scraped: {completed}/{len(new_fight_links_all)}")
 
                 if fight_details:
-                    fight_details.sort(key=lambda x: x.get("scrape_order", 0))
+                    # Sort by event order, then by fight order within event (main event first)
+                    fight_details.sort(key=lambda x: (x.get("event_scrape_order", 0), x.get("fight_scrape_order", 0)))
                     df_fight = pd.DataFrame(data=fight_details)
                     append_csv_safe(FIGHT_CSV, df_fight, re_scraped_ids)
                     print(f"Appended {len(df_fight)} row(s) to fight_details.csv")
@@ -1063,7 +1069,7 @@ async def main():
             total_events = len(event_links)
             print(f"Scraping {total_events} event details...")
             tasks = [
-                get_event_data(client, semaphore, idx, url, status)
+                get_event_data(client, semaphore, idx, url, status, event_scrape_order=idx)
                 for idx, (status, url) in enumerate(event_links)
             ]
             completed = 0
@@ -1080,8 +1086,8 @@ async def main():
             total_fights = len(new_fight_links_all)
             print(f"Scraping {total_fights} fight details...")
             tasks = [
-                get_fight_data(client, semaphore, idx, link)
-                for idx, link in enumerate(new_fight_links_all)
+                get_fight_data(client, semaphore, idx, link, event_scrape_order=eso, fight_scrape_order=fso)
+                for idx, (link, eso, fso) in enumerate(new_fight_links_all)
             ]
             completed = 0
             for task in asyncio.as_completed(tasks):
@@ -1090,7 +1096,7 @@ async def main():
                 if completed % 500 == 0 or completed == total_fights:
                     print(f"Fights scraped: {completed}/{total_fights}")
 
-            fight_details.sort(key=lambda x: x.get("scrape_order", 0))
+            fight_details.sort(key=lambda x: (x.get("event_scrape_order", 0), x.get("fight_scrape_order", 0)))
             df_fight = pd.DataFrame(data=fight_details)
             df_fight.to_csv(FIGHT_CSV, index=False)
             print(f"Saved {len(df_fight)} row(s) to fight_details.csv")

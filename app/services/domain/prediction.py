@@ -66,6 +66,12 @@ class PredictionService:
         """
         Background Task: Processa todos os palpites de uma luta após o resultado ser definido.
         Cria sua própria sessão de banco, independente da request HTTP.
+
+        Pipeline:
+        1. Calcula pontos dos palpites
+        2. Atualiza estatísticas (UserStats) de cada usuário
+        3. Atualiza leaderboard do evento
+        4. Verifica conquistas dos usuários (processo separado, após consolidação)
         """
         async with UnitOfWorkConnection() as bg_uow:
             bg_prediction_repo = PredictionRepository(bg_uow)
@@ -85,12 +91,19 @@ class PredictionService:
 
             await bg_uow.commit()
 
+            affected_users = set()
+
             for pred in predictions:
-                await self._update_user_stats_and_achievements(
-                    bg_uow, bg_prediction_repo, bg_achievement_repo, pred.user_id
-                )
+                await self._update_user_stats(bg_uow, bg_prediction_repo, pred.user_id)
                 await self._update_event_leaderboard(
                     bg_uow, bg_prediction_repo, pred.user_id, fight.event_id
+                )
+                affected_users.add(pred.user_id)
+
+            unique_users = list(affected_users)
+            for user_id in unique_users:
+                await self._check_user_achievements(
+                    bg_uow, bg_prediction_repo, bg_achievement_repo, user_id
                 )
 
         logger.info(f"Processed {len(predictions)} predictions for fight {fight_id}")
@@ -142,11 +155,10 @@ class PredictionService:
             return 1
         return 0
 
-    async def _update_user_stats_and_achievements(
+    async def _update_user_stats(
         self,
         uow: UnitOfWorkConnection,
         prediction_repo: PredictionRepository,
-        achievement_repo: AchievementRepository,
         user_id: UUID,
     ):
         stats = await prediction_repo.get_or_create_user_stats(user_id)
@@ -195,6 +207,23 @@ class PredictionService:
         )
 
         await uow.commit()
+
+    async def _check_user_achievements(
+        self,
+        uow: UnitOfWorkConnection,
+        prediction_repo: PredictionRepository,
+        achievement_repo: AchievementRepository,
+        user_id: UUID,
+    ):
+        """
+        Verifica e desbloqueia conquistas para um usuário.
+        Processo independente da pontuação - executado após consolidação dos stats.
+        """
+        stats = await prediction_repo.get_user_stats(user_id)
+        if not stats:
+            return
+
+        all_preds = await prediction_repo.get_all_processed_for_user(user_id)
 
         await self._check_achievements(achievement_repo, user_id, stats, all_preds)
 

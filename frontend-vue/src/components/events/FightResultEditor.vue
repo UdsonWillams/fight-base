@@ -44,7 +44,7 @@
       <div class="field">
         <label>Método</label>
         <Select
-          v-model="result.method"
+          v-model="result.methodId"
           :options="methodOptions"
           option-label="label"
           option-value="value"
@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'primevue/usetoast'
 import Select from 'primevue/select'
@@ -113,12 +113,12 @@ const emit = defineEmits<{
 
 const result = ref<{
   winner: string
-  method: string
+  methodId: string
   round: number | null
   time: string
 }>({
   winner: '',
-  method: '',
+  methodId: '',
   round: null,
   time: '',
 })
@@ -126,16 +126,14 @@ const result = ref<{
 const saving = ref(false)
 const saveError = ref('')
 const saveOk = ref('')
+const finishMethods = ref<any[]>([])
 
-const methodOptions = [
-  { label: 'KO', value: 'KO' },
-  { label: 'TKO', value: 'TKO' },
-  { label: 'Submissão', value: 'Submission' },
-  { label: 'Decisão Unânime', value: 'Decision' },
-  { label: 'Decisão Dividida', value: 'Split Decision' },
-  { label: 'Decisão Majoritária', value: 'Majority Decision' },
-  { label: 'Desqualificação', value: 'DQ' },
-]
+const methodOptions = computed(() => {
+  return finishMethods.value.map((m: any) => ({
+    label: m.name || m.label || m.code || m.id,
+    value: m.id || m.code || m.method_id,
+  }))
+})
 
 const roundOptions = [
   { label: '1', value: 1 },
@@ -147,7 +145,7 @@ const roundOptions = [
 
 const canSave = computed(() => {
   if (result.value.winner === 'draw' || result.value.winner === 'no_contest') return true
-  return result.value.winner && result.value.method
+  return result.value.winner && result.value.methodId
 })
 
 watch(
@@ -159,16 +157,28 @@ watch(
       const isDraw = f.result_type?.toLowerCase() === 'draw'
       const isNC = f.result_type?.toLowerCase() === 'no_contest'
 
+      const currentMethod = f.result_type || ''
+      const matched = finishMethods.value.find(
+        (m: any) => (m.name || m.label || m.code) === currentMethod
+      )
+
       result.value = {
         winner: isFighter1 ? 'fighter1' : isFighter2 ? 'fighter2' : isDraw ? 'draw' : isNC ? 'no_contest' : '',
-        method: f.result_type || '',
+        methodId: matched?.id || matched?.code || matched?.method_id || currentMethod,
         round: f.finish_round || null,
         time: f.finish_time || '',
       }
     }
   },
-  { immediate: true },
 )
+
+async function loadMethods() {
+  try {
+    finishMethods.value = await api.getFinishMethods()
+  } catch {
+    finishMethods.value = []
+  }
+}
 
 async function handleSave() {
   if (!props.fight || !props.eventId) return
@@ -177,8 +187,6 @@ async function handleSave() {
   saving.value = true
 
   let winnerId: string | null = null
-  let methodDetails = result.value.method
-  const resultType = result.value.method
 
   if (result.value.winner === 'fighter1') {
     winnerId = props.fight.fighter1_id
@@ -186,10 +194,16 @@ async function handleSave() {
     winnerId = props.fight.fighter2_id
   }
 
+  const selectedMethod = finishMethods.value.find(
+    (m: any) => (m.id || m.code || m.method_id) === result.value.methodId
+  )
+  const methodLabel = selectedMethod ? (selectedMethod.name || selectedMethod.label || selectedMethod.code) : result.value.methodId
+
   try {
     await api.updateFightResult(props.eventId, props.fight.id, {
       winner_id: winnerId || '',
-      method_details: methodDetails,
+      method_id: result.value.methodId || '',
+      method_details: methodLabel || '',
       finish_round: result.value.round || 0,
       finish_time: result.value.time || '',
     })
@@ -202,6 +216,8 @@ async function handleSave() {
     saving.value = false
   }
 }
+
+onMounted(loadMethods)
 </script>
 
 <style scoped>

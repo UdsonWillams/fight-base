@@ -165,3 +165,17 @@ class FighterStatsOutput(BaseModel):
     last_organizations: dict[str, int]  # Mudou de organizations para last_organizations
     weight_classes: dict[str, int]  # Mantém o nome, mas vem de actual_weight_class
     avg_overall_rating: float
+
+
+class WeightClassOutput(BaseModel):
+    """Schema para categoria de peso padronizada"""
+
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    name: str
+    name_pt: Optional[str] = None
+    min_weight_lbs: Optional[float] = None
+    max_weight_lbs: Optional[float] = None
+    gender: str
+    sort_order: int

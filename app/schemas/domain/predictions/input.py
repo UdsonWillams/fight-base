@@ -47,6 +47,8 @@ class LeaguePrediction(BaseModel):
 
     fight_id: UUID
     predicted_winner_id: Optional[UUID] = None
+    predicted_method_id: Optional[UUID] = None
+    predicted_round: Optional[int] = None
 
 
 class LeaguePredictionsBulk(BaseModel):

@@ -191,7 +191,7 @@ function showEventDetailsPage(event) {
                         <div class="fights-list-v2">
                             ${event.fights && event.fights.length > 0
                                 ? event.fights
-                                    .sort((a, b) => (a.fight_order || 0) - (b.fight_order || 0))
+                                    .sort((a, b) => (b.fight_order || 0) - (a.fight_order || 0))
                                     .map((fight) => renderFightCardV2(fight))
                                     .join("")
                                 : `<div class="empty-state glass-card" style="padding: 3rem;">

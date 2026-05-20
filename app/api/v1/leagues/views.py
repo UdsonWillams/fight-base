@@ -19,6 +19,7 @@ from app.schemas.domain.predictions.output import (
     LeagueResponse,
     LeagueDetailResponse,
     LeagueLeaderboardEntry,
+    LeagueEventLeaderboardEntry,
     LeaguePredictionResponse,
 )
 from app.services.domain.league import LeagueService
@@ -150,6 +151,20 @@ async def get_leaderboard(
                 rank=rank,
             )
         )
+    return entries
+
+
+@router.get(
+    "/{league_id}/leaderboard/event/{event_id}",
+    response_model=List[LeagueEventLeaderboardEntry],
+)
+async def get_event_leaderboard(
+    league_id: UUID,
+    event_id: UUID,
+    service: LeagueService = Depends(get_league_service),
+):
+    """Ranking de membros da liga para um evento específico"""
+    entries = await service.get_league_event_leaderboard(league_id, event_id)
     return entries
 
 

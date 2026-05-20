@@ -74,6 +74,16 @@ async def get_event_leaderboard(
     return [LeaderboardEntry(**entry) for entry in leaderboard]
 
 
+@router.get("/leaderboard/global")
+async def get_global_leaderboard(
+    limit: int = Query(50, ge=1, le=100),
+    service: PredictionService = Depends(get_prediction_service),
+):
+    """Retorna o ranking global de usuários com suas ligas"""
+    entries = await service.prediction_repo.get_global_leaderboard_with_users(limit)
+    return entries
+
+
 @router.get("/my/stats", response_model=UserStatsResponse)
 async def get_my_stats(
     current_user: User = Depends(get_current_user),

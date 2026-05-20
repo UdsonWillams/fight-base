@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class FinishMethodResponse(BaseModel):
@@ -82,6 +82,9 @@ class LeagueDetailResponse(BaseModel):
     active_event_name: Optional[str] = None
     active_event_date: Optional[str] = None
     active_event_fights_count: int = 0
+    active_event_status: Optional[str] = None
+    active_event_winner_name: Optional[str] = None
+    active_event_winner_points: int = 0
 
     class Config:
         from_attributes = True
@@ -91,6 +94,15 @@ class LeagueLeaderboardEntry(BaseModel):
     user_id: UUID
     username: str
     total_points: int
+    rank: Optional[int] = None
+
+
+class LeagueEventLeaderboardEntry(BaseModel):
+    user_id: UUID
+    username: str
+    total_points: int
+    total_predictions: int = 0
+    correct_winners: int = 0
     rank: Optional[int] = None
 
 
@@ -106,6 +118,8 @@ class LeaguePredictionResponse(BaseModel):
 
 
 class AchievementResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     code: str
     name: str
     description: str

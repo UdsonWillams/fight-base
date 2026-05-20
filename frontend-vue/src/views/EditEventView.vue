@@ -44,23 +44,7 @@
 
       <div class="glass-card p-6 mb-8">
         <h3 class="text-lg font-semibold text-white mb-4">Card de Lutas</h3>
-        <FightCardBuilder v-model="fights" :event-id="event.id" />
-      </div>
-
-      <div v-if="form.status === 'in_progress' || form.status === 'completed'" class="glass-card p-6 mb-8">
-        <h3 class="text-lg font-semibold text-white mb-4">Resultados das Lutas</h3>
-        <div v-if="event.fights && event.fights.length > 0" class="space-y-4">
-          <FightResultEditor
-            v-for="f in event.fights"
-            :key="f.id"
-            :event-id="event.id"
-            :fight="f"
-            :fighter1-name="f.fighter1?.name || 'TBD'"
-            :fighter2-name="f.fighter2?.name || 'TBD'"
-            @saved="onResultSaved"
-          />
-        </div>
-        <div v-else class="text-white/30 text-center py-6">Nenhuma luta cadastrada. Adicione lutas no card acima.</div>
+        <FightCardBuilder v-model="fights" :event-id="event?.id ?? ''" :event-status="form.status" :event-fights="(event?.fights || []) as any" @result-saved="onResultSaved" />
       </div>
 
       <div class="flex justify-end gap-3">
@@ -84,7 +68,6 @@ import DatePicker from 'primevue/datepicker'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
 import FightCardBuilder from '@/components/events/FightCardBuilder.vue'
-import FightResultEditor from '@/components/events/FightResultEditor.vue'
 import { useEventStore } from '@/stores/events'
 import type { FightCreate } from '@/types'
 

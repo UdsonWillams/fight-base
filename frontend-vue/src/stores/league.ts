@@ -107,7 +107,7 @@ export const useLeagueStore = defineStore('league', () => {
     }
   }
 
-  async function submitPredictions(leagueId: string, preds: { fight_id: string; predicted_winner_id: string | null }[]) {
+  async function submitPredictions(leagueId: string, preds: { fight_id: string; predicted_winner_id: string | null; predicted_method_id?: string | null; predicted_round?: number | null }[]) {
     loading.value = true
     error.value = null
     try {

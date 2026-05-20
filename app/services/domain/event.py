@@ -210,8 +210,6 @@ class EventService:
 
         await session.commit()
 
-        await self._score_leagues_for_event(event_id)
-
         ko_count = sum(1 for f in simulated_fights if f.result_type == "KO")
         sub_count = sum(1 for f in simulated_fights if f.result_type == "Submission")
         dec_count = sum(1 for f in simulated_fights if f.result_type == "Decision")
@@ -304,6 +302,8 @@ class EventService:
         """
         Atualiza o resultado real de uma luta (usado por admins).
         Marca a luta como 'completed'.
+        ATENÇÃO: O scoring de ligas e palpites deve ser disparado em background
+        pelo endpoint que chama este método.
         """
         fight = await self.fight_repo.get_by_id(fight_id)
         if not fight:
@@ -311,7 +311,7 @@ class EventService:
 
         update_data = {
             "winner_id": payload.winner_id,
-            "method_id": payload.method_id,  # Novo campo vinculado a FinishMethod
+            "method_id": payload.method_id,
             "finish_round": payload.finish_round,
             "finish_time": payload.finish_time,
             "method_details": payload.method_details,
@@ -324,7 +324,6 @@ class EventService:
             fight_id, update_data, updated_by=self.user_email
         )
 
-        # Verifica se todas as lutas do evento foram concluídas
         await self._check_and_complete_event(updated_fight.event_id)
 
         return updated_fight
@@ -338,12 +337,10 @@ class EventService:
         if not event or not event.fights:
             return
 
-        # Verifica se todas as lutas têm status 'completed' ou 'simulated'
         all_fights_done = all(
             fight.status in ["completed", "simulated"] for fight in event.fights
         )
 
-        # Se todas as lutas acabaram e o evento ainda não está marcado como completed
         if all_fights_done and event.status != "completed":
             session = await self.uow.get_session()
             event.status = "completed"
@@ -353,7 +350,6 @@ class EventService:
             logger.info(
                 f"Event {event_id} automatically marked as completed - all fights finished"
             )
-            await self._score_leagues_for_event(event_id)
 
     async def update_event(self, event_id: UUID, payload) -> Event:
         """Atualiza dados de um evento (admin-only)."""
@@ -369,8 +365,8 @@ class EventService:
         """Deleta um evento (soft delete)"""
         return await self.event_repo.delete(event_id)
 
-    async def _score_leagues_for_event(self, event_id: UUID) -> None:
-        """Percorre ligas com este evento ativo e pontua os palpites."""
+    async def score_leagues_for_event(self, event_id: UUID) -> None:
+        """Percorre ligas com este evento ativo e pontua os palpites. Pode ser chamado via background task."""
         from app.database.repositories.league import LeagueRepository
         from app.services.domain.league import LeagueService
 

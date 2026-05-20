@@ -279,6 +279,9 @@ export interface LeagueDetail {
   active_event_name: string | null
   active_event_date: string | null
   active_event_fights_count: number
+  active_event_status: string | null
+  active_event_winner_name: string | null
+  active_event_winner_points: number
 }
 
 export interface LeagueLeaderboardEntry {
@@ -295,6 +298,11 @@ export interface LeaguePrediction {
   fighter2_name: string | null
   predicted_winner_id: string | null
   predicted_winner_name: string | null
+  predicted_method_id: string | null
+  predicted_round: number | null
+  is_winner_correct: boolean | null
+  is_method_correct: boolean | null
+  is_round_correct: boolean | null
   is_correct: boolean | null
   points_earned: number
 }

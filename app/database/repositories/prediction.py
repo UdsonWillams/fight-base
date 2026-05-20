@@ -231,3 +231,57 @@ class PredictionRepository(BaseRepository[Prediction]):
         except Exception as e:
             logger.error(f"Error fetching global leaderboard: {e}")
             raise RepositoryError
+
+    async def get_global_leaderboard_with_users(self, limit: int = 50) -> list[dict]:
+        try:
+            session = await self.uow.get_session()
+            query = (
+                select(UserStats, User.username, User.name)
+                .join(User, UserStats.user_id == User.id)
+                .filter(UserStats.deleted_at.is_(None))
+                .order_by(desc(UserStats.total_points))
+                .limit(limit)
+            )
+            result = await session.execute(query)
+            rows = result.all()
+
+            from app.database.models.base import LeagueMember, League
+
+            user_ids = [row[0].user_id for row in rows]
+
+            leagues_query = (
+                select(LeagueMember.user_id, League.name)
+                .join(League, LeagueMember.league_id == League.id)
+                .filter(
+                    LeagueMember.user_id.in_(user_ids),
+                    LeagueMember.deleted_at.is_(None),
+                )
+            )
+            leagues_result = await session.execute(leagues_query)
+            leagues_rows = leagues_result.all()
+
+            user_leagues: dict = {}
+            for user_id, league_name in leagues_rows:
+                if user_id not in user_leagues:
+                    user_leagues[user_id] = []
+                user_leagues[user_id].append(league_name)
+
+            return [
+                {
+                    "user_id": stats.user_id,
+                    "username": username,
+                    "display_name": name or username,
+                    "total_points": stats.total_points,
+                    "correct_winners": stats.correct_winners,
+                    "total_predictions": stats.total_predictions,
+                    "current_streak": stats.current_streak,
+                    "best_streak": stats.best_streak,
+                    "underdog_bonus_points": stats.underdog_bonus_points,
+                    "events_participated": stats.events_participated,
+                    "leagues": user_leagues.get(stats.user_id, []),
+                }
+                for stats, username, name in rows
+            ]
+        except Exception as e:
+            logger.error(f"Error fetching global leaderboard with users: {e}")
+            raise RepositoryError

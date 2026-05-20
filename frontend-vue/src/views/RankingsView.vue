@@ -5,11 +5,11 @@
     <TabView class="glass-card !rounded-2xl" :pt="{ root: { class: '!bg-transparent' }, nav: { class: '!bg-transparent !border-b !border-white/10' }, panelContainer: { class: '!bg-transparent' } }">
       <TabPanel value="leaderboard" :header="t('rankings.leaderboard')">
         <div class="p-4">
-          <div v-if="predictionStore.loading" class="space-y-3">
+          <div v-if="loadingGlobal" class="space-y-3">
             <div v-for="i in 5" :key="i" class="h-12 bg-white/5 rounded animate-pulse" />
           </div>
 
-          <div v-else-if="predictionStore.leaderboard.length === 0" class="empty-state !py-12">
+          <div v-else-if="globalLeaderboard.length === 0" class="empty-state !py-12">
             <p class="text-lg">{{ t('rankings.noUsers') }}</p>
           </div>
 
@@ -19,18 +19,39 @@
                 <tr class="border-b border-white/10 text-left">
                   <th class="py-3 px-4 text-xs font-semibold text-white/30 uppercase tracking-wider">{{ t('rankings.rank') }}</th>
                   <th class="py-3 px-4 text-xs font-semibold text-white/30 uppercase tracking-wider">{{ t('rankings.user') }}</th>
+                  <th class="py-3 px-4 text-xs font-semibold text-white/30 uppercase tracking-wider">Ligas</th>
                   <th class="py-3 px-4 text-xs font-semibold text-white/30 uppercase tracking-wider text-right">{{ t('rankings.points') }}</th>
                   <th class="py-3 px-4 text-xs font-semibold text-white/30 uppercase tracking-wider text-right">{{ t('rankings.accuracy') }}</th>
                   <th class="py-3 px-4 text-xs font-semibold text-white/30 uppercase tracking-wider text-right">{{ t('rankings.streak') }}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(entry, idx) in predictionStore.leaderboard" :key="idx" class="border-b border-white/5 hover:bg-white/2 transition-colors">
-                  <td class="py-3 px-4"><span class="text-sm font-bold" :class="idx < 3 ? 'text-purple-400' : 'text-white/60'">#{{ idx + 1 }}</span></td>
-                  <td class="py-3 px-4 text-sm text-white/80">{{ getEntryField(entry, 'username') || getEntryField(entry, 'user_id') }}</td>
-                  <td class="py-3 px-4 text-sm font-semibold text-right" :class="getEntryNum(entry, 'points') > 0 ? 'text-green-400' : 'text-white/60'">{{ getEntryNum(entry, 'points') }}</td>
-                  <td class="py-3 px-4 text-sm text-right text-white/60">{{ formatAccuracy(getEntryNum(entry, 'accuracy')) }}</td>
-                  <td class="py-3 px-4 text-sm text-right" :class="streakClass(getEntryNum(entry, 'streak'))">{{ getEntryNum(entry, 'streak') }}</td>
+                <tr v-for="(entry, idx) in globalLeaderboard" :key="idx" class="border-b border-white/5 hover:bg-white/2 transition-colors">
+                  <td class="py-3 px-4">
+                    <span class="text-sm font-bold" :class="idx < 3 ? 'text-purple-400' : 'text-white/60'">
+                      <template v-if="idx === 0">🥇</template>
+                      <template v-else-if="idx === 1">🥈</template>
+                      <template v-else-if="idx === 2">🥉</template>
+                      <template v-else>#{{ idx + 1 }}</template>
+                    </span>
+                  </td>
+                  <td class="py-3 px-4 text-sm text-white/80">
+                    {{ entry.display_name || entry.username || entry.user_id }}
+                  </td>
+                  <td class="py-3 px-4 text-xs">
+                    <template v-if="entry.leagues && entry.leagues.length > 0">
+                      <span v-for="(l, li) in entry.leagues.slice(0, 3)" :key="li" class="inline-block px-1.5 py-0.5 rounded text-white/40 bg-white/5 mr-1 mb-1">{{ l }}</span>
+                      <span v-if="entry.leagues.length > 3" class="text-white/20 text-xs">e mais {{ entry.leagues.length - 3 }}...</span>
+                    </template>
+                    <span v-else class="text-white/20">—</span>
+                  </td>
+                  <td class="py-3 px-4 text-sm font-semibold text-right" :class="entry.total_points > 0 ? 'text-green-400' : 'text-white/60'">{{ entry.total_points }}</td>
+                  <td class="py-3 px-4 text-sm text-right text-white/60">
+                    {{ entry.total_predictions > 0 ? ((entry.correct_winners / entry.total_predictions) * 100).toFixed(1) + '%' : '-' }}
+                  </td>
+                  <td class="py-3 px-4 text-sm text-right" :class="entry.current_streak > 0 ? 'text-green-400' : entry.current_streak < 0 ? 'text-red-400' : 'text-white/60'">
+                    {{ entry.current_streak || 0 }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -74,32 +95,32 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import { usePredictionStore } from '@/stores/predictions'
+import { api } from '@/services/api'
 
 const { t } = useI18n()
 const predictionStore = usePredictionStore()
 
-function getEntryField(entry: Record<string, unknown>, field: string): string {
-  return (entry[field] as string) || ''
-}
+const globalLeaderboard = ref<any[]>([])
+const loadingGlobal = ref(false)
 
-function getEntryNum(entry: Record<string, unknown>, field: string): number {
-  return Number(entry[field]) || 0
-}
-
-function formatAccuracy(val: number): string {
-  return val ? val.toFixed(1) + '%' : '-'
-}
-
-function streakClass(val: number): string {
-  return val > 0 ? 'text-green-400' : val < 0 ? 'text-red-400' : 'text-white/60'
+async function loadGlobalLeaderboard() {
+  loadingGlobal.value = true
+  try {
+    globalLeaderboard.value = await api.getGlobalLeaderboard(10)
+  } catch {
+    globalLeaderboard.value = []
+  } finally {
+    loadingGlobal.value = false
+  }
 }
 
 onMounted(() => {
+  loadGlobalLeaderboard()
   predictionStore.fetchAchievements()
 })
 </script>

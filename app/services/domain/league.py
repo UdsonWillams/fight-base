@@ -3,13 +3,14 @@ import string
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, desc, Integer
 from sqlalchemy.orm import selectinload
 
 from app.database.models.base import (
     Event,
     Fight,
     Fighter,
+    FinishMethod,
     League,
     LeagueMember,
     Prediction,
@@ -113,6 +114,52 @@ class LeagueService:
     ) -> List[LeagueMember]:
         return await self.league_repo.get_league_members(league_id, limit)
 
+    async def get_league_event_leaderboard(
+        self, league_id: UUID, event_id: UUID, limit: int = 50
+    ) -> list[dict]:
+        session = await self.uow.get_session()
+
+        query = (
+            select(
+                Prediction.user_id,
+                func.sum(Prediction.points_earned).label("total_points"),
+                func.count(Prediction.id).label("total_predictions"),
+                func.sum(func.cast(Prediction.is_winner_correct, Integer)).label(
+                    "correct_winners"
+                ),
+            )
+            .filter(
+                Prediction.league_id == league_id,
+                Prediction.event_id == event_id,
+                Prediction.deleted_at.is_(None),
+                Prediction.processed_at.is_not(None),
+            )
+            .group_by(Prediction.user_id)
+            .order_by(desc(func.sum(Prediction.points_earned)))
+            .limit(limit)
+        )
+        result = await session.execute(query)
+        rows = result.all()
+
+        from app.database.models.base import User as UserModel
+
+        entries = []
+        for rank, row in enumerate(rows, 1):
+            user_query = select(UserModel).filter(UserModel.id == row[0])
+            user_result = await session.execute(user_query)
+            user = user_result.scalar_one_or_none()
+            entries.append(
+                {
+                    "user_id": str(row[0]),
+                    "username": user.name if user else "",
+                    "total_points": int(row[1] or 0),
+                    "total_predictions": int(row[2] or 0),
+                    "correct_winners": int(row[3] or 0),
+                    "rank": rank,
+                }
+            )
+        return entries
+
     # ── League Detail ──
     async def get_league_detail(self, league_id: UUID, current_user_id: UUID) -> dict:
         session = await self.uow.get_session()
@@ -140,13 +187,19 @@ class LeagueService:
         active_event_fights_count = 0
         active_event_name = None
         active_event_date = None
+        active_event_status = None
+        active_event_winner_name = None
+        active_event_winner_points = 0
+
         if league.active_event_id:
             event_query = select(Fight).filter(
                 Fight.event_id == league.active_event_id,
                 Fight.deleted_at.is_(None),
             )
             fights_result = await session.execute(event_query)
-            active_event_fights_count = len(fights_result.scalars().all())
+            fights_list = fights_result.scalars().all()
+            active_event_fights_count = len(fights_list)
+
             if league.active_event:
                 active_event_name = league.active_event.name
                 active_event_date = (
@@ -154,6 +207,34 @@ class LeagueService:
                     if league.active_event.date
                     else None
                 )
+                active_event_status = league.active_event.status
+
+            if active_event_status == "completed":
+                predictions_query = (
+                    select(
+                        Prediction.user_id,
+                        func.sum(Prediction.points_earned).label("total_points"),
+                    )
+                    .filter(
+                        Prediction.league_id == league_id,
+                        Prediction.event_id == league.active_event_id,
+                        Prediction.deleted_at.is_(None),
+                        Prediction.processed_at.is_not(None),
+                    )
+                    .group_by(Prediction.user_id)
+                    .order_by(desc(func.sum(Prediction.points_earned)))
+                    .limit(1)
+                )
+                preds_result = await session.execute(predictions_query)
+                top = preds_result.first()
+                if top:
+                    from app.database.models.base import User as UserModel
+
+                    user_query = select(UserModel).filter(UserModel.id == top[0])
+                    user_result = await session.execute(user_query)
+                    winner_user = user_result.scalar_one_or_none()
+                    active_event_winner_name = winner_user.name if winner_user else ""
+                    active_event_winner_points = int(top[1])
 
         return {
             "id": str(league.id),
@@ -171,6 +252,9 @@ class LeagueService:
             "active_event_name": active_event_name,
             "active_event_date": active_event_date,
             "active_event_fights_count": active_event_fights_count,
+            "active_event_status": active_event_status,
+            "active_event_winner_name": active_event_winner_name,
+            "active_event_winner_points": active_event_winner_points,
         }
 
     # ── Select Event ──
@@ -230,6 +314,10 @@ class LeagueService:
 
             if existing:
                 existing.predicted_winner_id = pred.predicted_winner_id
+                existing.predicted_method_id = getattr(
+                    pred, "predicted_method_id", None
+                )
+                existing.predicted_round = getattr(pred, "predicted_round", None)
                 existing.updated_by = str(user_id)
                 created.append(existing)
                 continue
@@ -240,6 +328,8 @@ class LeagueService:
                 event_id=league.active_event_id,
                 league_id=league_id,
                 predicted_winner_id=pred.predicted_winner_id,
+                predicted_method_id=getattr(pred, "predicted_method_id", None),
+                predicted_round=getattr(pred, "predicted_round", None),
                 created_by=str(user_id),
                 updated_by=str(user_id),
             )
@@ -294,6 +384,15 @@ class LeagueService:
                         else None
                     ),
                     "predicted_winner_name": fighter.name if fighter else None,
+                    "predicted_method_id": (
+                        str(pred.predicted_method_id)
+                        if pred.predicted_method_id
+                        else None
+                    ),
+                    "predicted_round": pred.predicted_round,
+                    "is_winner_correct": pred.is_winner_correct,
+                    "is_method_correct": pred.is_method_correct,
+                    "is_round_correct": pred.is_round_correct,
                     "is_correct": pred.is_winner_correct,
                     "points_earned": pred.points_earned or 0,
                 }
@@ -490,19 +589,78 @@ class LeagueService:
                 continue
 
             points = 0
-            pred.is_winner_correct = (
+            pred.is_winner_correct = False
+
+            fight_is_draw_nc = (
+                fight.result_type is not None
+                and fight.result_type.lower() in ("draw", "no_contest")
+            )
+
+            if pred.predicted_method_id:
+                method_query = select(FinishMethod).filter(
+                    FinishMethod.id == pred.predicted_method_id
+                )
+                method_result = await session.execute(method_query)
+                pred_method = method_result.scalar_one_or_none()
+
+                if pred_method and pred_method.code in ("DRAW", "NC"):
+                    pred.is_winner_correct = fight_is_draw_nc
+                    if pred.is_winner_correct:
+                        points += 1
+                elif (
+                    fight.winner_id is not None
+                    and pred.predicted_winner_id is not None
+                    and fight.winner_id == pred.predicted_winner_id
+                ):
+                    pred.is_winner_correct = True
+                    points += 1
+            elif (
                 fight.winner_id is not None
                 and pred.predicted_winner_id is not None
                 and fight.winner_id == pred.predicted_winner_id
+            ):
+                pred.is_winner_correct = True
+                points += 1
+
+            if (
+                pred.is_winner_correct
+                and pred.predicted_method_id
+                and fight.result_type
+            ):
+                method_query = select(FinishMethod).filter(
+                    FinishMethod.id == pred.predicted_method_id
+                )
+                method_result = await session.execute(method_query)
+                method = method_result.scalar_one_or_none()
+                pred.is_method_correct = method is not None and (
+                    method.code == fight.result_type or method.name == fight.result_type
+                )
+                if pred.is_method_correct:
+                    points += 1
+            else:
+                pred.is_method_correct = False
+
+            pred.is_round_correct = (
+                pred.is_winner_correct
+                and pred.predicted_round is not None
+                and fight.finish_round is not None
+                and pred.predicted_round == fight.finish_round
             )
+            if pred.is_round_correct:
+                points += 1
 
-            if pred.is_winner_correct:
-                points += 3
-                underdog_bonus = self._calculate_underdog_bonus(fight, pred)
-                points += underdog_bonus
+            if (
+                pred.is_winner_correct
+                and pred.is_method_correct
+                and pred.is_round_correct
+            ):
+                points += 1
 
+            old_points = pred.points_earned or 0
             pred.points_earned = points
             pred.processed_at = func.now()
+
+            delta = points - old_points
 
             member_query = select(LeagueMember).filter(
                 LeagueMember.league_id == league_id,
@@ -512,28 +670,12 @@ class LeagueService:
             member_result = await session.execute(member_query)
             member = member_result.scalar_one_or_none()
             if member:
-                member.total_points = (member.total_points or 0) + points
-                member.updated_by = "system"
+                if delta != 0:
+                    member.total_points = (member.total_points or 0) + delta
+                    member.updated_by = "system"
 
         await session.commit()
         logger.info(
             f"Liga {league_id}: {len(predictions)} palpites pontuados "
             f"para o evento {event_id}"
         )
-
-    def _calculate_underdog_bonus(self, fight: Fight, pred: Prediction) -> int:
-        prob = None
-        if fight.winner_id == fight.fighter1_id:
-            prob = fight.fighter1_probability
-        elif fight.winner_id == fight.fighter2_id:
-            prob = fight.fighter2_probability
-
-        if prob is None:
-            return 0
-        if prob < 0.3:
-            return 3
-        if prob < 0.4:
-            return 2
-        if prob < 0.5:
-            return 1
-        return 0

@@ -349,6 +349,20 @@ class FinishMethod(BaseModel):
     is_active = Column(Boolean, default=True)
 
 
+class WeightClass(BaseModel):
+    """Categorias de peso padronizadas - tabela de referência"""
+
+    __tablename__ = "weight_classes"
+
+    name = Column(String(100), nullable=False, unique=True)  # Flyweight, Bantamweight
+    name_pt = Column(String(100), nullable=True)  # Peso-mosca, Peso-galo
+    min_weight_lbs = Column(Float, nullable=True)  # 0 for open
+    max_weight_lbs = Column(Float, nullable=True)  # Peso máximo
+    gender = Column(String(10), nullable=False, default="both")  # male, female, both
+    sort_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, default=True)
+
+
 class Prediction(BaseModel):
     """Palpites de usuários para lutas de eventos"""
 

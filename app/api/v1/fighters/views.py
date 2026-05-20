@@ -18,6 +18,7 @@ from app.schemas.domain.fighters.output import (
     FighterListOutput,
     FighterOutput,
     FighterStatsOutput,
+    WeightClassOutput,
 )
 from app.services.domain.fighter import FighterService
 
@@ -54,6 +55,98 @@ async def create_fighter(
         data=data, creator_id=current_user.id, created_by=current_user.email
     )
     return FighterOutput.model_validate(fighter)
+
+
+@router.get(
+    "/weight-classes",
+    response_model=list[WeightClassOutput],
+    summary="Categorias de peso disponíveis",
+)
+async def get_weight_classes():
+    """Retorna a lista padronizada de categorias de peso disponíveis no sistema"""
+    classes = [
+        {
+            "name": "Strawweight",
+            "name_pt": "Peso-palha",
+            "min_weight_lbs": 0,
+            "max_weight_lbs": 115,
+            "gender": "female",
+            "sort_order": 1,
+        },
+        {
+            "name": "Flyweight",
+            "name_pt": "Peso-mosca",
+            "min_weight_lbs": 0,
+            "max_weight_lbs": 125,
+            "gender": "both",
+            "sort_order": 2,
+        },
+        {
+            "name": "Bantamweight",
+            "name_pt": "Peso-galo",
+            "min_weight_lbs": 0,
+            "max_weight_lbs": 135,
+            "gender": "both",
+            "sort_order": 3,
+        },
+        {
+            "name": "Featherweight",
+            "name_pt": "Peso-pena",
+            "min_weight_lbs": 0,
+            "max_weight_lbs": 145,
+            "gender": "both",
+            "sort_order": 4,
+        },
+        {
+            "name": "Lightweight",
+            "name_pt": "Peso-leve",
+            "min_weight_lbs": 0,
+            "max_weight_lbs": 155,
+            "gender": "both",
+            "sort_order": 5,
+        },
+        {
+            "name": "Welterweight",
+            "name_pt": "Peso-meio-médio",
+            "min_weight_lbs": 0,
+            "max_weight_lbs": 170,
+            "gender": "both",
+            "sort_order": 6,
+        },
+        {
+            "name": "Middleweight",
+            "name_pt": "Peso-médio",
+            "min_weight_lbs": 0,
+            "max_weight_lbs": 185,
+            "gender": "both",
+            "sort_order": 7,
+        },
+        {
+            "name": "Light Heavyweight",
+            "name_pt": "Peso-meio-pesado",
+            "min_weight_lbs": 0,
+            "max_weight_lbs": 205,
+            "gender": "both",
+            "sort_order": 8,
+        },
+        {
+            "name": "Heavyweight",
+            "name_pt": "Peso-pesado",
+            "min_weight_lbs": 205,
+            "max_weight_lbs": 265,
+            "gender": "both",
+            "sort_order": 9,
+        },
+        {
+            "name": "Catchweight",
+            "name_pt": "Peso-combinado",
+            "min_weight_lbs": None,
+            "max_weight_lbs": None,
+            "gender": "both",
+            "sort_order": 10,
+        },
+    ]
+    return [WeightClassOutput(**c) for c in classes]
 
 
 @router.get(

@@ -42,6 +42,12 @@
           <div v-if="league.active_event_date" class="text-white/30 text-xs mt-1">
             {{ new Date(league.active_event_date).toLocaleDateString('pt-BR') }} — {{ league.active_event_fights_count }} lutas
           </div>
+          <div v-if="league.active_event_status === 'completed' && league.active_event_winner_name" class="mt-2 p-2 rounded-lg flex items-center gap-2" style="background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.15);">
+            <span class="text-lg">🏆</span>
+            <span class="text-white/70 text-sm">Vencedor do evento:</span>
+            <span class="text-yellow-400 font-bold text-sm">{{ league.active_event_winner_name }}</span>
+            <span class="text-yellow-400/60 text-xs">({{ league.active_event_winner_points }} pts)</span>
+          </div>
 
           <div v-if="league.is_owner" class="mt-3">
             <Dropdown
@@ -78,13 +84,13 @@
         <div v-else>
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-white">Palpite para {{ league.active_event_name }}</h3>
-            <span v-if="eventStatus === 'completed'" class="text-green-400 text-sm font-medium">
+            <span v-if="eventStatus === 'in_progress' || eventStatus === 'completed'" class="text-green-400 text-sm font-medium">
               Total: {{ totalMyPoints }} pts
             </span>
           </div>
 
           <div v-if="eventStatus === 'scheduled' || eventStatus === 'upcoming'" class="text-white/40 text-xs mb-4">
-            Selecione o vencedor de cada luta
+            Selecione o vencedor, método e round de cada luta
           </div>
           <div v-if="eventStatus === 'in_progress'" class="text-yellow-400 text-xs mb-4">
             Evento em andamento — palpites bloqueados. Acompanhe os resultados abaixo.
@@ -98,7 +104,7 @@
               <div class="flex-1 text-right">
                 <button
                   v-if="eventStatus === 'scheduled' || eventStatus === 'upcoming'"
-                  @click="togglePick(f, f.fighter1_id)"
+                  @click="setPick(f, 'winner', f.fighter1_id)"
                   class="px-3 py-2 rounded-lg text-sm transition-all w-full"
                   :class="picks[f.id] === f.fighter1_id ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/60 hover:bg-white/10'"
                 >
@@ -113,7 +119,7 @@
               <div class="flex-1">
                 <button
                   v-if="eventStatus === 'scheduled' || eventStatus === 'upcoming'"
-                  @click="togglePick(f, f.fighter2_id)"
+                  @click="setPick(f, 'winner', f.fighter2_id)"
                   class="px-3 py-2 rounded-lg text-sm transition-all w-full"
                   :class="picks[f.id] === f.fighter2_id ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/60 hover:bg-white/10'"
                 >
@@ -123,6 +129,43 @@
                   {{ f.fighter2?.name || 'Lutador 2' }}
                   <span v-if="f.result_type && f.winner_id === f.fighter2_id" class="ml-1 text-green-400">✓</span>
                 </div>
+              </div>
+            </div>
+
+            <div v-if="eventStatus === 'scheduled' || eventStatus === 'upcoming'" class="flex items-center gap-2 mt-2">
+              <button
+                @click="setPick(f, 'winner', 'draw')"
+                class="px-2 py-1 rounded text-xs transition-all"
+                :class="picks[f.id] === 'draw' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'"
+              >
+                Empate
+              </button>
+              <button
+                @click="setPick(f, 'winner', 'no_contest')"
+                class="px-2 py-1 rounded text-xs transition-all"
+                :class="picks[f.id] === 'no_contest' ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30' : 'bg-white/5 text-white/30 hover:bg-white/10'"
+              >
+                No Contest
+              </button>
+              <div class="flex-1 flex gap-2">
+                <Select
+                  v-model="methodPicks[f.id]"
+                  :options="methodPickOptions"
+                  option-label="label"
+                  option-value="value"
+                  placeholder="Método"
+                  class="!w-[65%]"
+                  :pt="{ pcInputText: { root: { class: '!text-xs !py-1' } } }"
+                />
+                <Select
+                  v-model="roundPicks[f.id]"
+                  :options="roundPickOptions"
+                  option-label="label"
+                  option-value="value"
+                  placeholder="Round"
+                  class="!w-[35%]"
+                  :pt="{ pcInputText: { root: { class: '!text-xs !py-1' } } }"
+                />
               </div>
             </div>
 
@@ -191,36 +234,87 @@
       <!-- Tab: Ranking -->
       <div v-if="activeTab === 'ranking'" class="glass-card p-5">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-white">Ranking da Liga</h3>
-          <button class="text-xs text-white/50 hover:text-white/80" @click="loadLeaderboard">Atualizar</button>
+          <div class="flex gap-2">
+            <button
+              class="px-3 py-1.5 text-xs rounded-lg transition-colors"
+              :class="rankingTab === 'general' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-white/40 bg-white/5 border border-white/5 hover:text-white/60'"
+              @click="rankingTab = 'general'"
+            >
+              🏆 Geral
+            </button>
+            <button
+              class="px-3 py-1.5 text-xs rounded-lg transition-colors"
+              :class="rankingTab === 'event' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-white/40 bg-white/5 border border-white/5 hover:text-white/60'"
+              @click="rankingTab = 'event'; loadEventLeaderboard()"
+              :disabled="!league?.active_event_id"
+            >
+              📅 Evento Ativo
+            </button>
+          </div>
+          <button class="text-xs text-white/50 hover:text-white/80" @click="rankingTab === 'general' ? loadLeaderboard() : loadEventLeaderboard()">Atualizar</button>
         </div>
-        <div v-if="leaderboard.length === 0" class="text-white/30 text-center py-10">Nenhum ranking disponível</div>
-        <div v-else class="space-y-1">
-          <div
-            v-for="(entry, idx) in leaderboard"
-            :key="entry.user_id"
-            class="flex items-center gap-4 p-3 rounded-lg transition-colors"
-            :class="entry.user_id === authStore.user?.id ? 'bg-purple-500/10 border border-purple-500/20' : 'hover:bg-white/5'"
-          >
-            <div class="w-8 text-center font-bold text-lg">
-              <span v-if="idx === 0">🥇</span>
-              <span v-else-if="idx === 1">🥈</span>
-              <span v-else-if="idx === 2">🥉</span>
-              <span v-else class="text-white/30">{{ idx + 1 }}º</span>
-            </div>
-            <div class="flex-1">
-              <div class="flex items-center gap-2">
-                <span class="text-white font-medium">{{ entry.username }}</span>
-                <span v-if="entry.user_id === league?.owner_id" class="badge badge-yellow text-[0.6rem] !px-1.5 !py-0.5">Dono</span>
-                <span v-if="entry.user_id === authStore.user?.id" class="text-purple-400 text-xs">(você)</span>
+
+        <template v-if="rankingTab === 'general'">
+          <div v-if="leaderboard.length === 0" class="text-white/30 text-center py-10">Nenhum ranking disponível</div>
+          <div v-else class="space-y-1">
+            <div
+              v-for="(entry, idx) in leaderboard"
+              :key="entry.user_id"
+              class="flex items-center gap-4 p-3 rounded-lg transition-colors"
+              :class="entry.user_id === authStore.user?.id ? 'bg-purple-500/10 border border-purple-500/20' : 'hover:bg-white/5'"
+            >
+              <div class="w-8 text-center font-bold text-lg">
+                <span v-if="idx === 0">🥇</span>
+                <span v-else-if="idx === 1">🥈</span>
+                <span v-else-if="idx === 2">🥉</span>
+                <span v-else class="text-white/30">{{ idx + 1 }}º</span>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-medium">{{ entry.username }}</span>
+                  <span v-if="entry.user_id === league?.owner_id" class="badge badge-yellow text-[0.6rem] !px-1.5 !py-0.5">Dono</span>
+                  <span v-if="entry.user_id === authStore.user?.id" class="text-purple-400 text-xs">(você)</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-purple-400 font-bold text-lg">{{ entry.total_points }}</div>
+                <div class="text-white/30 text-xs">pts</div>
               </div>
             </div>
-            <div class="text-right">
-              <div class="text-purple-400 font-bold text-lg">{{ entry.total_points }}</div>
-              <div class="text-white/30 text-xs">pts</div>
+          </div>
+        </template>
+
+        <template v-if="rankingTab === 'event'">
+          <div v-if="!league?.active_event_id" class="text-white/30 text-center py-10">Nenhum evento ativo selecionado na liga</div>
+          <div v-else-if="eventLeaderboard.length === 0" class="text-white/30 text-center py-10">Nenhum ranking disponível para este evento</div>
+          <div v-else class="space-y-1">
+            <div
+              v-for="(entry, idx) in eventLeaderboard"
+              :key="entry.user_id"
+              class="flex items-center gap-4 p-3 rounded-lg transition-colors"
+              :class="entry.user_id === authStore.user?.id ? 'bg-purple-500/10 border border-purple-500/20' : 'hover:bg-white/5'"
+            >
+              <div class="w-8 text-center font-bold text-lg">
+                <span v-if="idx === 0">🥇</span>
+                <span v-else-if="idx === 1">🥈</span>
+                <span v-else-if="idx === 2">🥉</span>
+                <span v-else class="text-white/30">{{ idx + 1 }}º</span>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-medium">{{ entry.username }}</span>
+                  <span v-if="entry.user_id === league?.owner_id" class="badge badge-yellow text-[0.6rem] !px-1.5 !py-0.5">Dono</span>
+                  <span v-if="entry.user_id === authStore.user?.id" class="text-purple-400 text-xs">(você)</span>
+                </div>
+                <div class="text-white/40 text-xs">Acertos: {{ entry.correct_winners }}/{{ entry.total_predictions }}</div>
+              </div>
+              <div class="text-right">
+                <div class="text-purple-400 font-bold text-lg">{{ entry.total_points }}</div>
+                <div class="text-white/30 text-xs">pts</div>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
       </div>
 
       <!-- Tab: Conquistas -->
@@ -283,6 +377,7 @@ import { useToast } from 'primevue/usetoast'
 import InputText from 'primevue/inputtext'
 import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
+import Select from 'primevue/select'
 import { useLeagueStore } from '@/stores/league'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/services/api'
@@ -299,6 +394,18 @@ const loading = ref(true)
 const league = ref<LeagueDetail | null>(null)
 const fights = ref<any[]>([])
 const picks = ref<Record<string, string | null>>({})
+const methodPicks = ref<Record<string, string | null>>({})
+const roundPicks = ref<Record<string, number | null>>({})
+const methodPickOptions = ref<{ label: string; value: string }[]>([])
+const drawMethodId = ref<string | null>(null)
+const ncMethodId = ref<string | null>(null)
+const roundPickOptions = [
+  { label: 'R1', value: 1 },
+  { label: 'R2', value: 2 },
+  { label: 'R3', value: 3 },
+  { label: 'R4', value: 4 },
+  { label: 'R5', value: 5 },
+]
 const submitting = ref(false)
 const submitError = ref('')
 const submitOk = ref('')
@@ -307,10 +414,13 @@ const selectedEventId = ref<string | null>(null)
 const availableEvents = ref<any[]>([])
 const activeTab = ref('predict')
 const leaderboard = ref<any[]>([])
+const eventLeaderboard = ref<any[]>([])
 const achievements = ref<any[]>([])
 const eventStatus = ref<string>('')
 const memberSearch = ref('')
 const eventHistory = ref<any[]>([])
+const rankingTab = ref('general')
+const myPredictionPoints = ref<Record<string, number>>({})
 
 const tabs = [
   { id: 'predict', label: 'Palpitar' },
@@ -370,34 +480,41 @@ const filteredMembers = computed(() => {
 })
 
 const totalMyPoints = computed(() => {
-  if (!fights.value.length) return 0
   let total = 0
-  for (const f of fights.value) {
-    total += getFightPoints(f)
+  for (const fightId of Object.keys(myPredictionPoints.value)) {
+    total += myPredictionPoints.value[fightId]
   }
   return total
 })
 
 function getFighterResultClass(fight: any, fighterId: string) {
-  if (!fight.result_type) {
+  if (fight.winner_id === fighterId) {
+    return 'bg-green-500/10 text-green-400 border border-green-500/30'
+  }
+  if (picks.value[fight.id] === 'draw' || picks.value[fight.id] === 'no_contest') {
+    return 'bg-white/5 text-white/40'
+  }
+  if (!fight.result_type && !fight.winner_id) {
     if (picks.value[fight.id] === fighterId) {
       return 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
     }
     return 'bg-white/5 text-white/60'
   }
-  if (fight.winner_id === fighterId) {
-    return 'bg-green-500/10 text-green-400 border border-green-500/30'
+  if (fight.winner_id && fight.winner_id !== fighterId) {
+    return 'bg-white/5 text-white/40'
   }
-  return 'bg-white/5 text-white/40'
+  return 'bg-white/5 text-white/60'
 }
 
 function isPickCorrect(fight: any): boolean {
-  if (!fight.winner_id || !picks.value[fight.id]) return false
+  if (!picks.value[fight.id]) return false
+  if (picks.value[fight.id] === 'draw') return fight.result_type?.toLowerCase() === 'draw'
+  if (picks.value[fight.id] === 'no_contest') return fight.result_type?.toLowerCase() === 'no_contest'
   return picks.value[fight.id] === fight.winner_id
 }
 
 function getFightPoints(fight: any): number {
-  return isPickCorrect(fight) ? 1 : 0
+  return myPredictionPoints.value[fight.id] || 0
 }
 
 async function loadData() {
@@ -410,12 +527,16 @@ async function loadData() {
       await loadFights(league.value.active_event_id)
       await loadMyPredictions(id)
     }
+    if (league.value.active_event_status) {
+      eventStatus.value = league.value.active_event_status
+    }
     if (league.value.is_owner) {
       await loadAvailableEvents()
     }
     await loadLeaderboard()
     await loadAchievements()
     await loadEventHistory(id)
+    await loadMethodPickOptions()
   } catch {
     toast.add({ severity: 'error', summary: 'Erro', detail: 'Liga não encontrada', life: 3000 })
   } finally {
@@ -423,10 +544,30 @@ async function loadData() {
   }
 }
 
+async function loadMethodPickOptions() {
+  try {
+    const methods = await api.getFinishMethods()
+    drawMethodId.value = null
+    ncMethodId.value = null
+    for (const m of methods) {
+      if (m.code === 'DRAW') drawMethodId.value = m.id || m.code
+      if (m.code === 'NC') ncMethodId.value = m.id || m.code
+    }
+    const seen = new Set<string>()
+    methodPickOptions.value = []
+    for (const m of methods) {
+      const key = m.code
+      if (seen.has(key)) continue
+      seen.add(key)
+      methodPickOptions.value.push({ label: m.name_pt || m.name, value: m.id || m.code })
+    }
+  } catch { /* ignore */ }
+}
+
 async function loadFights(eventId: string) {
   try {
     const event = await api.getEvent(eventId)
-    fights.value = event.fights || []
+    fights.value = (event.fights || []).sort((a: any, b: any) => (b.fight_order || 0) - (a.fight_order || 0))
     eventStatus.value = event.status || ''
   } catch { /* ignore */ }
 }
@@ -434,10 +575,12 @@ async function loadFights(eventId: string) {
 async function loadAvailableEvents() {
   try {
     const events = await api.getEvents({ order_by: 'date_desc' } as any)
-    availableEvents.value = (events || []).map((e: any) => ({
-      id: e.id,
-      label: `${e.name} (${new Date(e.date).toLocaleDateString('pt-BR')})`,
-    }))
+    availableEvents.value = (events || [])
+      .filter((e: any) => e.status === 'scheduled' || e.status === 'upcoming' || e.status === 'in_progress')
+      .map((e: any) => ({
+        id: e.id,
+        label: `${e.name} (${new Date(e.date).toLocaleDateString('pt-BR')})`,
+      }))
   } catch { /* ignore */ }
 }
 
@@ -445,23 +588,43 @@ async function loadMyPredictions(leagueId: string) {
   try {
     const preds = await api.getMyLeaguePredictions(leagueId)
     const newPicks: Record<string, string | null> = {}
+    const newMethodPicks: Record<string, string | null> = {}
+    const newRoundPicks: Record<string, number | null> = {}
+    const points: Record<string, number> = {}
     for (const p of preds) {
       if (p.predicted_winner_id) {
         newPicks[p.fight_id] = p.predicted_winner_id
       }
+      if (p.predicted_method_id) {
+        newMethodPicks[p.fight_id] = p.predicted_method_id
+      }
+      if (p.predicted_round != null) {
+        newRoundPicks[p.fight_id] = p.predicted_round
+      }
+      points[p.fight_id] = p.points_earned || 0
     }
     picks.value = newPicks
+    methodPicks.value = newMethodPicks
+    roundPicks.value = newRoundPicks
+    myPredictionPoints.value = points
   } catch { /* ignore */ }
 }
 
-function togglePick(fight: any, fighterId: string) {
-  const current = { ...picks.value }
-  if (current[fight.id] === fighterId) {
-    delete current[fight.id]
-  } else {
-    current[fight.id] = fighterId
+function setPick(fight: any, type: string, value: string) {
+  if (type === 'winner') {
+    const current = { ...picks.value }
+    if (current[fight.id] === value) {
+      delete current[fight.id]
+    } else {
+      current[fight.id] = value
+    }
+    picks.value = current
+    if (value === 'draw') {
+      methodPicks.value = { ...methodPicks.value, [fight.id]: drawMethodId.value }
+    } else if (value === 'no_contest') {
+      methodPicks.value = { ...methodPicks.value, [fight.id]: ncMethodId.value }
+    }
   }
-  picks.value = current
 }
 
 async function submitPicks() {
@@ -472,7 +635,9 @@ async function submitPicks() {
   try {
     const preds = Object.entries(picks.value).map(([fight_id, predicted_winner_id]) => ({
       fight_id,
-      predicted_winner_id: predicted_winner_id || null,
+      predicted_winner_id: (predicted_winner_id === 'draw' || predicted_winner_id === 'no_contest') ? null : (predicted_winner_id || null),
+      predicted_method_id: methodPicks.value[fight_id] || null,
+      predicted_round: roundPicks.value[fight_id] || null,
     }))
     await leagueStore.submitPredictions(league.value.id, preds)
     submitOk.value = 'Palpites salvos!'
@@ -488,6 +653,13 @@ async function loadLeaderboard() {
   if (!league.value) return
   try {
     leaderboard.value = await api.getLeagueLeaderboard(league.value.id)
+  } catch { /* ignore */ }
+}
+
+async function loadEventLeaderboard() {
+  if (!league.value?.active_event_id) return
+  try {
+    eventLeaderboard.value = await api.getLeagueEventLeaderboard(league.value.id, league.value.active_event_id)
   } catch { /* ignore */ }
 }
 
@@ -507,12 +679,15 @@ const hardcodedAchievements = [
 async function loadAchievements() {
   try {
     const unlocked = await api.getAchievements()
+    if (!Array.isArray(unlocked)) throw new Error('invalid')
     const merged = hardcodedAchievements.map((def: any) => {
       const found = unlocked.find((u: any) => u.code === def.code)
       return { ...def, unlocked_at: found?.unlocked_at || null }
     })
     achievements.value = merged
-  } catch { /* ignore */ }
+  } catch {
+    achievements.value = hardcodedAchievements.map((d) => ({ ...d, unlocked_at: null }))
+  }
 }
 
 async function loadEventHistory(leagueId: string) {

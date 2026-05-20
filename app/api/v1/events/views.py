@@ -76,15 +76,16 @@ async def update_fight_result(
 ):
     """
     Admin define o resultado real de uma luta.
-    Dispara background task para processar os palpites dos usuários.
+    Dispara background tasks para pontuar ligas, processar palpites e atualizar conquistas.
     """
     try:
         updated_fight = await service.update_fight_result(fight_id, payload)
 
-        # Disparar background task para processar palpites
+        background_tasks.add_task(
+            service.score_leagues_for_event, updated_fight.event_id
+        )
         background_tasks.add_task(prediction_service.process_fight_results, fight_id)
 
-        # Converter para response mantendo a consistência da API
         return await service._fight_to_response(updated_fight)
     except Exception as e:
         raise HTTPException(
@@ -252,6 +253,7 @@ async def add_fight_to_event(
 )
 async def simulate_event(
     event_id: UUID,
+    background_tasks: BackgroundTasks,
     service: EventService = Depends(get_event_service),
 ):
     """
@@ -268,6 +270,9 @@ async def simulate_event(
     try:
         logger.info(f"Usuário solicitou simulação do evento {event_id}")
         result = await service.simulate_event(event_id)
+
+        background_tasks.add_task(service.score_leagues_for_event, event_id)
+
         return result
     except Exception as e:
         raise HTTPException(

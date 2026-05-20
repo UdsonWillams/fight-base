@@ -22,7 +22,9 @@ import type {
   LoginResponse,
 } from '@/types'
 
-const API_BASE_URL = 'https://fight-base-api.onrender.com/api/v1'
+const API_BASE_URL = 'http://localhost:8080/api/v1'
+
+// const API_BASE_URL = 'https://fight-base-api.onrender.com/api/v1'
 
 class ApiClient {
   private baseURL: string
@@ -279,7 +281,7 @@ class ApiClient {
   async updateFightResult(
     eventId: string,
     fightId: string,
-    data: { winner_id: string; method_details: string; finish_round: number; finish_time: string }
+    data: { winner_id: string; method_id: string; method_details: string; finish_round: number; finish_time: string }
   ): Promise<any> {
     return this.request(`/events/${eventId}/fights/${fightId}/result`, {
       method: 'PUT',
@@ -320,6 +322,10 @@ class ApiClient {
     return this.request(`/predictions/leaderboard/event/${eventId}?limit=${limit}`)
   }
 
+  async getGlobalLeaderboard(limit = 50): Promise<any[]> {
+    return this.request(`/predictions/leaderboard/global?limit=${limit}`)
+  }
+
   async getUserStats(): Promise<UserPredictionStats> {
     return this.request('/predictions/my/stats')
   }
@@ -330,6 +336,10 @@ class ApiClient {
 
   async getFinishMethods(): Promise<any[]> {
     return this.request('/predictions/finish-methods')
+  }
+
+  async getWeightClasses(): Promise<any[]> {
+    return this.request('/fighters/weight-classes')
   }
 
   // ── Leagues ──
@@ -368,7 +378,11 @@ class ApiClient {
     return this.request(`/leagues/${leagueId}/leaderboard`)
   }
 
-  async createLeaguePredictions(leagueId: string, predictions: { fight_id: string; predicted_winner_id: string | null }[]): Promise<LeaguePrediction[]> {
+  async getLeagueEventLeaderboard(leagueId: string, eventId: string): Promise<any[]> {
+    return this.request(`/leagues/${leagueId}/leaderboard/event/${eventId}`)
+  }
+
+  async createLeaguePredictions(leagueId: string, predictions: { fight_id: string; predicted_winner_id: string | null; predicted_method_id?: string | null; predicted_round?: number | null }[]): Promise<LeaguePrediction[]> {
     return this.request(`/leagues/${leagueId}/predictions`, {
       method: 'POST',
       body: JSON.stringify({ predictions }),

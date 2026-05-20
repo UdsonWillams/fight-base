@@ -550,8 +550,8 @@ class UFCDatasetImporter:
         Importa lutas do arquivo fight_details.csv.
 
         Usa abordagem em duas passadas:
-        1. Conta quantas lutas cada evento tem (para calcular fight_order).
-        2. Importa as lutas com fight_order decrescente (luta principal = 1).
+        1. Conta quantas lutas cada evento tem.
+        2. Importa as lutas com fight_order crescente (luta principal = 1).
 
         Também normaliza o método de vitória (KO/TKO, Submission, Decision, Draw)
         e popula estatísticas detalhadas para ambos os corners (red e blue).
@@ -573,13 +573,15 @@ class UFCDatasetImporter:
                 for erow in ereader:
                     eid = erow.get("event_id", "").strip()
                     estatus = erow.get("event_status", "completed").strip()
+                    if not estatus:
+                        estatus = "completed"
                     if eid and eid not in event_status_map:
                         event_status_map[eid] = estatus
         except FileNotFoundError:
             pass
 
         # Primeira passada: contar quantas lutas cada evento tem.
-        # Necessário para atribuir fight_order decrescente (main event = 1).
+        # Necessário para validação, mas fight_order será crescente (main event = 1).
         event_fight_counts = {}
         with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -588,7 +590,7 @@ class UFCDatasetImporter:
                 if eid and eid in self.event_id_map:
                     event_fight_counts[eid] = event_fight_counts.get(eid, 0) + 1
 
-        # Segunda passada: importar lutas com fight_order decrescente
+        # Segunda passada: importar lutas com fight_order crescente
         with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
 
@@ -606,15 +608,14 @@ class UFCDatasetImporter:
 
                     event_uuid = self.event_id_map[event_id]
 
-                    # Determinar ordem da luta no evento (decrescente: N, N-1, ..., 1).
-                    # A primeira luta do evento recebe o número total de lutas,
-                    # a última (main event) recebe 1. Calculado ANTES da verificação
+                    # Determinar ordem da luta no evento (crescente: 1, 2, ..., N).
+                    # A primeira luta do CSV (main event) recebe 1,
+                    # a última recebe o número total de lutas. Calculado ANTES da verificação
                     # de existing para manter a sequência correta mesmo com updates.
                     if event_uuid not in fight_order:
-                        total = event_fight_counts.get(event_id, 1)
-                        fight_order[event_uuid] = total
+                        fight_order[event_uuid] = 1
                     else:
-                        fight_order[event_uuid] -= 1
+                        fight_order[event_uuid] += 1
 
                     current_order = fight_order[event_uuid]
 
@@ -1155,26 +1156,19 @@ class UFCDatasetImporter:
                 finish_rate = ((ko_wins + sub_wins) / wins * 100) if wins > 0 else 0
                 strike_diff = slpm - sapm  # Diferencial de golpes (positivo = bom)
 
-                # --- Cálculo dos 6 atributos (escala 0-100, valor mínimo garantido) ---
+                # --- Cálculo dos 6 atributos (escala 0-100) ---
+                # Distribuição esperada: elite 80-90, bom 65-80, médio 50-65, ruim 35-50
 
-                # Striking: volume (SLpM * 18) + precisão (str_acc * 0.4) + knockdowns (kd_avg * 10)
-                # + capacidade de finalizar (finish_rate * 0.25) + diferencial positivo (strike_diff * 3)
                 striking = min(100, int(
-                    slpm * 18 + str_acc * 0.4 + kd_avg * 10 + finish_rate * 0.25 + max(0, strike_diff) * 3
+                    slpm * 9 + str_acc * 0.45 + kd_avg * 9 + finish_rate * 0.12 + max(0, strike_diff) * 2
                 ))
-                # Grappling: quedas (td_avg * 25) + submissões (sub_avg * 35) + finish_rate * 0.20
-                # + eficiência ofensiva de quedas (td_avg - taxa de defesa do oponente)
                 grappling = min(100, int(
-                    td_avg * 25 + sub_avg * 35 + finish_rate * 0.20 + (td_avg - (1 - td_def / 100)) * 5
+                    td_avg * 13 + sub_avg * 22 + finish_rate * 0.12 + max(0, td_avg - 0.5) * 3
                 ))
-                # Defense: média ponderada de defesa de golpes (70%) e defesa de quedas (60%)
-                defense = min(100, int(str_def * 0.7 + td_def * 0.6))
-                # Stamina: base 65 + bônus por experiência (+0.8/luta) + bônus por win_rate
-                stamina = min(100, int(65 + total_fights * 0.8 + win_rate * 0.25))
-                # Speed: volume (SLpM * 16) + precisão (str_acc * 0.4) + knockdowns (kd_avg * 5)
-                speed = min(100, int(slpm * 16 + str_acc * 0.4 + kd_avg * 5))
-                # Strategy: base 55 + bônus por experiência (+0.6/luta) + bônus por win_rate
-                strategy = min(100, int(55 + total_fights * 0.6 + win_rate * 0.30))
+                defense = min(100, int(str_def * 0.45 + td_def * 0.38))
+                stamina = min(100, int(45 + total_fights * 0.4 + win_rate * 0.22))
+                speed = min(100, int(slpm * 8 + str_acc * 0.45 + kd_avg * 5))
+                strategy = min(100, int(40 + total_fights * 0.35 + win_rate * 0.22))
 
                 fighter.striking = striking
                 fighter.grappling = grappling

@@ -3,7 +3,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import desc, select
+from sqlalchemy import case, desc, select
 from sqlalchemy.orm import selectinload
 
 from app.database.models.base import Event, Fight
@@ -67,19 +67,27 @@ class EventRepository(BaseRepository[Event]):
         if organization:
             query = query.filter(self.model.organization.ilike(f"%{organization}%"))
 
-        # Aplica ordenação
+        status_priority = case(
+            (self.model.status == "in_progress", 1),
+            (self.model.status == "scheduled", 2),
+            (self.model.status == "upcoming", 2),
+            (self.model.status == "completed", 3),
+            (self.model.status == "cancelled", 4),
+            else_=5,
+        )
+
         if order_by == "created_at":
-            query = query.order_by(desc(self.model.created_at))
+            query = query.order_by(status_priority, desc(self.model.created_at))
         elif order_by == "date_desc":
-            query = query.order_by(desc(self.model.date))
+            query = query.order_by(status_priority, desc(self.model.date))
         elif order_by == "date_asc":
-            query = query.order_by(self.model.date)
+            query = query.order_by(status_priority, self.model.date)
         elif order_by == "name_asc":
-            query = query.order_by(self.model.name)
+            query = query.order_by(status_priority, self.model.name)
         elif order_by == "name_desc":
-            query = query.order_by(desc(self.model.name))
+            query = query.order_by(status_priority, desc(self.model.name))
         else:
-            query = query.order_by(desc(self.model.created_at))  # Padrão
+            query = query.order_by(status_priority, desc(self.model.created_at))
 
         query = query.offset(skip).limit(limit)
         result = await session.execute(query)
