@@ -22,9 +22,9 @@ import type {
   LoginResponse,
 } from '@/types'
 
-const API_BASE_URL = 'http://localhost:8080/api/v1'
+// const API_BASE_URL = 'http://localhost:8080/api/v1'
 
-// const API_BASE_URL = 'https://fight-base-api.onrender.com/api/v1'
+const API_BASE_URL = 'https://fight-base-api.onrender.com/api/v1'
 
 class ApiClient {
   private baseURL: string

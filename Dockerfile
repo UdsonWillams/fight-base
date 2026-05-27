@@ -1,5 +1,5 @@
 # Pull official latest Python Docker image
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
